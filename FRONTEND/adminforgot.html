@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="adminstyle.css">
+</head>
+ 
+    <style>
+      .box {
+        width: 500px;
+        height: 500px;
+        background-image: url('profile.png');
+        background-size: cover;
+        background-position: center 40px;
+      }
+    </style>
+<body>
+
+<div class="container">
+
+  <div class="left">
+    <div class="card">
+      <div class="reset"></div>
+            <h1 class="comfort-title">Reset Password</h1><br>
+          <form class="comfort-form" id="resetForm" novalidate>
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="email" id="email" name="email" required autocomplete="email" placeholder=" ">
+                        <label for="email">Email address</label>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="emailError"></span>
+                </div>
+                <button type="submit" class="comfort-button">
+                    <div class="button-background"></div>
+                    <span class="button-text">Verify Email</span>
+                    <div class="button-loader">
+                        <div class="gentle-spinner">
+                            <div class="spinner-circle"></div>
+                        </div>
+                    </div>
+                    <div class="button-glow"></div>
+                </button>
+            </form>
+      <a href="adminlogin.html" class="comfort-link">Back to Login</a>
+    </div>
+  </div> 
+    
+  <div class="right">
+    <div class="box"></div>
+  </div> 
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="adminforgot.js"></script>
+</body>
+</html>

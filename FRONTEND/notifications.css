@@ -1,0 +1,86 @@
+/* --- กระดิ่งแจ้งเตือน: dropdown แสดงรายการแจ้งเตือนจริง --- */
+
+.noti-dropdown {
+    display: none;
+    position: absolute;
+    top: 46px;
+    right: 0;
+    width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 16px;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.15);
+    z-index: 999;
+    text-align: left;
+    padding: 8px;
+    font-family: 'Kanit', sans-serif;
+}
+
+.noti-dropdown.open {
+    display: block;
+}
+
+.noti-dropdown-title {
+    font-weight: bold;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+}
+
+.noti-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    align-items: flex-start;
+}
+
+.noti-item:hover {
+    background: #f5f5f5;
+}
+
+.noti-item-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.noti-item-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+}
+
+.noti-item-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+}
+
+.noti-empty {
+    padding: 24px 10px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+}
+
+/* dark mode */
+html.dark-mode body .noti-dropdown {
+    background: #1f2328;
+    border-color: #555;
+}
+
+html.dark-mode body .noti-dropdown-title {
+    color: #f0f0f0;
+    border-bottom-color: #444;
+}
+
+html.dark-mode body .noti-item-text {
+    color: #ddd;
+}
+
+html.dark-mode body .noti-item:hover {
+    background: #2a2e33;
+}

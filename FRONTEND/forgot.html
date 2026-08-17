@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>forgot password</title>
+  <link rel="stylesheet" href="style.css">
+
+    <style>
+      .box {
+        width: 500px;
+        height: 500px;
+        background-image: url('img/logo_dogcry.gif');
+        background-size: cover;
+        background-position: center 40px;
+      }
+      .dev-reset-link {
+        margin-top: 12px;
+        font-size: 0.85rem;
+        word-break: break-all;
+      }
+    </style>
+    <link rel="stylesheet" href="cursor.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="left">
+    <div class="card">
+      <div class="reset"></div>
+            <h1 class="comfort-title">Reset Password</h1><br>
+          <p class="gentle-subtitle" id="formSubtitle">กรอกอีเมลที่ใช้สมัครสมาชิก แล้วเราจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ให้</p>
+          <form class="comfort-form" id="resetForm" novalidate>
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="email" id="email" name="email" required autocomplete="email" placeholder=" ">
+                        <label for="email">Email address</label>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="emailError"></span>
+                </div>
+                <button type="submit" class="comfort-button" id="submitBtn">
+                    <div class="button-background"></div>
+                    <span class="button-text">Verify Email</span>
+                    <div class="button-loader">
+                        <div class="gentle-spinner">
+                            <div class="spinner-circle"></div>
+                        </div>
+                    </div>
+                    <div class="button-glow"></div>
+                </button>
+            </form>
+            <p class="gentle-error" id="successMessage" style="color: seagreen; display: none;"></p>
+            <a href="#" id="devResetLink" class="comfort-link dev-reset-link" style="display: none;" target="_blank" rel="noopener"></a>
+      <a href="login.html" class="comfort-link">Back to Login</a>
+    </div>
+  </div> 
+    
+  <div class="right">
+    <div class="box"></div>
+  </div> 
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const form = document.getElementById("resetForm");
+const submitBtn = document.getElementById("submitBtn");
+const emailError = document.getElementById("emailError");
+const successMessage = document.getElementById("successMessage");
+const devResetLink = document.getElementById("devResetLink");
+
+form.addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  emailError.textContent = "";
+  successMessage.style.display = "none";
+  devResetLink.style.display = "none";
+
+  const email = document.getElementById("email").value.trim();
+
+  submitBtn.classList.add("loading");
+  submitBtn.disabled = true;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      emailError.textContent = data.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+      return;
+    }
+
+    successMessage.textContent = data.message;
+    successMessage.style.display = "block";
+    form.reset();
+
+    if (data.devResetUrl) {
+      devResetLink.href = data.devResetUrl;
+      devResetLink.textContent = "🔧 [Dev only] คลิกที่นี่เพื่อไปหน้าตั้งรหัสผ่านใหม่: " + data.devResetUrl;
+      devResetLink.style.display = "block";
+    }
+  } catch (err) {
+    console.error("Forgot password request failed:", err);
+    emailError.textContent = "เชื่อมต่อ server ไม่ได้ กรุณาลองใหม่อีกครั้ง";
+  } finally {
+    submitBtn.classList.remove("loading");
+    submitBtn.disabled = false;
+  }
+});
+</script>
+    <script src="cursor.js"></script>
+</body>
+</html>

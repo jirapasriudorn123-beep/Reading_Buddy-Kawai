@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=20260812">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="cursor.css">
+    <link rel="stylesheet" href="notifications.css">
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="profile-area">
+            <div class="avatar-circle">
+                <img src="img/NEW_LOGO.png" alt="puppy" width="50" height="50"> </div>
+        </div>
+
+          <nav class="menu">
+            <a href="index.html" class="menu-item active">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+                <span class="menu-label">หน้าหลัก</span>
+            </a>
+            <a href="Pet.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="17" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2.2" ry="3"/><ellipse cx="19.5" cy="10" rx="2.2" ry="3"/><ellipse cx="8.5" cy="5.5" rx="2" ry="2.8"/><ellipse cx="15.5" cy="5.5" rx="2" ry="2.8"/></svg></span>
+                <span class="menu-label">สัตว์เลี้ยง</span>
+            </a>
+            <a href="Shop.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a6 6 0 0 1 12 0v2"/><rect x="3" y="8" width="18" height="13" rx="2"/></svg></span>
+                <span class="menu-label">ร้านค้า</span>
+            </a>
+            <a href="Dashboard.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1"/></svg></span>
+                <span class="menu-label">แดชบอร์ด</span>
+            </a>
+        </nav>
+        <div class="bottom-menu">
+            <a href="setting.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                <span class="menu-label">ตั่งค่า</span>
+            </a>
+            <a href="#" class="menu-item" id="logoutBtn">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+                <span class="menu-label">ลงชื่อออก</span>
+            </a>
+        </div>
+        <button class="toggle-btn" id="toggleBtn">
+        <span class="arrow-icon">◀</span>
+    </button>
+
+    <nav class="menu">
+        </nav>
+    </aside>
+    <main class="main-content">
+        <header class="top-nav">
+<div class="user-welcome">
+<h2>สวัสดี, <span id="usernameDisplay"></span></h2>
+<div class="goal-wrapper">
+        <button id="openModalBtn" class="goal-btn-main">ตั้งเป้าหมายเวลาอ่าน</button>
+
+    <div id="goalModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title">ตั้งเป้าหมายเวลาการอ่าน</h2>
+
+            <div class="time-input-container">
+                <div class="time-box">
+                    <input type="number" id="minutesInput" placeholder=" " min="0" max="120" class="time-field">
+                </div>
+                <div class="time-separator">
+                    <span class="colon-dot">:</span>
+                    <span class="colon-dot">:</span>
+                </div>
+                <div class="time-box">
+                    <input type="number" id="secondsInput" placeholder=" " min="0" max="59" class="time-field">
+                </div>
+            </div>
+            <p class="limit-note">(ตั้งได้สูงสุด 120 นาที 00 วินาที)</p>
+            <p class="gentle-error" id="goalError" style="display:none;"></p>
+            <button id="confirmBtn" class="confirm-btn">ยืนยัน</button>
+        </div>
+    </div>
+</div>
+</div>
+    <div class="user-stats">
+        <div class="coin-pill">
+            <img src="img/coin_ja.png" alt="เหรียญ" class="coin-icon-img">
+            <span class="coin-amount-badge" id="coinAmount">...</span>
+        </div>
+        <div class="noti-icon-wrap">
+            <img src="img/bell-icon.png" alt="แจ้งเตือน" class="noti-icon-img">
+            <span class="noti-badge">1</span>
+        </div>
+        <div id="themeToggleSlot"></div>
+    </div>
+</header>
+        <section class="lesson-container">
+            <h2 class="main-title">การคิดเชิงคำนวณและการแก้ปัญหาเชิงตรรกะ (Computataional Thinking and Logical Problem Solving)</h2>
+
+<div id="chapterModal" class="modal-overlay">
+    <div class="timer-modal-content">
+        <h2 class="timer-modal-title">ตั้งเวลาอ่าน</h2>
+        <p id="modalChapterTitle" class="timer-chapter-info"></p>
+
+        <div class="time-sections-grid">
+            <div class="time-section-block">
+                <div class="time-header-label start-label">เริ่ม</div>
+                <div class="timer-input-group">
+                    <input type="number" id="chapterMinutes" placeholder=" " min="10" max="120" class="time-field">
+                    <span class="time-colon">:</span>
+                    <input type="number" id="chapterSeconds" placeholder=" " min="0" max="59" class="time-field">
+                </div>
+            </div>
+
+            <div class="time-section-block">
+                <div class="time-header-label break-label">พัก</div>
+                <div class="timer-input-group">
+                    <input type="number" id="breakMinutes" placeholder=" " min="0" max="120" class="time-field">
+                    <span class="time-colon">:</span>
+                    <input type="number" id="breakSeconds" placeholder=" " min="0" max="59" class="time-field">
+                </div>
+            </div>
+        </div>
+        <p class="gentle-error" id="chapterError" style="display:none;"></p>
+
+        <div class="timer-action-group">
+            <button id="startReadingBtn" class="timer-btn-confirm">เริ่มจับเวลา</button>
+            <button id="cancelReadingBtn" class="timer-btn-cancel">ยกเลิก</button>
+        </div>
+    </div>
+</div>
+
+<div id="readerView" class="reader-view" style="display:none;">
+    <div class="reader-toolbar">
+        <div class="reader-timer-group">
+            <span class="reader-timer-icon">⏱️</span>
+            <input type="number" id="readerMinutes" class="reader-time-input" disabled>
+            <span class="time-colon">:</span>
+            <input type="number" id="readerSeconds" class="reader-time-input" disabled>
+            <button type="button" id="readerExtendBtn" class="time-add-btn">+5</button>
+        </div>
+        <div class="reader-timer-group">
+            <span class="reader-timer-icon">☕</span>
+            <input type="number" id="readerBreakMinutes" class="reader-time-input" disabled>
+            <span class="time-colon">:</span>
+            <input type="number" id="readerBreakSeconds" class="reader-time-input" disabled>
+        </div>
+        <button id="readerStartStopBtn" class="reader-startstop-btn is-running">หยุด</button>
+    </div>
+    <p class="reader-error" id="readerError" style="display:none;"></p>
+
+    <iframe id="readerPdfFrame" class="reader-pdf-frame" title="เนื้อหาบทเรียน"></iframe>
+    <div id="readerPdfPlaceholder" class="reader-pdf-frame reader-pdf-placeholder" style="display:none;">
+        ยังไม่มีไฟล์ PDF สำหรับบทนี้<br>กำลังเตรียมให้เร็วๆ นี้ 📄
+    </div>
+</div>
+
+            <div class="chapter-scroll-wrapper" id="chapterScrollWrapper">
+            <div class="chapter-grid" id="chapterGrid">
+                <!-- การ์ด chapter จะถูกสร้างด้วย JS จากข้อมูลที่ดึงมาจาก backend -->
+            </div>
+            </div>
+        </section>
+    </main>
+</div>
+</div>
+<script src="config.js"></script>
+<script src="notifications.js"></script>
+<script src="script.js?v=20260812"></script>
+<script src="theme.js"></script>
+<script src="chat.js"></script>
+    <script src="cursor.js"></script>
+</body>
+</html>

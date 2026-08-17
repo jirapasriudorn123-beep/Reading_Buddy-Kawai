@@ -1,0 +1,971 @@
+/* ================== Phayao Adventure: สไตล์เกม ================== */
+/* ตอนนี้มีแค่ฉากเปิดเกม (คอมยังไม่เปิด -> คลิก -> อนิเมชันวงกลมเปิด -> หน้า Title) */
+
+:root {
+  --navy-deep: #10161f;
+  --cream: #f4ecd8;
+  --gold: #e8c468;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--navy-deep);
+  font-family: 'Courier New', monospace;
+}
+
+#game-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--navy-deep);
+}
+
+.game-scene {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ---------- ปุ่มย้อนกลับไปหน้า Pet (ไอคอน Arrow.png ของจริง เหมือนลูกศรอื่นๆ ในเกม) ---------- */
+.game-back-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 50;
+  width: 38px;
+  height: 38px;
+  display: block;
+  text-decoration: none;
+  transition: transform 120ms ease;
+}
+
+.game-back-btn img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.game-back-btn:active {
+  transform: scale(0.9);
+}
+
+/* ---------- SCREEN 1: คอมพิวเตอร์ยังไม่เปิด (คลิกที่ไหนก็ได้เพื่อเริ่ม) ---------- */
+#screen1 {
+  z-index: 2;
+  background-image: url('img/game/game1.png');
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12vh;
+}
+
+#screen1 .boot-hint {
+  color: var(--cream);
+  opacity: 0.6;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  animation: hint-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.75; }
+}
+
+/* ---------- SCREEN 2: หน้า Title (Phayao Adventure) ---------- */
+/* ซ่อนอยู่ใต้วงกลมรัศมี 0% ตอนแรก แล้วขยายออกจากจุดที่คลิกตอนเปลี่ยนฉาก */
+#screen2 {
+  z-index: 3;
+  background-image: url('img/game/game2.png');
+  cursor: pointer;
+  clip-path: circle(0% at 50% 50%);
+  -webkit-clip-path: circle(0% at 50% 50%);
+}
+
+/* ---------- SCREEN CHAR: เลือกตัวละคร (ก่อนเข้าแผนที่โลก) ---------- */
+#screenChar {
+  z-index: 4;
+  /* ไม่วางภาพ Title ตรงๆ เพราะในภาพมีคำว่า TAP TO START อยู่ จะสับสนกับหน้านี้
+     เลยเอาไปเบลอไว้ที่ ::before ให้เหลือแค่บรรยากาศแทน */
+  background-color: var(--navy-deep);
+  background-image: none;
+  cursor: default;
+  clip-path: circle(0% at 50% 50%);
+  -webkit-clip-path: circle(0% at 50% 50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+}
+
+/* ภาพพื้นหลังแบบเบลอ + หรี่แสง ให้การ์ดตัวละครเด่นขึ้น */
+#screenChar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('img/game/game2.png');
+  background-size: cover;
+  background-position: center;
+  filter: blur(7px) brightness(0.32);
+  transform: scale(1.08); /* ขยายเล็กน้อยกันขอบจางที่เกิดจากการเบลอ */
+}
+
+#screenChar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.char-title {
+  margin: 0;
+  color: var(--gold);
+  font-size: clamp(20px, 3.4vw, 34px);
+  letter-spacing: 2px;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6);
+}
+
+.char-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(12px, 2.4vw, 28px);
+  max-width: 90vw;
+}
+
+.char-card {
+  width: clamp(110px, 15vw, 170px);
+  padding: clamp(10px, 1.4vw, 18px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(244, 236, 216, 0.08);
+  border: 3px solid rgba(244, 236, 216, 0.35);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+}
+
+.char-card:hover,
+.char-card:focus-visible {
+  transform: translateY(-6px);
+  border-color: var(--gold);
+  background: rgba(232, 196, 104, 0.16);
+  outline: none;
+}
+
+.char-card img {
+  width: clamp(56px, 7vw, 88px);
+  height: clamp(56px, 7vw, 88px);
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.char-name {
+  color: var(--cream);
+  font-size: clamp(11px, 1.15vw, 15px);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.char-hint {
+  margin: 0;
+  color: var(--cream);
+  opacity: 0.55;
+  font-size: 13px;
+  letter-spacing: 1px;
+  animation: hint-pulse 1.8s ease-in-out infinite;
+}
+
+/* ---------- SCREEN MAP: เลือกโลก (World Select) ---------- */
+/* ภาพ world-select.png เป็นแถบยาวรวม 6 โลกในไฟล์เดียว (โลกละ 640x720 พิกเซล เรียงต่อกัน) */
+/* มุมกล้อง: ซูมเข้าไปทีละโลก เลื่อนซ้าย-ขวาได้ (ลากด้วยนิ้ว/เมาส์ หรือกดปุ่มลูกศร) */
+#screenMap {
+  z-index: 5;
+  background-color: #5ea0da; /* สีพื้นเดียวกับพื้นหลังในภาพ ทำให้ขอบกรอบกลืนไปกับพื้นจอ */
+  background-image: none;
+  cursor: default;
+  overflow: hidden;
+  clip-path: circle(0% at 50% 50%);
+  -webkit-clip-path: circle(0% at 50% 50%);
+}
+
+#worldCardTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  /* ไม่มี gap ระหว่างการ์ด เพราะสะพานในภาพถูกวาดให้ต่อเนื่องกันพอดีเมื่อการ์ดชิดกันสนิท (ถ้ามี gap สะพานจะขาดเป็นช่องว่าง) */
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.world-card {
+  position: relative;
+  flex-shrink: 0;
+  width: 78vw;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.world-card .world-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 640 / 720;
+  /* background-image ถูกกำหนดผ่าน JS ใน game.js (ใช้ไฟล์เดียวคงที่ สะพานในภาพเป็นแบบปลดล็อคหมดอยู่แล้ว) */
+  background-repeat: no-repeat;
+  background-size: 600% 100%;
+  image-rendering: pixelated;
+}
+
+/* ไอคอนกุญแจล็อกที่วางทับตรงกลางสะพาน (รอยต่อระหว่างการ์ด) เมื่อโลกถัดไปยังไม่ปลดล็อค */
+/* สะพานในภาพไม่ได้อยู่กึ่งกลางรอยต่อพอดี แต่เยื้องเข้าไปในฝั่งการ์ดถัดไปประมาณ 50px จาก 640px
+   (วัดจากภาพจริง: เกาะโลกนี้จบที่ ~636px สะพานไปจบที่ ~744px จุดกึ่งกลางสะพานจริงจึงอยู่ที่ ~690px)
+   -50/640 = -7.8125% ของความกว้างการ์ด จึงต้องขยับ right ออกไปทางขวาเพิ่มอีกเท่านี้ */
+.world-card .next-lock-badge {
+  position: absolute;
+  top: 50%;
+  right: -7.8125%;
+  transform: translate(50%, -50%);
+  width: clamp(30px, 3.6vw, 44px);
+  aspect-ratio: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.world-card .next-lock-badge img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.3));
+}
+
+.world-card .lock-hint {
+  color: var(--cream);
+  opacity: 0.85;
+  font-size: clamp(9px, 1.2vw, 12px);
+  letter-spacing: 0.5px;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- จุดด่าน (วงกลมสีเหลืองในภาพ) กดเพื่อสั่งให้น้องหมาเดินไปด่านนั้น ---------- */
+.stage-node {
+  position: absolute;
+  width: 11%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  z-index: 4;
+}
+
+/* ---------- ตัวน้องหมาบนแผนที่ เดินไปตามด่านที่กด + เด้งขึ้นลงตลอดเวลา ---------- */
+.dog-marker {
+  position: absolute;
+  width: 13%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -60%);
+  transition: left 380ms ease, top 380ms ease;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.dog-marker img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.35));
+  animation: dog-bob 900ms ease-in-out infinite;
+}
+
+@keyframes dog-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12%); }
+}
+
+/* ---------- ปุ่มลูกศรเลื่อนโลก (ใช้ไอคอน Arrow.png ของจริง ไม่มีพื้นหลังปุ่มแล้ว) ---------- */
+.map-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 44px;
+  height: 44px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.map-nav-arrow img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.map-nav-arrow.left { left: 3vw; }
+/* ปุ่มขวาใช้ภาพลูกศรซ้ายอันเดียวกัน กลับด้านด้วย transform */
+.map-nav-arrow.right {
+  right: 3vw;
+  transform: translateY(-50%) scaleX(-1);
+}
+
+.map-nav-arrow:active { transform: translateY(-50%) scale(0.9); }
+.map-nav-arrow.right:active { transform: translateY(-50%) scaleX(-1) scale(0.9); }
+
+.map-nav-arrow.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---------- ปุ่มตั้งค่า/รีเซ็ตความคืบหน้า มุมขวาบน (ไอคอน Settings.png ของจริง) ---------- */
+.map-icon-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.map-icon-btn img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.map-icon-btn:active { transform: scale(0.9); }
+
+/* ---------- ปุ่มเข้าโลกที่โฟกัสอยู่ (ใช้ภาพ Start_button.png ของจริงทั้งปุ่ม) ---------- */
+#mapPlayBtn {
+  position: absolute;
+  left: 50%;
+  bottom: 6vh;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(70vw, 420px);
+  aspect-ratio: 540 / 190;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  background-image: url('img/game/Start_button.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 100ms ease;
+}
+
+#mapPlayBtn:active {
+  transform: translateX(-50%) translateY(3px);
+}
+
+#mapPlayBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: translateX(-50%);
+}
+
+/* ---------- SCREEN EXPLORE: ฉากพาราแลกซ์ในโลกที่กด Play เข้ามา ---------- */
+/* แต่ละโลกมีภาพ 5 เลเยอร์ (ท้องฟ้า/ภูเขา/กลาง/หน้า/พื้นหน้าสุด) ขยับตามเมาส์คนละความเร็ว ให้ความลึกแบบพาราแลกซ์ */
+#screenExplore {
+  z-index: 6;
+  background-color: #6fa8dc;
+  cursor: default;
+  overflow: hidden;
+  clip-path: circle(0% at 50% 50%);
+  -webkit-clip-path: circle(0% at 50% 50%);
+}
+
+#parallaxStage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* กล่องโลกของฉาก — ขนาดจริงคำนวณด้วย JS (layoutSceneWorld) ให้กว้างกว่าจอตามระดับซูม
+   กล้องทำงานด้วยการเลื่อน translateX ของกล่องนี้ตามตำแหน่งผู้เล่น */
+#sceneWorld {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  will-change: transform;
+}
+
+.parallax-layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+
+/* ปุ่มย้อนกลับไปหน้าแผนที่โลก (คนละปุ่มกับปุ่มย้อนกลับไปหน้า Pet ที่ลอยอยู่ตลอด) */
+.explore-back-btn {
+  position: absolute;
+  top: 60px;
+  left: 14px;
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.explore-back-btn img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.explore-back-btn:active {
+  transform: scale(0.9);
+}
+
+/* ---------- ตัวละคร (น้องหมา) เดินสำรวจในฉาก ---------- */
+.player-char {
+  position: absolute;
+  bottom: 7%;
+  /* อิงความสูงของโลกฉาก ไม่ใช่ขนาดจอ ตัวละครจะได้ซูมไปพร้อมฉาก
+     และไม่ใช้ % ความกว้าง เพราะฉากกว้างกว่าสูงมาก จะได้ตัวใหญ่เกินจริง */
+  height: 10%;
+  aspect-ratio: 1 / 1;
+  background-image: url("img/game/golden.png");
+  background-size: 400% 900%;
+  background-position: 0% 0%;
+  image-rendering: pixelated;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ปุ่มเดินซ้าย/ขวา ใช้ Arrow.png แบบเดียวกับปุ่มเลื่อนโลกในแผนที่ */
+.explore-move-btn {
+  position: absolute;
+  bottom: 5%;
+  z-index: 20;
+  width: 48px;
+  height: 48px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+  touch-action: none;
+}
+
+.explore-move-btn img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+
+.explore-move-btn.left { left: 3vw; }
+.explore-move-btn.right {
+  right: 3vw;
+  transform: scaleX(-1);
+}
+
+.explore-move-btn:active { transform: scale(0.9); }
+.explore-move-btn.right:active { transform: scaleX(-1) scale(0.9); }
+
+
+/* ---------- NPC ในฉาก (อาจารย์ติ๊ก) ---------- */
+.npc-char {
+  position: absolute;
+  bottom: 8%;
+  left: 26%;
+  height: 14%;
+  aspect-ratio: 656 / 1598;
+  transform: translateX(-50%);
+  background-image: url("img/game/Teacher_Tik.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  z-index: 9;
+}
+
+/* ---------- กล่องคำพูด ---------- */
+/* อยู่ในโลกฉาก ลอยเหนือหัวอาจารย์ หางกล่องชี้ลงหาตัวอาจารย์พอดี */
+.dialogue-box {
+  position: absolute;
+  bottom: 47%;
+  transform: translateX(-50%) translateY(10px);
+  width: min(430px, 46vw);
+  padding: 16px 20px 14px;
+  background: #fdfcf7;
+  border-radius: 22px;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 30;
+}
+
+.dialogue-box.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* หางกล่องคำพูดชี้ลงหา NPC */
+.dialogue-box::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  transform: translateX(-50%);
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 16px solid #fdfcf7;
+}
+
+/* ป้ายชื่อผู้พูด ลอยอยู่มุมบนซ้ายของกล่อง */
+.dialogue-name {
+  position: absolute;
+  top: -16px;
+  left: 18px;
+  padding: 5px 15px;
+  background: #4b4fc4;
+  color: #fff;
+  border-radius: 999px;
+  font-size: clamp(11px, 1.2vw, 14px);
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+}
+
+.dialogue-text {
+  margin: 6px 0 0;
+  color: #23262b;
+  font-size: clamp(13px, 1.4vw, 17px);
+  line-height: 1.55;
+  min-height: 2.2em;
+}
+
+.dialogue-next {
+  display: block;
+  margin-top: 6px;
+  text-align: right;
+  color: #8a8f98;
+  font-size: clamp(11px, 1.2vw, 14px);
+  animation: hint-pulse 1.6s ease-in-out infinite;
+}
+
+/* ระหว่างคุยอยู่ ซ่อนปุ่มเดินไว้ก่อน กันกดมั่ว */
+#screenExplore.talking .explore-move-btn {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* ---------- ด่านกั้นกลางฉาก (เปิดหลังคุยกับอาจารย์จบ) ---------- */
+.stage-barrier {
+  position: absolute;
+  bottom: 0;
+  width: 3.5%;
+  height: 62%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    to right,
+    rgba(232, 196, 104, 0) 0%,
+    rgba(232, 196, 104, 0.32) 45%,
+    rgba(232, 196, 104, 0.32) 55%,
+    rgba(232, 196, 104, 0) 100%
+  );
+  z-index: 8;
+  transition: opacity 0.5s;
+  animation: barrier-pulse 1.6s ease-in-out infinite;
+}
+
+.stage-barrier img {
+  width: 42%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.stage-barrier.open {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes barrier-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* ---------- ปุ่ม "คุย" ที่โผล่ตอนเข้าใกล้ NPC ---------- */
+/* อยู่ในโลกฉาก จึงเลื่อนตามกล้องและลอยเหนือหัวอาจารย์เสมอ (ตำแหน่ง left ตั้งจาก JS ตาม NPC_X_PCT) */
+.talk-btn {
+  position: absolute;
+  bottom: 45%;
+  transform: translateX(-50%) translateY(8px);
+  padding: 10px 34px;
+  background: #4b4fc4;
+  color: #fff;
+  border: 3px solid #fdfcf7;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: clamp(15px, 1.8vw, 20px);
+  font-weight: bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  z-index: 25;
+}
+
+.talk-btn.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  animation: talk-bob 1.2s ease-in-out infinite;
+}
+
+.talk-btn:hover {
+  background: #3a3ea8;
+}
+
+@keyframes talk-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-6px); }
+}
+
+/* ---------- ตัวร้ายในฉากสำรวจ ---------- */
+.enemy-field {
+  position: absolute;
+  bottom: 0;
+  height: 13%;
+  aspect-ratio: 1278 / 1382;
+  transform: translateX(-50%);
+  background-image: url("img/game/computer_cute.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  z-index: 9;
+  animation: enemy-idle 1.5s ease-in-out infinite;
+}
+
+@keyframes enemy-idle {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-8%); }
+}
+
+/* ================== หน้าจอต่อสู้ (ควิซ) ================== */
+#screenBattle {
+  z-index: 7;
+  background: linear-gradient(#7ec0ee 0%, #a8d8f0 62%, #7cb342 62%, #5d9433 100%);
+  clip-path: circle(0% at 50% 50%);
+  -webkit-clip-path: circle(0% at 50% 50%);
+  overflow: hidden;
+}
+
+.battle-hud {
+  position: absolute;
+  top: 2.5%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 3%;
+  z-index: 5;
+}
+
+.battle-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(20px, 2.6vw, 34px);
+  font-weight: bold;
+  color: #1d2530;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.timer-icon { font-size: clamp(22px, 2.8vw, 38px); }
+
+/* เวลาใกล้หมด (ต่ำกว่า 1 นาที) เตือนด้วยสีแดงกะพริบ */
+.battle-timer.urgent { color: #d63a3a; animation: hint-pulse 0.9s ease-in-out infinite; }
+
+.battle-hearts { display: flex; gap: 8px; }
+
+.heart {
+  width: clamp(26px, 3vw, 42px);
+  height: clamp(26px, 3vw, 42px);
+  background: #e23b3b;
+  clip-path: polygon(50% 100%, 0% 38%, 9% 14%, 30% 6%, 50% 20%, 70% 6%, 91% 14%, 100% 38%);
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.heart.lost { opacity: 0.2; transform: scale(0.75); }
+
+/* ---------- โน้ตบุ๊กที่แสดงคำถาม ---------- */
+.laptop {
+  position: absolute;
+  /* เว้นที่ด้านบนให้นาฬิกากับหัวใจ ไม่ให้กรอบคำถามไปทับ */
+  top: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1000px, 88vw);
+  z-index: 4;
+}
+
+.laptop-screen {
+  background: #fbfaf4;
+  border: 14px solid #14161a;
+  border-radius: 18px;
+  padding: clamp(14px, 2.4vw, 30px) clamp(16px, 3vw, 40px) clamp(20px, 3vw, 34px);
+  min-height: clamp(340px, 56vh, 540px);
+  display: flex;
+  flex-direction: column;
+}
+
+.laptop-base {
+  height: clamp(14px, 1.8vw, 22px);
+  margin: 0 -5%;
+  background: #d5d7db;
+  border: 6px solid #14161a;
+  border-radius: 0 0 14px 14px;
+}
+
+.quiz-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: clamp(10px, 1.6vw, 18px);
+}
+
+.quiz-level {
+  background: #d99a4e;
+  color: #fff;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: clamp(10px, 1.05vw, 13px);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.quiz-topic {
+  color: #3d434c;
+  font-size: clamp(12px, 1.3vw, 17px);
+}
+
+.quiz-question {
+  margin: 0 0 auto;
+  text-align: center;
+  color: #14161a;
+  font-size: clamp(19px, 2.6vw, 34px);
+  line-height: 1.45;
+  padding: clamp(6px, 1.4vw, 18px) 0;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(8px, 1.1vw, 14px);
+}
+
+.quiz-opt {
+  padding: clamp(8px, 1.1vw, 13px) clamp(10px, 1.4vw, 18px);
+  background: #fff;
+  border: 2px solid #c9ccd2;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: clamp(13px, 1.4vw, 18px);
+  color: #23262b;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, transform 0.1s;
+}
+
+.quiz-opt:hover:not(:disabled) { background: #eef3ff; border-color: #7d8ff0; }
+.quiz-opt:disabled { cursor: default; }
+.quiz-opt.correct { background: #d8f2cf; border-color: #6aab3a; font-weight: bold; }
+.quiz-opt.wrong { background: #fbdada; border-color: #d63a3a; }
+
+/* ---------- ตัวละครสองฝั่งในหน้าต่อสู้ ---------- */
+.battle-dog,
+.battle-enemy {
+  position: absolute;
+  bottom: 3%;
+  image-rendering: pixelated;
+  z-index: 3;
+}
+
+.battle-dog {
+  left: 7%;
+  width: clamp(90px, 11vw, 150px);
+  aspect-ratio: 1 / 1;
+  background-size: 400% 900%;
+  background-position: 0% 0%;
+}
+
+.battle-enemy {
+  right: 7%;
+  height: clamp(110px, 15vh, 190px);
+  aspect-ratio: 1278 / 1382;
+  background-image: url("img/game/computer_cute.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/* โดนตี: ตัวแดงแล้วเด้ง */
+.hit-flash {
+  animation: hit-bounce 0.45s ease;
+  filter: brightness(0.75) sepia(1) saturate(6) hue-rotate(-25deg);
+}
+
+@keyframes hit-bounce {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-22%) scale(1.12); }
+  55%  { transform: translateY(0) scale(0.94); }
+  75%  { transform: translateY(-8%) scale(1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* หลอดเลือดตัวร้าย */
+.enemy-hp {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #14161a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.enemy-hp span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(#7ee06a, #46a832);
+  transition: width 0.35s;
+}
+
+/* ---------- ผลการต่อสู้ ---------- */
+.battle-result {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  /* ใส่แผ่นทึบตรงกลางไว้ด้วย ไม่งั้นตัวหนังสือจะไปทับกับคำถามบนจอโน้ตบุ๊กจนอ่านยาก */
+  background: rgba(16, 22, 31, 0.86);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 20;
+}
+
+.battle-result.show { opacity: 1; pointer-events: auto; }
+
+.battle-result h2 {
+  margin: 0;
+  padding: 4px 40px;
+  background: rgba(16, 22, 31, 0.95);
+  border-radius: 16px;
+  font-size: clamp(28px, 4.5vw, 56px);
+  color: var(--gold);
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+.battle-result p {
+  margin: 0;
+  padding: 6px 24px;
+  background: rgba(16, 22, 31, 0.95);
+  border-radius: 12px;
+  color: var(--cream);
+  font-size: clamp(14px, 1.6vw, 20px);
+}
+
+.battle-result-btn {
+  margin-top: 8px;
+  padding: 12px 40px;
+  background: #4b4fc4;
+  color: #fff;
+  border: 3px solid #fdfcf7;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: clamp(15px, 1.8vw, 20px);
+  font-weight: bold;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.battle-result-btn:hover { background: #3a3ea8; }

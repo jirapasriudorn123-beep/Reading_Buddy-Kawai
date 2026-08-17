@@ -1,0 +1,73 @@
+/* ================== เมาส์คัสตอมรูปน้องหมา (ตามระบบ event-cursor ของ Ragnarok Zero: Global) ================== */
+
+body.custom-cursor-active,
+body.custom-cursor-active a,
+body.custom-cursor-active button,
+body.custom-cursor-active input,
+body.custom-cursor-active textarea,
+body.custom-cursor-active select,
+body.custom-cursor-active label {
+    cursor: none !important;
+}
+
+.custom-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 34px;
+    height: 31px;
+    pointer-events: none;
+    z-index: 99999;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, filter 0.2s, opacity 0.2s, background-image 0.1s;
+    background-image: url('img/mouse_doglight1.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0;
+}
+
+.custom-cursor.visible {
+    opacity: 1;
+}
+
+.custom-cursor.hover {
+    width: 42px;
+    height: 44px;
+    background-image: url('img/mouse_doglight2.png');
+    filter: drop-shadow(0 0 10px rgba(137, 176, 93, 0.75));
+}
+
+.custom-cursor.click {
+    width: 42px;
+    height: 44px;
+    background-image: url('img/mouse_doglight2.png');
+    animation: customCursorClick 0.3s ease;
+    filter: drop-shadow(0 0 10px rgba(137, 176, 93, 0.75));
+}
+
+html.dark-mode .custom-cursor {
+    background-image: url('img/mouse_dogdrak1.png');
+}
+
+html.dark-mode .custom-cursor.hover,
+html.dark-mode .custom-cursor.click {
+    background-image: url('img/mouse_dogdrak2.png');
+}
+
+@keyframes customCursorClick {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(0.7); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* มือถือ/แตะหน้าจอ ใช้เมาส์คัสตอมไม่ได้ผล เลยคืนค่าเคอร์เซอร์ปกติ */
+@media (hover: none) and (pointer: coarse) {
+    .custom-cursor {
+        display: none !important;
+    }
+    body.custom-cursor-active,
+    body.custom-cursor-active * {
+        cursor: auto !important;
+    }
+}

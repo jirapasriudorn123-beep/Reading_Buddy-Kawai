@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>register</title>
+  <link rel="stylesheet" href="style.css">
+   
+    <style>
+      .box {
+        width: 500px;
+        height: 500px;
+        background-image: url('img/NEW_LOGO.png');
+        background-size: cover;
+        background-position: 35% top, 40% top;
+      }
+    </style>
+    <link rel="stylesheet" href="cursor.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="left">
+    <div class="box"></div>
+  </div> 
+
+  <div class="right">
+    <div class="card">
+      <div class="gentle-glow"></div>
+            <h1 class="comfort-title">Create Account</h1><br>
+          
+      <form class="comfort-form" id="registerForm" novalidate>
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="email" id="email" name="email" required autocomplete="email" placeholder=" ">
+                        <label for="email">Email address</label>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="emailError"></span>
+                </div>
+
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="text" id="username" name="username" required autocomplete="username" placeholder=" ">
+                        <label for="username">Username</label>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="usernameError"></span>
+                </div>
+
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder=" ">
+                        <label for="password">Password</label>
+                        <button type="button" class="gentle-toggle" id="passwordToggle" aria-label="Toggle password visibility">
+                            <div class="toggle-icon"> 
+                                <svg class="eye-open" width="1150" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M10 3c-4.5 0-8.3 3.8-9 7 .7 3.2 4.5 7 9 7s8.3-3.8 9-7c-.7-3.2-4.5-7-9-7z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                    <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                </svg>
+                                <svg class="eye-closed" width="1150" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M3 3l14 14M8.5 8.5a3 3 0 004 4m2.5-2.5C15 10 12.5 7 10 7c-.5 0-1 .1-1.5.3M10 13c-2.5 0-4.5-2-5-3 .3-.6.7-1.2 1.2-1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </button>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="passwordError"></span>
+                </div>
+
+                <div class="soft-field">
+                    <div class="field-container">
+                        <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" placeholder=" ">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <button type="button" class="gentle-toggle" id="confirmPasswordToggle" aria-label="Toggle password visibility">
+                            <div class="toggle-icon"> 
+                                <svg class="eye-open" width="1150" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M10 3c-4.5 0-8.3 3.8-9 7 .7 3.2 4.5 7 9 7s8.3-3.8 9-7c-.7-3.2-4.5-7-9-7z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                    <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                </svg>
+                                <svg class="eye-closed" width="1150" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M3 3l14 14M8.5 8.5a3 3 0 004 4m2.5-2.5C15 10 12.5 7 10 7c-.5 0-1 .1-1.5.3M10 13c-2.5 0-4.5-2-5-3 .3-.6.7-1.2 1.2-1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </button>
+                        <div class="field-accent"></div>
+                    </div>
+                    <span class="gentle-error" id="confirmPasswordError"></span>
+                </div>
+                <button type="submit" class="comfort-button" id="submitBtn">
+                    <div class="button-background"></div>
+                    <span class="button-text">Sign Up</span>
+                    <div class="button-loader">
+                        <div class="gentle-spinner">
+                            <div class="spinner-circle"></div>
+                        </div>
+                    </div>
+                    <div class="button-glow"></div>
+                </button>
+            </form>
+
+              <div class="comfort-signup">
+                <span class="signup-text">Already have an account?</span>
+                <a href="login.html" class="comfort-link signup-link">Sign In?</a>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script>
+const form = document.getElementById("registerForm");
+const submitBtn = document.getElementById("submitBtn");
+const emailError = document.getElementById("emailError");
+const usernameError = document.getElementById("usernameError");
+const passwordError = document.getElementById("passwordError");
+const confirmPasswordError = document.getElementById("confirmPasswordError");
+
+form.addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  emailError.textContent = "";
+  usernameError.textContent = "";
+  passwordError.textContent = "";
+  confirmPasswordError.textContent = "";
+
+  const email = document.getElementById("email").value.trim();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+
+  if (password !== confirmPassword) {
+    confirmPasswordError.textContent = "รหัสผ่านไม่ตรงกัน";
+    return;
+  }
+
+  submitBtn.classList.add("loading");
+  submitBtn.disabled = true;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, username, password, confirmPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      emailError.textContent = data.message || "สมัครสมาชิกไม่สำเร็จ";
+      return;
+    }
+
+    alert("สมัครสำเร็จ! กรุณาเข้าสู่ระบบ");
+    window.location.href = "login.html";
+  } catch (err) {
+    console.error("Register request failed:", err);
+    emailError.textContent = "เชื่อมต่อ server ไม่ได้ กรุณาลองใหม่อีกครั้ง";
+  } finally {
+    submitBtn.classList.remove("loading");
+    submitBtn.disabled = false;
+  }
+});
+
+document.getElementById("passwordToggle").onclick = function () {
+  const input = document.getElementById("password");
+  input.type = input.type === "password" ? "text" : "password";
+};
+
+document.getElementById("confirmPasswordToggle").onclick = function () {
+  const input = document.getElementById("confirmPassword");
+  input.type = input.type === "password" ? "text" : "password";
+};
+</script>
+    <script src="cursor.js"></script>
+</body>
+</html>

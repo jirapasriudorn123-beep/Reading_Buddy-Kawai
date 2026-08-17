@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Phayao Adventure</title>
+    <link rel="stylesheet" href="game.css">
+    <link rel="stylesheet" href="cursor.css">
+</head>
+<body>
+    <a href="Pet.html" class="game-back-btn" aria-label="กลับไปหน้า Pet">
+        <img src="img/game/Arrow.png" alt="">
+    </a>
+
+    <div id="game-root">
+        <div id="screen1" class="game-scene">
+            <div class="boot-hint">แตะที่ไหนก็ได้เพื่อเปิดเครื่อง</div>
+        </div>
+
+        <div id="screen2" class="game-scene"></div>
+
+        <div id="screenChar" class="game-scene">
+            <h2 class="char-title">เลือกเพื่อนร่วมทาง</h2>
+            <div id="charGrid" class="char-grid">
+                <button type="button" class="char-card" data-breed="golden">
+                    <img src="img/game/Logo_golden.png" alt="">
+                    <span class="char-name">โกลเด้น</span>
+                </button>
+                <button type="button" class="char-card" data-breed="shiba">
+                    <img src="img/game/Logo_shiba.png" alt="">
+                    <span class="char-name">ชิบะอินุ</span>
+                </button>
+                <button type="button" class="char-card" data-breed="siberian">
+                    <img src="img/game/Logo_Siberian.png" alt="">
+                    <span class="char-name">ไซบีเรียนฮัสกี้</span>
+                </button>
+                <button type="button" class="char-card" data-breed="thairidgeback">
+                    <img src="img/game/Logo_thairidgeback.png" alt="">
+                    <span class="char-name">ไทยหลังอาน</span>
+                </button>
+            </div>
+            <p class="char-hint">แตะเลือกพันธุ์ที่อยากออกผจญภัยด้วย</p>
+        </div>
+
+        <div id="screenMap" class="game-scene">
+            <button id="mapGearBtn" class="map-icon-btn" aria-label="รีเซ็ตความคืบหน้า" title="รีเซ็ตความคืบหน้า">
+                <img src="img/game/Settings.png" alt="">
+            </button>
+
+            <div id="worldCardTrack">
+                <!-- การ์ดของแต่ละโลก (x6) ถูกสร้างด้วย JS ใน game.js -->
+            </div>
+
+            <button id="mapPrevBtn" class="map-nav-arrow left" aria-label="โลกก่อนหน้า">
+                <img src="img/game/Arrow.png" alt="">
+            </button>
+            <button id="mapNextBtn" class="map-nav-arrow right" aria-label="โลกถัดไป">
+                <img src="img/game/Arrow.png" alt="">
+            </button>
+
+            <button id="mapPlayBtn" aria-label="เข้าโลกนี้"></button>
+        </div>
+
+        <div id="screenExplore" class="game-scene">
+            <button id="exploreBackBtn" class="explore-back-btn" aria-label="กลับไปแผนที่">
+                <img src="img/game/Arrow.png" alt="">
+            </button>
+            <div id="parallaxStage">
+                <!-- โลกของฉาก: กว้างกว่าจอ กล้องจะเลื่อนกล่องนี้ตามตัวผู้เล่น -->
+                <div id="sceneWorld">
+                    <div class="parallax-layer" data-layer="1"></div>
+                    <div class="parallax-layer" data-layer="2"></div>
+                    <div class="parallax-layer" data-layer="3"></div>
+                    <div class="parallax-layer" data-layer="4"></div>
+                    <div class="parallax-layer" data-layer="5"></div>
+                    <div id="npcTeacher" class="npc-char"></div>
+                    <!-- กล่องคำพูด ลอยอยู่เหนือหัวอาจารย์ (ตำแหน่ง left ตั้งจาก JS) -->
+                    <div id="dialogueBox" class="dialogue-box">
+                        <span class="dialogue-name">อาจารย์ติ๊ก</span>
+                        <p id="dialogueText" class="dialogue-text"></p>
+                        <span class="dialogue-next">แตะเพื่อไปต่อ ▾</span>
+                    </div>
+                    <div id="enemyField" class="enemy-field"></div>
+                    <button id="talkBtn" class="talk-btn" type="button">คุย</button>
+                    <div id="stageBarrier" class="stage-barrier">
+                        <img src="img/game/world1-6/KeyLock.png" alt="">
+                    </div>
+                    <div id="playerChar" class="player-char"></div>
+                </div>
+            </div>
+
+            <button id="exploreLeftBtn" class="explore-move-btn left" aria-label="เดินไปทางซ้าย">
+                <img src="img/game/Arrow.png" alt="">
+            </button>
+            <button id="exploreRightBtn" class="explore-move-btn right" aria-label="เดินไปทางขวา">
+                <img src="img/game/Arrow.png" alt="">
+            </button>
+        </div>
+        <div id="screenBattle" class="game-scene">
+            <div class="battle-hud">
+                <div class="battle-timer">
+                    <span class="timer-icon">⏳</span>
+                    <span id="battleTimer">10 : 00</span>
+                </div>
+                <div id="battleHearts" class="battle-hearts"></div>
+            </div>
+
+            <div class="laptop">
+                <div class="laptop-screen">
+                    <div class="quiz-head">
+                        <span id="quizLevel" class="quiz-level">LV1</span>
+                        <span id="quizTopic" class="quiz-topic"></span>
+                    </div>
+                    <h2 id="quizQuestion" class="quiz-question"></h2>
+                    <div id="quizOptions" class="quiz-options"></div>
+                </div>
+                <div class="laptop-base"></div>
+            </div>
+
+            <div id="battleDog" class="battle-dog"></div>
+            <div id="battleEnemy" class="battle-enemy">
+                <div class="enemy-hp"><span id="enemyHpFill"></span></div>
+            </div>
+
+            <div id="battleResult" class="battle-result">
+                <h2 id="battleResultTitle"></h2>
+                <p id="battleResultText"></p>
+                <button id="battleResultBtn" class="battle-result-btn" type="button"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game-content.js"></script>
+    <script src="game.js"></script>
+    <script src="cursor.js"></script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+/* ================== ส่วนเสริมของหน้า Pet.html ================== */
+/* สไตล์หลักของหน้าเพ็ทอยู่ใน style.css แล้ว ไฟล์นี้เก็บเฉพาะส่วนที่ยังไม่มี */
+
+/* รูปสัตว์เลี้ยงสำรอง (ใช้ตอนยังไม่มีไฟล์ gif ของแต่ละพันธุ์) */
+.pet-emoji-fallback {
+    display: none;
+    font-size: 96px;
+    line-height: 1;
+}
+
+/* ปุ่มปิดป๊อปอัพ (ใช้ร่วมกับ .modal-content เดิม) */
+.modal-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: #999;
+    cursor: pointer;
+}
+
+.modal-close-btn:hover {
+    color: #333;
+}
+
+/* กล่องป๊อปอัพ "วิธีเลี้ยง" */
+.help-modal-content {
+    max-width: 460px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.help-modal-content .modal-title {
+    text-align: center;
+    font-size: 26px;
+    margin-bottom: 12px;
+}
+
+.help-intro {
+    text-align: center;
+    color: #6B7568;
+    margin-bottom: 18px;
+}
+
+.help-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.help-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: #F7F5EA;
+    border-radius: 14px;
+    padding: 12px 16px;
+}
+
+.help-icon {
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.help-list li strong {
+    color: #B87F1F;
+}
+
+.help-note {
+    font-size: 13px;
+    color: #6B7568;
+    text-align: center;
+    line-height: 1.6;
+}
+
+html.dark-mode body .help-list li {
+    background: #2a2f36;
+}
+
+html.dark-mode body .help-intro,
+html.dark-mode body .help-note {
+    color: #b7bec8;
+}
+
+/* ================== ระบบสถานะ 4 อย่าง + ช่วงวัย (แทนที่ level/EXP เดิม) ================== */
+
+/* ปุ่มสถานะทรงวงกลม: กล่องสถานะ = ปุ่มกดเดียวกันเลย เว้นระยะห่างขึ้น + ใหญ่ขึ้นจากเดิม */
+.pet-actions {
+    gap: 46px;
+}
+
+/* วงนอกไม่ตัดขอบ (overflow ปิด) เพื่อให้ไอคอนเตือน ⚠️ โผล่พ้นขอบวงกลมได้ */
+.action-icon.stat-orb {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    font-size: 0; /* ปิด emoji เดิมที่มาจาก .action-icon ไว้ ใช้ไอคอนรูปแทน */
+}
+
+/* วงในตัดขอบเป็นวงกลมจริงๆ ครอบระดับน้ำ+ไอคอน+% ไว้ */
+.stat-orb-clip {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #B7A886; /* โซนว่าง (ยังไม่มีน้ำ) ตั้งใจให้เข้มกว่าสีน้ำ #f2ebdd ชัดๆ จะได้เห็นระดับน้ำได้แม้ค่ายังสูง */
+    border: 3px solid transparent;
+    box-shadow: 0 10px 24px rgba(46, 58, 44, 0.14);
+}
+
+/* ระดับน้ำไล่จากล่างขึ้นบน แสดงค่าสเตตัสปัจจุบัน (ค่าลด = แถบเตี้ยลง) */
+.stat-orb-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #f2ebdd;
+    z-index: 1;
+    transition: height 0.4s ease, background-color 0.3s ease;
+}
+
+.stat-orb-fill.low {
+    background: #E5484D;
+}
+
+.stat-orb-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+/* ตัวเลข % มุมล่างขวาของกล่อง */
+.stat-orb-percent {
+    position: absolute;
+    bottom: 3px;
+    right: 4px;
+    z-index: 3;
+    font-size: 11px;
+    font-weight: 700;
+    color: #5A4A2C;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 1px 5px;
+    border-radius: 999px;
+    line-height: 1.4;
+}
+
+/* ไอคอนเตือน ⚠️ กะพริบมุมซ้ายบน ตอนสถานะต่ำกว่า 25% (อยู่นอก .stat-orb-clip เลยโผล่พ้นขอบวงได้) */
+.stat-orb-warning {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    z-index: 4;
+    font-size: 18px;
+    display: none;
+}
+
+.stat-orb-warning.show {
+    display: block;
+    animation: statWarnBlink 1s ease-in-out infinite;
+}
+
+@keyframes statWarnBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+}
+
+/* ป้ายเลเวลทรงดาว (แทนที่ level-display-box / growth-stage-box เดิม) */
+.level-badge {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.level-badge-star {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, #FFE79A 0%, #F6B93B 60%, #F0A825 100%);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    filter: drop-shadow(0 3px 5px rgba(120, 80, 10, 0.3));
+}
+
+.level-badge-text {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.05;
+    transform: translateY(2px);
+}
+
+.level-badge-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #5A3B0C;
+}
+
+.level-badge-number {
+    font-size: 24px;
+    font-weight: 800;
+    color: #3d2b0f;
+}
+
+/* คำใบ้ "กดค้างเพื่อลูบหัว" ใต้ชื่อสัตว์เลี้ยง */
+.pet-pet-hint {
+    font-size: 12px;
+    color: #8a9186;
+    margin: 2px 0 0;
+}
+
+/* เอฟเฟกต์ตอนกำลังลูบหัวค้างอยู่ */
+.pet-character {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.pet-character.petting img,
+.pet-character.petting .pet-emoji-fallback {
+    animation: pettingBounce 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes pettingBounce {
+    from { transform: scale(1); }
+    to { transform: scale(1.06); }
+}
+
+/* หัวใจลอยตอนลูบหัว (ใช้ element เดียวกับ .pet-floater เดิม แค่เปลี่ยนสี) */
+.pet-floater.heart {
+    color: #E8748C;
+}
+
+html.dark-mode body .level-badge-label,
+html.dark-mode body .level-badge-number {
+    color: #3d2b0f; /* ตัวหนังสือบนดาวสีทอง อ่านง่ายพอกันทั้ง 2 โหมด ไม่ต้องเปลี่ยนสี */
+}
+
+html.dark-mode body .pet-pet-hint {
+    color: #767d74;
+}

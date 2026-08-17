@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>login</title>
+  <link rel="stylesheet" href="style.css">
+
+    <style>
+      .box {
+        width: 500px;
+        height: 500px;
+        background-image: url('profile.png');
+        background-size: cover;
+        background-position: center 40px;
+      }
+    </style>
+
+    <link rel="stylesheet" href="cursor.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="left">
+    <div class="box"></div>
+  </div> 
+ 
+  <div class="right">
+    <div class="card">
+        <div class="selection-container">
+    <h1 class="selection-title">เลือกคู่หูของคุณ</h1>
+    
+    <div class="pet-options">
+        <div class="pet-card" onclick="setBreed('golden')" id="card-golden">
+            <div class="pet-thumb"><img src="img/game/Logo_golden.png" alt="โกลเด้น"></div>
+            <h3>โกลเด้น</h3>
+        </div>
+        <div class="pet-card" onclick="setBreed('shiba')" id="card-shiba">
+            <div class="pet-thumb"><img src="img/game/Logo_shiba.png" alt="ชิบะอินุ"></div>
+            <h3>ชิบะอินุ</h3>
+        </div>
+        <div class="pet-card" onclick="setBreed('siberian')" id="card-siberian">
+            <div class="pet-thumb"><img src="img/game/Logo_Siberian.png" alt="ไซบีเรียนฮัสกี้"></div>
+            <h3>ไซบีเรียนฮัสกี้</h3>
+        </div>
+        <div class="pet-card" onclick="setBreed('thairidgeback')" id="card-thairidgeback">
+            <div class="pet-thumb"><img src="img/game/Logo_thairidgeback.png" alt="ไทยหลังอาน"></div>
+            <h3>ไทยหลังอาน</h3>
+        </div>
+    </div>
+
+    <div class="naming-section">
+        <input type="text" id="petNameInput" placeholder="ตั้งชื่อให้สัตว์เลี้ยงของคุณ..." maxlength="10">
+        <button class="confirm-btn" onclick="saveAndStart()">เริ่มการเดินทาง!</button>
+    </div>
+</div>
+    </div>
+  </div>
+<script src="config.js"></script><script src="pet.js"></script>
+    <script src="cursor.js"></script>
+</body>
+</html>
