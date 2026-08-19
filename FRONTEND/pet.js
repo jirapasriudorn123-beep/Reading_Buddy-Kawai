@@ -172,6 +172,7 @@ function renderPetPage(pet) {
 
   setPetImage(pet.breed);
   updatePetUI(pet);
+  applyEquippedOverlays(); // วางเสื้อผ้าที่ user เคยใส่ไว้ (persist ใน localStorage)
   showSpeech("เจ้านาย มาเล่นด้วยกันเถอะ");
 }
 
@@ -380,8 +381,11 @@ function renderInventoryGrid(bagKey) {
   items.forEach((item) => {
     const imgSrc = resolveItemImg(item.img);
     const safeName = escapeHtml(item.name);
+    const equipped = isClothing && isItemEquipped(item.id);
     const card = document.createElement("div");
-    card.className = "item-card";
+    card.className = "item-card" + (equipped ? " equipped" : "");
+    // ปุ่ม "ใส่" / "ถอด" สลับตาม state; stat_gain ไม่แสดงในกระเป๋าเสื้อผ้าเพราะเสื้อผ้าไม่เติมสถานะแล้ว
+    const buttonLabel = isClothing ? (equipped ? "ถอด" : "ใส่") : "ใช้";
     card.innerHTML = `
       <span class="qty">x${item.count}</span>
       <div class="icon">${
@@ -390,13 +394,16 @@ function renderInventoryGrid(bagKey) {
           : BAG_FALLBACK_ICON[bagKey]
       }</div>
       <div class="name">${safeName}</div>
-      <div class="stat-gain">+${item.stat_gain}%</div>
-      <button class="use-btn">${isClothing ? "ใส่" : "ใช้"}</button>
+      ${isClothing ? "" : `<div class="stat-gain">+${item.stat_gain}%</div>`}
+      <button class="use-btn ${equipped ? "unwear" : ""}">${buttonLabel}</button>
     `;
     const btn = card.querySelector(".use-btn");
     if (isClothing) {
-      // กระเป๋าเสื้อผ้า — เพิ่ม animation ตอน "ใส่" (บินไปหาน้อง + เด้ง + sparkle)
-      btn.addEventListener("click", () => wearClothing(item, card));
+      if (equipped) {
+        btn.addEventListener("click", () => unwearClothing(item.id));
+      } else {
+        btn.addEventListener("click", () => wearClothing(item, card));
+      }
     } else {
       btn.addEventListener("click", () => useItem(item.id));
     }
@@ -455,21 +462,67 @@ function showFloater(text, isHeart) {
   setTimeout(() => f.remove(), 1100);
 }
 
+// ---- ระบบเสื้อผ้าที่ใส่อยู่ (persist per user ใน localStorage) ----
+// เก็บแบบ 2 slot: hat (บนหัว) + body (ลำตัว) — ต่อ 1 slot ได้ 1 ชิ้น
+// ไม่หัก inventory เวลาใส่ (เพราะไม่ใช่ของกิน) แค่ user ต้องมี count >= 1 ถึงจะใส่ได้
+function getEquipStorageKey() {
+  const username = localStorage.getItem("currentUser") || "guest";
+  return `petEquip_${username}`;
+}
+
+function loadEquipped() {
+  try {
+    return JSON.parse(localStorage.getItem(getEquipStorageKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveEquipped(equipped) {
+  localStorage.setItem(getEquipStorageKey(), JSON.stringify(equipped));
+}
+
+// เดา slot ของไอเทมจากชื่อ (หมวก → hat, ที่เหลือในหมวดเสื้อผ้า → body)
+function detectSlot(item) {
+  const name = (item.name || "").toLowerCase();
+  if (name.includes("หมวก") || name.includes("hat") || name.includes("cap")) return "hat";
+  return "body";
+}
+
+// อ่าน equipped จาก storage แล้ววาง src ให้ img overlay บนตัวน้อง
+function applyEquippedOverlays() {
+  const equipped = loadEquipped();
+  const hatEl = document.getElementById("equipHat");
+  const bodyEl = document.getElementById("equipBody");
+  ["hat", "body"].forEach((slot) => {
+    const el = slot === "hat" ? hatEl : bodyEl;
+    if (!el) return;
+    const item = equipped[slot];
+    if (item && item.img) {
+      el.src = resolveItemImg(item.img);
+      el.style.display = "";
+      el.alt = item.name;
+    } else {
+      el.style.display = "none";
+      el.removeAttribute("src");
+    }
+  });
+}
+
 // ปุ่ม "ใส่" ในกระเป๋าเสื้อผ้า:
-// 1) บิน sprite ของเสื้อจากการ์ดไปหาน้อง (fly animation ประมาณ 700ms)
+// 1) บิน sprite ของเสื้อจากการ์ดไปหาน้อง (fly animation ~700ms)
 // 2) น้องเด้ง + sparkle รอบตัว
-// 3) เรียก /pet/use-item เหมือน useItem ปกติ (เสื้อผ้ามี pet_action="happiness" อยู่แล้ว → เติมความสุข)
+// 3) วางรูปทับบนตัวน้องเลย + save localStorage (ไม่หัก inventory)
 async function wearClothing(item, cardEl) {
   if (!item || item.count <= 0) return;
 
-  // หา icon ในการ์ด กับตำแหน่งของน้องหมา ใช้คำนวณจุดเริ่ม-จุดปลายของ animation
+  const slot = detectSlot(item);
   const iconEl = cardEl.querySelector(".icon img") || cardEl.querySelector(".icon");
   const petEl = document.querySelector(".pet-character");
   if (iconEl && petEl) {
     const from = iconEl.getBoundingClientRect();
     const to = petEl.getBoundingClientRect();
 
-    // clone icon แล้วให้มัน fixed position แล้วบินไปหาน้อง
     const flyer = iconEl.cloneNode(true);
     flyer.className = "clothing-flyer";
     flyer.style.left = from.left + from.width / 2 + "px";
@@ -478,45 +531,52 @@ async function wearClothing(item, cardEl) {
     flyer.style.height = from.height + "px";
     document.body.appendChild(flyer);
 
-    // force layout เพื่อให้ transition วิ่งจริง
     void flyer.offsetWidth;
     flyer.style.left = to.left + to.width / 2 + "px";
     flyer.style.top = to.top + to.height / 2 + "px";
     flyer.style.transform = "translate(-50%, -50%) scale(0.5) rotate(360deg)";
     flyer.style.opacity = "0";
 
-    // ตอน flyer ถึงน้อง (~600ms) → เด้ง + sparkle
     setTimeout(() => {
       bounceCharacter();
       spawnSparkles(to.left + to.width / 2, to.top + to.height / 2);
       showFloater("✨");
+      // วางรูปจริงบนน้องตอน flyer มาถึง (พร้อมกับ bounce → รู้สึกเหมือน "ติด" ตัวจริง)
+      const equipped = loadEquipped();
+      equipped[slot] = { id: item.id, name: item.name, img: item.img };
+      saveEquipped(equipped);
+      applyEquippedOverlays();
     }, 600);
 
-    // ลบ flyer ทิ้งหลัง transition จบ
     setTimeout(() => flyer.remove(), 900);
+  } else {
+    // fallback ถ้าหา DOM ไม่เจอ (edge case) — ใส่เลยไม่มี animation
+    const equipped = loadEquipped();
+    equipped[slot] = { id: item.id, name: item.name, img: item.img };
+    saveEquipped(equipped);
+    applyEquippedOverlays();
   }
 
-  // เรียก backend หลัง animation เริ่มไปแล้ว (fire-and-forget รอผลตาม await ปกติ)
-  try {
-    const result = await apiFetch("/pet/use-item", {
-      method: "POST",
-      body: JSON.stringify({ productId: item.id }),
-    });
-    item.count = result.remainingCount;
-    currentPet = { ...currentPet, ...result.pet };
-    updatePetUI(currentPet);
-    showSpeech(`ผมใส่${item.name}แล้วครับ เท่ไหม?`);
-    renderInventoryGrid("clothing");
-    if (result.leveledUp) {
-      showPetPose("levelUp", 4000);
-      setTimeout(() => alert(result.message), 900);
-    }
-  } catch (err) {
-    console.error("Wear clothing error:", err);
-    alert(err.message);
-    await loadInventory();
-    renderInventoryGrid("clothing");
-  }
+  showSpeech(`ผมใส่${item.name}แล้วครับ เท่ไหม?`);
+  renderInventoryGrid("clothing"); // re-render เพื่อสลับปุ่ม "ใส่" → "ถอด"
+}
+
+// ปุ่ม "ถอด" ในกระเป๋าเสื้อผ้า — ลบ overlay + clear localStorage ของ slot นั้น
+function unwearClothing(itemId) {
+  const equipped = loadEquipped();
+  ["hat", "body"].forEach((slot) => {
+    if (equipped[slot] && equipped[slot].id === itemId) delete equipped[slot];
+  });
+  saveEquipped(equipped);
+  applyEquippedOverlays();
+  showSpeech("ถอดออกแล้วครับ 🐶");
+  renderInventoryGrid("clothing");
+}
+
+// เช็คว่า itemId นี้กำลังใส่อยู่ (ใช้ตอน render ปุ่ม)
+function isItemEquipped(itemId) {
+  const equipped = loadEquipped();
+  return ["hat", "body"].some((slot) => equipped[slot] && equipped[slot].id === itemId);
 }
 
 // สร้าง sparkle 6 อันวางเป็นวงรอบจุด (x, y) ค่อยๆ ลอยออกแล้วจางหายภายใน ~800ms

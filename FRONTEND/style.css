@@ -2886,6 +2886,54 @@ html.dark-mode body .noti-badge {
     100%{ transform:translateY(0) scale(1); }
 }
 
+/* ---- Overlay เสื้อผ้าที่ใส่อยู่บนตัวน้อง (persist ใน localStorage) ---- */
+/* pet-character เดิมเป็น text/img ธรรมดา — ต้องทำเป็น relative เพื่อให้ overlay
+   position: absolute อ้างอิงจากมัน (ถ้ามี relative อยู่แล้วจะไม่กระทบ) */
+.pet-character {
+    position: relative;
+}
+
+.pet-equip {
+    position: absolute;
+    pointer-events: none; /* ไม่ให้บัง event ลูบหัวน้อง */
+    z-index: 3;
+    object-fit: contain;
+    transition: transform .2s ease;
+}
+
+/* หมวก: อยู่บนหัว (บนสุดของ pet-character) */
+.pet-equip-hat {
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    max-height: 80px;
+}
+
+/* เสื้อ: อยู่กลางลำตัว */
+.pet-equip-body {
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -30%);
+    width: 120px;
+    max-height: 110px;
+    opacity: 0.92; /* ไม่ทึบ 100% จะเห็นสีตัวน้องซ้อนนิดๆ ดูเป็นธรรมชาติกว่า */
+}
+
+/* ตอนน้องเด้ง (bounce) → เสื้อผ้าเด้งตามไปด้วยพอดี เพราะเป็น child ของ pet-character
+   ไม่ต้องใส่ keyframe แยก */
+
+/* การ์ดที่กำลังใส่อยู่ตอนนี้ — highlight ขอบเขียว + label */
+.item-card.equipped {
+    border: 2px solid #8db754;
+    background: #f4f9e8;
+    box-shadow: 0 2px 6px rgba(141, 183, 84, 0.2);
+}
+
+.item-card .use-btn.unwear {
+    background: #cc7a5a; /* ปุ่ม "ถอด" เป็นสีแดง-ส้ม แยกจากปุ่ม "ใส่" สีเขียว/เดิม */
+}
+
 /* ---- Clothing "ใส่" animation: บิน sprite ไปหาน้อง + sparkle รอบตัว ---- */
 .clothing-flyer{
     position: fixed;
