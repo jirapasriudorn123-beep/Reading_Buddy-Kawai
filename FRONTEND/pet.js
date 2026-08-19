@@ -316,10 +316,13 @@ const bags = {
   bath: { key: "bath", title: "กระเป๋าอาบน้ำ", tag: "🛁" },
   happiness: { key: "happiness", title: "กระเป๋าของเล่น", tag: "😊" },
   sleep: { key: "sleep", title: "กระเป๋าอุปกรณ์นอน", tag: "😴" },
+  // เพิ่ม 'clothing' เป็นกระเป๋าพิเศษ กรองจาก category === "เสื้อผ้า" ไม่ใช่ pet_action
+  // ใช้สำหรับปุ่มกระเป๋าเสื้อผ้าที่แยกออกมาบนหน้า Pet.html
+  clothing: { key: "clothing", title: "กระเป๋าเสื้อผ้า", tag: "👗" },
 };
 
 // ไอคอนสำรองต่อกระเป๋า ใช้เมื่อไอเทมนั้นโหลดรูปจากร้านไม่ขึ้น
-const BAG_FALLBACK_ICON = { feed: "🍖", bath: "🧼", happiness: "🎾", sleep: "🛏️" };
+const BAG_FALLBACK_ICON = { feed: "🍖", bath: "🧼", happiness: "🎾", sleep: "🛏️", clothing: "👕" };
 
 const speeches = {
   feed: "ง่ำๆ อร่อยจังเลยเจ้านาย!",
@@ -352,6 +355,11 @@ async function loadInventory() {
 }
 
 function getBagItems(bagKey) {
+  // กระเป๋าเสื้อผ้ากรองด้วย category ไม่ใช่ pet_action
+  // (เสื้อผ้าบางชิ้นมี pet_action="happiness" อยู่แล้ว จะได้ไม่หายเข้ากระเป๋าของเล่น)
+  if (bagKey === "clothing") {
+    return inventoryItems.filter((item) => item.category === "เสื้อผ้า" && item.count > 0);
+  }
   return inventoryItems.filter((item) => item.pet_action === bagKey && item.count > 0);
 }
 
