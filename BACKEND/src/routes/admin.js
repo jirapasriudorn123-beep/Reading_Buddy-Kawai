@@ -542,6 +542,128 @@ router.put("/game-config/:id", requireAdmin, async (req, res) => {
   }
 });
 
+// ================== จัดการคำถามในมินิเกม (quiz_questions) ==================
+// list ตามบท — แอดมินเปิดหน้า "แก้ไข" ของบทไหนก็ดึงเฉพาะบทนั้น
+router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, next) => {
+  try {
+    const chapterId = Number(req.params.chapterId);
+    const [chapter, questions] = await Promise.all([
+      db
+        .prepare(
+          `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
+           FROM chapters WHERE id = ?`
+        )
+        .get(chapterId),
+      db
+        .prepare(
+          `SELECT id, chapter_id, level, question, option_1, option_2, option_3, option_4,
+                  correct_option, enabled, created_at
+           FROM quiz_questions WHERE chapter_id = ? ORDER BY level ASC, id ASC`
+        )
+        .all(chapterId),
+    ]);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+    return res.json({ chapter, questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// validate payload คำถามให้ครบและถูกช่วง — ใช้ทั้งตอน POST และ PUT
+function validateQuestionPayload(body) {
+  const q = String(body.question || "").trim();
+  const options = [1, 2, 3, 4].map((i) => String(body["option_" + i] || "").trim());
+  const level = Number(body.level);
+  const correct = Number(body.correctOption);
+
+  if (!q) return { error: "กรุณากรอกคำถาม" };
+  if (options.some((o) => !o)) return { error: "กรุณากรอกตัวเลือกให้ครบทั้ง 4 ข้อ" };
+  if (!Number.isInteger(level) || level < 1 || level > 20) {
+    return { error: "ระดับต้องเป็นจำนวนเต็ม 1-20" };
+  }
+  if (!Number.isInteger(correct) || correct < 1 || correct > 4) {
+    return { error: "ต้องเลือกคำตอบที่ถูก (1-4)" };
+  }
+  return { question: q, options, level, correct };
+}
+
+router.post("/game-questions", requireAdmin, async (req, res) => {
+  try {
+    const chapterId = Number(req.body.chapterId);
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(chapterId);
+    if (!chapter) return res.status(400).json({ message: "ไม่พบบทเรียนที่ระบุ" });
+
+    const v = validateQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    const result = await db
+      .prepare(
+        `INSERT INTO quiz_questions
+         (chapter_id, level, question, option_1, option_2, option_3, option_4, correct_option)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(chapterId, v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct);
+
+    const created = await db
+      .prepare("SELECT * FROM quiz_questions WHERE id = ?")
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "เพิ่มคำถามสำเร็จ", question: created });
+  } catch (err) {
+    console.error("Create quiz question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.put("/game-questions/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+
+    const v = validateQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    await db
+      .prepare(
+        `UPDATE quiz_questions
+         SET level = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?
+         WHERE id = ?`
+      )
+      .run(v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, id);
+
+    const updated = await db.prepare("SELECT * FROM quiz_questions WHERE id = ?").get(id);
+    return res.json({ message: "อัปเดตคำถามสำเร็จ", question: updated });
+  } catch (err) {
+    console.error("Update quiz question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.patch("/game-questions/:id/toggle", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const q = await db.prepare("SELECT id, enabled FROM quiz_questions WHERE id = ?").get(id);
+    if (!q) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    const nextVal = q.enabled ? 0 : 1;
+    await db.prepare("UPDATE quiz_questions SET enabled = ? WHERE id = ?").run(nextVal, id);
+    return res.json({ id: q.id, enabled: nextVal });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/game-questions/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    await db.prepare("DELETE FROM quiz_questions WHERE id = ?").run(id);
+    return res.json({ message: "ลบคำถามสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== มินิเกม (Phayao Adventure) — ความคืบหน้าผู้เล่น ==================
 router.get("/game-progress", requireAdmin, async (req, res, next) => {
   try {

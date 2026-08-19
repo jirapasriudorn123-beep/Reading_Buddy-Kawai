@@ -45,7 +45,7 @@ function renderGameCards() {
                   title="คลิกเพื่อ ${enabled ? "ปิด" : "เปิด"} ใช้งาน">
             ${enabled ? "เปิดใช้งานอยู่" : "ปิดใช้งาน"}
           </button>
-          <button class="game-card-edit" onclick="openEditModal(${ch.id})" title="แก้ไข">
+          <button class="game-card-edit" onclick="goToQuestionEditor(${ch.id})" title="แก้ไขคำถาม / เงื่อนไข">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f0b23d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
@@ -91,7 +91,12 @@ async function disableGame(id) {
   }
 }
 
-// ---- Modal แก้ไข ----
+// นำทางไปหน้าจัดการคำถามของบทนั้น (admingame-edit.html รับ chapterId ทาง query string)
+function goToQuestionEditor(id) {
+  window.location.href = `admingame-edit.html?chapterId=${id}`;
+}
+
+// ---- Modal แก้ไขเงื่อนไขบท (คงไว้เผื่อ backend เดิมยังใช้) — ไม่ได้ผูกกับปุ่มไหนแล้ว ----
 function openEditModal(id) {
   const chapter = currentChapters.find((c) => c.id === id);
   if (!chapter) return;

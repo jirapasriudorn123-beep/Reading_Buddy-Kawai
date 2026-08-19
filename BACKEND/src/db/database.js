@@ -322,6 +322,25 @@ async function initDatabase() {
     )
   `);
 
+  // ---- ตาราง quiz_questions (คำถามในมินิเกมแต่ละบท ที่แอดมินสร้างเอง) ----
+  // level = ระดับความยาก 1,2,3... (ใช้จัดกลุ่มในหน้าจัดการเกม)
+  // correct_option = 1-4 ชี้ไปที่ option_1..option_4
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS quiz_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+      level INTEGER NOT NULL DEFAULT 1,
+      question TEXT NOT NULL,
+      option_1 TEXT NOT NULL,
+      option_2 TEXT NOT NULL,
+      option_3 TEXT NOT NULL,
+      option_4 TEXT NOT NULL,
+      correct_option INTEGER NOT NULL CHECK(correct_option BETWEEN 1 AND 4),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (
