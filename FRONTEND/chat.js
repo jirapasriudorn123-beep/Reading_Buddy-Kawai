@@ -21,7 +21,7 @@
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message, chapterId, history: chatHistory }),
+      body: JSON.stringify({ message, chapterId }),
     });
 
     const data = await response.json().catch(() => ({}));
@@ -40,6 +40,72 @@
     return data.reply;
   }
 
+  async function loadChatHistory() {
+  const token = getToken();
+
+  if (!token) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/chat/history`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("currentUser");
+      window.location.href = "login.html";
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || "โหลดประวัติไม่สำเร็จ");
+    }
+
+    const messagesEl = document.getElementById("chatMessages");
+
+    // ล้างข้อความเดิมก่อน
+    messagesEl.innerHTML = "";
+
+    chatHistory = [];
+
+    // ถ้ายังไม่มีประวัติ
+    if (!data.history || data.history.length === 0) {
+      appendMessage(
+        "bot",
+        "สวัสดีครับ! ผมน้องหมา ผู้ช่วยตอบคำถามเรื่องบทเรียนและเกี่ยวกับน้องหมา 📖 มีอะไรให้ช่วยไหมครับ 🐾"
+      );
+      return;
+    }
+
+    // โหลดประวัติเดิมกลับมา
+    data.history.forEach((item) => {
+      appendMessage("user", item.question);
+      appendMessage("bot", item.answer);
+
+      chatHistory.push({
+        role: "user",
+        content: item.question,
+      });
+
+      chatHistory.push({
+        role: "assistant",
+        content: item.answer,
+      });
+    });
+  } catch (err) {
+    console.error("Load chat history error:", err);
+
+    appendMessage(
+      "bot",
+      "ไม่สามารถโหลดประวัติการแชทได้ครับ 🐶"
+    );
+  }
+}
   // ================== สร้าง widget ==================
 
   function createWidget() {
@@ -71,7 +137,7 @@
     document.getElementById("chatCloseBtn").addEventListener("click", toggleChat);
     document.getElementById("chatForm").addEventListener("submit", onSubmit);
 
-    appendMessage("bot", "สวัสดีครับ! ผมน้องหมา ผู้ช่วยตอบคำถามเรื่องบทเรียนและเกี่ยวกับน้องหมา 📖 มีอะไรให้ช่วยไหมครับ 🐾");
+    loadChatHistory();
   }
 
   function toggleChat() {

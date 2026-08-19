@@ -3076,3 +3076,11 @@ html.dark-mode body .modal-qty-control {
 html.dark-mode body .modal-qty-control input {
     color: #e8e8e8;
 }
+
+.card-icon img.chapter-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
