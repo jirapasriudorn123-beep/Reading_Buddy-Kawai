@@ -3005,52 +3005,6 @@ html.dark-mode body .noti-badge {
 }
 .inventory-drawer.show{ transform:translateY(0); }
 
-/* body ในกระเป๋า = แท็บ (ซ้าย) + grid (ขวา) วางเรียงกัน */
-.inventory-body{
-    display:flex;
-    align-items:flex-start;
-    gap:14px;
-}
-
-.inventory-tabs{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    padding:6px 0;
-    flex-shrink:0;
-}
-
-/* แท็บแต่ละอันเป็นก้อนสีครีมที่กดสลับกระเป๋าได้ */
-.inventory-drawer .inv-tab{
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    width:52px !important;
-    height:52px !important;
-    border-radius:14px !important;
-    background:#F6EDCF !important;
-    font-size:26px !important;
-    color:#333 !important;
-    box-shadow:0 2px 4px rgba(0,0,0,.08) !important;
-    transition:transform .15s ease, background .15s ease !important;
-    padding:0 !important;
-}
-
-.inventory-drawer .inv-tab:hover{
-    transform:scale(1.05) !important;
-    background:#F0B23D !important;
-}
-
-.inventory-drawer .inv-tab.active{
-    background:#F0B23D !important;
-    box-shadow:0 3px 6px rgba(240, 178, 61, .35) !important;
-    transform:scale(1.05) !important;
-}
-
-.inventory-body .inventory-grid{
-    flex:1;
-}
-
 .inventory-handle{
     width:44px; height:5px; border-radius:3px;
     background:#E3DCC6;
