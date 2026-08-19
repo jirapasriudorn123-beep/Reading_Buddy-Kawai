@@ -149,10 +149,14 @@ function renderChapters(chapters) {
     card.dataset.chapterTitle = chapter.title;
     // ไอคอนบทเรียนอยู่ที่ img/chapters/{เลขบท}.png (มีเฉพาะบท 1-6 ตอนนี้)
     // ถ้ามีบทเพิ่มในอนาคตแล้วรูปไม่มี ให้ fallback เป็นอิโมจิสลับ
-    const iconHtml =
-      chapter.chapter_number >= 1 && chapter.chapter_number <= 6
-        ? `<img src="img/chapters/${chapter.chapter_number}.png" alt="Chapter ${chapter.chapter_number}" onerror="this.replaceWith(document.createTextNode('${index % 2 === 0 ? "💻" : "⚙️"}'))">`
-        : `${index % 2 === 0 ? "💻" : "⚙️"}`;
+    const iconHtml = `
+    <img src ="img/chapters/${chapter.chapter_number}.png" 
+    alt="Chapter ${chapter.chapter_number}" 
+    class="chapter-icon"
+    onerror="this.onerror=null;this.src='img/chapters/default.png';"
+    >
+    `; 
+      
     card.innerHTML = `
       <div class="card-inner">
         <div class="chapter-label">CHAPTER ${chapter.chapter_number}</div>
@@ -323,29 +327,19 @@ async function extendReadingTime() {
   }
 }
 
-// ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (โทนนุ่มๆ สร้างด้วย Web Audio ไม่ใช้ไฟล์เสียงภายนอก) ==================
+// ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (ไฟล์ buzzer 5 วิ จาก sound/timer-end.mp3) ==================
 
-let audioCtx = null;
+// preload ตอนโหลดไฟล์ script.js เลย จะได้ไม่ต้องรอโหลดครั้งแรกที่เรียก
+// (browser autoplay policy ยอมให้เล่นได้เพราะ user เพิ่งกดปุ่ม "เริ่ม" ไปก่อนหน้า)
+const timerEndSound = new Audio("sound/timer-end.mp3");
+timerEndSound.preload = "auto";
+timerEndSound.volume = 0.7;
 
 function playSoftBeep() {
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const now = audioCtx.currentTime;
-
-    const oscillator = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(660, now);
-
-    // fade in/out นุ่มๆ กันเสียงแสบหู แทนการเปิด-ปิดเสียงห้วนๆ
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.04);
-    gain.gain.linearRampToValueAtTime(0, now + 0.4);
-
-    oscillator.connect(gain);
-    gain.connect(audioCtx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.45);
+    timerEndSound.pause();
+    timerEndSound.currentTime = 0; // reset ให้เล่นตั้งแต่ต้นเสมอ (กันกรณีเสียงยังเล่นค้างจากรอบก่อน)
+    timerEndSound.play().catch((err) => console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err));
   } catch (err) {
     console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
   }
@@ -469,6 +463,11 @@ function finishBreak(completedNaturally) {
 function resetReaderTimerState() {
   clearInterval(countdownInterval);
   clearInterval(breakCountdownInterval);
+  // ปิดเสียงเตือนถ้ายังเล่นค้างอยู่ (เช่น user กดยกเลิกช่วง 5 วิสุดท้าย)
+  try {
+    timerEndSound.pause();
+    timerEndSound.currentTime = 0;
+  } catch (_) {}
   activeSession = null;
   remainingSeconds = 0;
   onBreak = false;
