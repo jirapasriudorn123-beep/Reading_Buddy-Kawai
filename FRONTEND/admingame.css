@@ -1,0 +1,156 @@
+/* ================== หน้าจัดการมินิเกม ================== */
+
+.game-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.game-card {
+  background: #ffffff;
+  border: 2px solid #f0e5d6;
+  border-radius: 20px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.game-card.disabled {
+  opacity: 0.55;
+}
+
+.game-card-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.game-ch-badge {
+  background: #f0b23d;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.game-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  word-break: break-word;
+}
+
+.game-card-conditions {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.game-card-conditions .separator {
+  margin: 0 8px;
+  color: #ccc;
+}
+
+.game-card-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* pill สถานะ เปิด/ปิดใช้งาน */
+.game-status-pill {
+  background: #b7d67d;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.game-status-pill.off {
+  background: #cccccc;
+}
+
+.game-status-pill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.game-status-pill:hover {
+  filter: brightness(1.05);
+}
+
+/* ปุ่ม edit + ลบ */
+.game-card-edit,
+.game-card-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.game-card-edit:hover {
+  background: #fff4dc;
+}
+
+.game-card-delete {
+  color: #d9534f;
+  font-size: 22px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+}
+
+.game-card-delete:hover {
+  background: #fce4e4;
+}
+
+/* dark mode */
+html.dark-mode body .game-card {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+
+html.dark-mode body .game-card-title {
+  color: #eee;
+}
+
+html.dark-mode body .game-card-conditions {
+  color: #aaa;
+}

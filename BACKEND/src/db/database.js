@@ -128,6 +128,13 @@ async function initDatabase() {
     ["detail", "ALTER TABLE chapters ADD COLUMN detail TEXT"],
     ["image_url", "ALTER TABLE chapters ADD COLUMN image_url TEXT"],
     ["pdf_url", "ALTER TABLE chapters ADD COLUMN pdf_url TEXT"],
+    // ค่าที่แอดมินตั้งในหน้า "จัดการมินิเกม" สำหรับแต่ละบท
+    // required_minutes = ต้องอ่านครบกี่นาทีถึงจะเล่นมินิเกมของบทนี้ได้
+    // question_count = จำนวนข้อคำถามในมินิเกม
+    // enabled = เปิดใช้งานมินิเกมบทนี้หรือไม่ (0/1)
+    ["game_required_minutes", "ALTER TABLE chapters ADD COLUMN game_required_minutes INTEGER NOT NULL DEFAULT 20"],
+    ["game_question_count", "ALTER TABLE chapters ADD COLUMN game_question_count INTEGER NOT NULL DEFAULT 5"],
+    ["game_enabled", "ALTER TABLE chapters ADD COLUMN game_enabled INTEGER NOT NULL DEFAULT 1"],
   ];
   for (const [col, sql] of chapterColumnMigrations) {
     if (!chapterColumns.includes(col)) await client.execute(sql);
@@ -327,6 +334,17 @@ async function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // ---- ตาราง chat_history ----
+await client.execute(`
+  CREATE TABLE IF NOT EXISTS chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
 
   // ---- ตาราง site_meta ----
   await client.execute(`

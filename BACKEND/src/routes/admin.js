@@ -473,7 +473,76 @@ router.post("/chat-answers/test", requireAdmin, async (req, res, next) => {
   }
 });
 
-// ================== มินิเกม (Phayao Adventure) ==================
+// ================== จัดการมินิเกม (game config ต่อบทเรียน) ==================
+// GET รายการบท + ค่ามินิเกมที่แอดมินตั้งไว้ (required_minutes, question_count, enabled)
+router.get("/game-config", requireAdmin, async (req, res, next) => {
+  try {
+    const chapters = await db
+      .prepare(
+        `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
+         FROM chapters ORDER BY chapter_number ASC`
+      )
+      .all();
+    return res.json({ chapters });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT อัปเดตค่ามินิเกมของบทหนึ่งๆ (ไม่แตะฟิลด์อื่นของบท เช่น title/pdf_url)
+router.put("/game-config/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chapter = await db
+      .prepare("SELECT id, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?")
+      .get(id);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+
+    const { requiredMinutes, questionCount, enabled } = req.body;
+
+    // validate เฉพาะฟิลด์ที่ส่งมา (ไม่บังคับส่งครบทุกฟิลด์)
+    let newRequiredMinutes = chapter.game_required_minutes;
+    if (requiredMinutes !== undefined) {
+      const n = Number(requiredMinutes);
+      if (!Number.isInteger(n) || n < 0 || n > 240) {
+        return res.status(400).json({ message: "เวลาอ่านต้องเป็นจำนวนเต็ม 0-240 นาที" });
+      }
+      newRequiredMinutes = n;
+    }
+
+    let newQuestionCount = chapter.game_question_count;
+    if (questionCount !== undefined) {
+      const n = Number(questionCount);
+      if (!Number.isInteger(n) || n < 1 || n > 50) {
+        return res.status(400).json({ message: "จำนวนคำถามต้องเป็น 1-50 ข้อ" });
+      }
+      newQuestionCount = n;
+    }
+
+    let newEnabled = chapter.game_enabled;
+    if (enabled !== undefined) {
+      newEnabled = enabled ? 1 : 0;
+    }
+
+    await db
+      .prepare(
+        "UPDATE chapters SET game_required_minutes = ?, game_question_count = ?, game_enabled = ? WHERE id = ?"
+      )
+      .run(newRequiredMinutes, newQuestionCount, newEnabled, id);
+
+    const updated = await db
+      .prepare(
+        "SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?"
+      )
+      .get(id);
+    return res.json({ message: "บันทึกสำเร็จ", chapter: updated });
+  } catch (err) {
+    console.error("Update game config error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ================== มินิเกม (Phayao Adventure) — ความคืบหน้าผู้เล่น ==================
 router.get("/game-progress", requireAdmin, async (req, res, next) => {
   try {
     const players = await db
