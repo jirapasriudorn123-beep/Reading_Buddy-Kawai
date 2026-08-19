@@ -17,18 +17,29 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+// normalize email เป็น lowercase + trim ทุกครั้งก่อนใช้/save
+// กันเคส User A สมัคร "John@x.com" แล้ว User B สมัคร "john@x.com" ได้ทั้งคู่ (DB มองต่างกัน)
+// และเคส user พิมพ์ "  john@x.com " ตอน login แล้ว WHERE email = ? หา match ไม่เจอ
+function normalizeEmail(email) {
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+}
+
 // ---------- POST /api/auth/register ----------
 router.post("/register", async (req, res) => {
   try {
-    const { email, username, password, confirmPassword } = req.body;
+    const { email: rawEmail, username: rawUsername, password, confirmPassword } = req.body;
 
-    if (!email || !username || !password || !confirmPassword) {
+    if (!rawEmail || !rawUsername || !password || !confirmPassword) {
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบทุกช่อง" });
     }
+
+    const email = normalizeEmail(rawEmail);
+    const username = typeof rawUsername === "string" ? rawUsername.trim() : "";
+
     if (!EMAIL_REGEX.test(email)) {
       return res.status(400).json({ message: "รูปแบบอีเมลไม่ถูกต้อง" });
     }
-    if (username.trim().length < 3) {
+    if (username.length < 3) {
       return res.status(400).json({ message: "Username ต้องมีอย่างน้อย 3 ตัวอักษร" });
     }
     if (password.length < 6) {
@@ -65,12 +76,13 @@ router.post("/register", async (req, res) => {
 // ---------- POST /api/auth/login ----------
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
 
-    if (!email || !password) {
+    if (!rawEmail || !password) {
       return res.status(400).json({ message: "กรุณากรอกอีเมลและรหัสผ่าน" });
     }
 
+    const email = normalizeEmail(rawEmail);
     const user = await db.prepare("SELECT * FROM users WHERE email = ?").get(email);
 
     if (!user) {
@@ -199,7 +211,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
 // ---------- POST /api/auth/forgot-password ----------
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     if (!email || !EMAIL_REGEX.test(email)) {
       return res.status(400).json({ message: "กรุณากรอกอีเมลให้ถูกต้อง" });

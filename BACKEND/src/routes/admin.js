@@ -33,7 +33,8 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
       db
         .prepare(
-          `SELECT date(started_at) as day,
+          // เทียบวันด้วยเวลาไทย (UTC+7) ไม่งั้นเซสชันที่จบช่วง 00:00-07:00 ไทยจะไปโผล่วันเมื่อวานในกราฟ
+          `SELECT date(started_at, '+7 hours') as day,
                   COALESCE(SUM(planned_read_seconds), 0) as seconds,
                   COALESCE(SUM(coins_earned), 0) as coins
            FROM reading_sessions

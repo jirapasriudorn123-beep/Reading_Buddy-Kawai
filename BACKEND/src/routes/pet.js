@@ -5,6 +5,7 @@ const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
 const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
+const MAX_PET_NAME_LENGTH = 30;
 
 const STATS = ["hunger", "cleanliness", "happiness", "energy"];
 
@@ -118,6 +119,9 @@ router.post("/", requireAuth, async (req, res) => {
     }
     if (!name || !name.trim()) {
       return res.status(400).json({ message: "อย่าลืมตั้งชื่อให้น้องด้วยนะ" });
+    }
+    if (name.trim().length > MAX_PET_NAME_LENGTH) {
+      return res.status(400).json({ message: `ชื่อน้องต้องยาวไม่เกิน ${MAX_PET_NAME_LENGTH} ตัวอักษร` });
     }
 
     const existing = await db.prepare("SELECT user_id FROM pets WHERE user_id = ?").get(req.user.id);

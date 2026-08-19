@@ -6,6 +6,13 @@ const router = express.Router();
 
 const ELAPSED_SECONDS_SQL = `CAST((julianday(ended_at) - julianday(started_at)) * 86400 AS INTEGER)`;
 
+// Backend timestamp เป็น UTC (datetime('now') ของ SQLite) แต่ user เป็นคนไทย (UTC+7)
+// ถ้าเทียบวันด้วย date('now') ตรงๆ user ที่อ่านช่วง 00:00-07:00 ไทยจะโดนนับเป็นเมื่อวาน
+// ทั้ง started_at และ 'now' จึงต้อง shift +7 ชม.ก่อนเอามาตัดวันเสมอ ให้เป็น "วันในเวลาไทย"
+const TZ_OFFSET = "+7 hours";
+const DAY_NOW = `date('now', '${TZ_OFFSET}')`;
+const DAY_STARTED = `date(started_at, '${TZ_OFFSET}')`;
+
 // ---------- GET /api/analytics/today-progress ----------
 router.get("/today-progress", requireAuth, async (req, res, next) => {
   try {
@@ -19,7 +26,7 @@ router.get("/today-progress", requireAuth, async (req, res, next) => {
       .prepare(
         `SELECT COALESCE(SUM(${ELAPSED_SECONDS_SQL}), 0) AS totalSeconds
          FROM reading_sessions
-         WHERE user_id = ? AND status = 'completed' AND date(started_at) = date('now')`
+         WHERE user_id = ? AND status = 'completed' AND ${DAY_STARTED} = ${DAY_NOW}`
       )
       .get(req.user.id);
 
@@ -53,12 +60,12 @@ router.get("/weekly-progress", requireAuth, async (req, res, next) => {
           `SELECT COALESCE(SUM(${ELAPSED_SECONDS_SQL}), 0) AS totalSeconds
            FROM reading_sessions
            WHERE user_id = ? AND status = 'completed'
-             AND date(started_at) BETWEEN date('now', ?) AND date('now', ?)`
+             AND ${DAY_STARTED} BETWEEN date('now', ?, '${TZ_OFFSET}') AND date('now', ?, '${TZ_OFFSET}')`
         )
         .get(req.user.id, `-${startOffset} days`, `-${endOffset} days`);
 
-      const startDateRow = await db.prepare("SELECT date('now', ?) AS d").get(`-${startOffset} days`);
-      const endDateRow = await db.prepare("SELECT date('now', ?) AS d").get(`-${endOffset} days`);
+      const startDateRow = await db.prepare(`SELECT date('now', ?, '${TZ_OFFSET}') AS d`).get(`-${startOffset} days`);
+      const endDateRow = await db.prepare(`SELECT date('now', ?, '${TZ_OFFSET}') AS d`).get(`-${endOffset} days`);
 
       result.push({
         weeksAgo: w,
@@ -104,11 +111,11 @@ router.get("/trend", requireAuth, async (req, res, next) => {
 
     const rows = await db
       .prepare(
-        `SELECT date(started_at) AS day, SUM(${ELAPSED_SECONDS_SQL}) AS totalSeconds
+        `SELECT ${DAY_STARTED} AS day, SUM(${ELAPSED_SECONDS_SQL}) AS totalSeconds
          FROM reading_sessions
          WHERE user_id = ? AND status = 'completed'
-           AND date(started_at) >= date('now', ?)
-         GROUP BY date(started_at)`
+           AND ${DAY_STARTED} >= date('now', ?, '${TZ_OFFSET}')
+         GROUP BY ${DAY_STARTED}`
       )
       .all(req.user.id, `-${days - 1} days`);
 
@@ -119,7 +126,7 @@ router.get("/trend", requireAuth, async (req, res, next) => {
 
     const trend = [];
     for (let i = days - 1; i >= 0; i--) {
-      const dRow = await db.prepare("SELECT date('now', ?) AS d").get(`-${i} days`);
+      const dRow = await db.prepare(`SELECT date('now', ?, '${TZ_OFFSET}') AS d`).get(`-${i} days`);
       trend.push({ date: dRow.d, totalSeconds: byDate[dRow.d] || 0 });
     }
 
