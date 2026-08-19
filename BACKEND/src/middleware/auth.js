@@ -1,8 +1,6 @@
 const jwt = require("jsonwebtoken");
 const db = require("../db/database");
 
-const updateLastActive = db.prepare("UPDATE users SET last_active_at = datetime('now') WHERE id = ?");
-
 // middleware สำหรับป้องกัน route ที่ต้อง login ก่อนถึงจะเข้าถึงได้
 function requireAuth(req, res, next) {
   const authHeader = req.headers["authorization"]; // รูปแบบ: "Bearer <token>"
@@ -16,9 +14,10 @@ function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = payload; // { id, email, username, isAdmin }
-    try {
-      updateLastActive.run(payload.id); // เก็บเวลาใช้งานล่าสุด ไว้คำนวณ "ผู้ใช้ออนไลน์" ในแดชบอร์ดแอดมิน (ไม่ให้พังทั้ง request ถ้าล้มเหลว)
-    } catch (_) {}
+    // เก็บเวลาใช้งานล่าสุดแบบ fire-and-forget (ไม่ block request ถ้า DB ช้า/ล้ม)
+    db.prepare("UPDATE users SET last_active_at = datetime('now') WHERE id = ?")
+      .run(payload.id)
+      .catch(() => {});
     next();
   } catch (err) {
     return res.status(401).json({ message: "Token ไม่ถูกต้องหรือหมดอายุ กรุณาเข้าสู่ระบบใหม่" });

@@ -8,20 +8,22 @@ const MAX_MINUTES = 120;
 const MAX_SECONDS = 59;
 
 // ---------- GET /api/goal ----------
-// ดึงเป้าหมายเวลาอ่านของผู้ใช้ปัจจุบัน (ถ้ายังไม่เคยตั้งจะได้ 0:00)
-router.get("/", requireAuth, (req, res) => {
-  const goal = db
-    .prepare("SELECT goal_minutes, goal_seconds, updated_at FROM reading_goals WHERE user_id = ?")
-    .get(req.user.id);
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const goal = await db
+      .prepare("SELECT goal_minutes, goal_seconds, updated_at FROM reading_goals WHERE user_id = ?")
+      .get(req.user.id);
 
-  return res.json({
-    goal: goal || { goal_minutes: 0, goal_seconds: 0, updated_at: null },
-  });
+    return res.json({
+      goal: goal || { goal_minutes: 0, goal_seconds: 0, updated_at: null },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- PUT /api/goal ----------
-// ตั้ง/แก้ไขเป้าหมายเวลาอ่าน
-router.put("/", requireAuth, (req, res) => {
+router.put("/", requireAuth, async (req, res) => {
   try {
     let { minutes, seconds } = req.body;
     minutes = Number(minutes);
@@ -39,12 +41,11 @@ router.put("/", requireAuth, (req, res) => {
     if (minutes === 0 && seconds === 0) {
       return res.status(400).json({ message: "กรุณาตั้งเป้าหมายเวลามากกว่า 0" });
     }
-    // กันกรณีตั้ง 120:01 ขึ้นไป (โจทย์บอกสูงสุด 120 นาที 00 วินาที)
     if (minutes === MAX_MINUTES && seconds > 0) {
       return res.status(400).json({ message: `ตั้งได้สูงสุด ${MAX_MINUTES} นาที 00 วินาที` });
     }
 
-    db.prepare(
+    await db.prepare(
       `INSERT INTO reading_goals (user_id, goal_minutes, goal_seconds, updated_at)
        VALUES (?, ?, ?, datetime('now'))
        ON CONFLICT(user_id) DO UPDATE SET

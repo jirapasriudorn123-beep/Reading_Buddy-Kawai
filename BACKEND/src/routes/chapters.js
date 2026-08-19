@@ -13,18 +13,20 @@ function toSeconds(minutes, seconds) {
 }
 
 // ---------- GET /api/chapters ----------
-// ดึงรายการ chapter ทั้งหมด
-router.get("/", requireAuth, (req, res) => {
-  const chapters = db
-    .prepare("SELECT id, chapter_number, title, coin_reward, detail, image_url, pdf_url FROM chapters ORDER BY chapter_number ASC")
-    .all();
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const chapters = await db
+      .prepare("SELECT id, chapter_number, title, coin_reward, detail, image_url, pdf_url FROM chapters ORDER BY chapter_number ASC")
+      .all();
 
-  return res.json({ chapters });
+    return res.json({ chapters });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- POST /api/chapters/:chapterId/sessions ----------
-// เริ่มจับเวลาอ่าน chapter หนึ่งๆ (สร้าง reading session ใหม่)
-router.post("/:chapterId/sessions", requireAuth, (req, res) => {
+router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
   try {
     const chapterId = Number(req.params.chapterId);
     let { readMinutes, readSeconds, breakMinutes, breakSeconds } = req.body;
@@ -34,13 +36,13 @@ router.post("/:chapterId/sessions", requireAuth, (req, res) => {
     breakMinutes = Number(breakMinutes) || 0;
     breakSeconds = Number(breakSeconds) || 0;
 
-    const chapter = db.prepare("SELECT id, title, coin_reward FROM chapters WHERE id = ?").get(chapterId);
+    const chapter = await db.prepare("SELECT id, title, coin_reward FROM chapters WHERE id = ?").get(chapterId);
     if (!chapter) {
       return res.status(404).json({ message: "ไม่พบ Chapter นี้" });
     }
 
-    // ---- กันเปิดหลายเซสชันพร้อมกัน (เช่น เปิดหลายแท็บ) — ต้องจบ/ยกเลิกเซสชันเดิมก่อนเริ่มใหม่ ----
-    const existingSession = db
+    // ---- กันเปิดหลายเซสชันพร้อมกัน ----
+    const existingSession = await db
       .prepare("SELECT id FROM reading_sessions WHERE user_id = ? AND status = 'in_progress'")
       .get(req.user.id);
     if (existingSession) {
@@ -49,7 +51,7 @@ router.post("/:chapterId/sessions", requireAuth, (req, res) => {
       });
     }
 
-    // ---- validate เวลา ให้อยู่ในกรอบเดียวกับหน้าบ้าน (สูงสุด 120:00) ----
+    // ---- validate เวลา ----
     for (const [label, m, s] of [
       ["เวลาอ่าน", readMinutes, readSeconds],
       ["เวลาพัก", breakMinutes, breakSeconds],
@@ -68,7 +70,7 @@ router.post("/:chapterId/sessions", requireAuth, (req, res) => {
     }
     const plannedBreakSeconds = toSeconds(breakMinutes, breakSeconds);
 
-    const result = db
+    const result = await db
       .prepare(
         `INSERT INTO reading_sessions (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status)
          VALUES (?, ?, ?, ?, 'in_progress')`

@@ -5,19 +5,20 @@ const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
 // ---------- GET /api/coins ----------
-// ดูยอดเหรียญปัจจุบัน
-router.get("/", requireAuth, (req, res) => {
-  const user = db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
-  if (!user) {
-    return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+    }
+    return res.json({ coins: user.coins });
+  } catch (err) {
+    next(err);
   }
-  return res.json({ coins: user.coins });
 });
 
 // ---------- POST /api/coins/spend ----------
-// ใช้จ่ายเหรียญ (เตรียมไว้สำหรับหน้า Shop ในอนาคต)
-// body: { amount: number, reason?: string }
-router.post("/spend", requireAuth, (req, res) => {
+router.post("/spend", requireAuth, async (req, res) => {
   try {
     const amount = Number(req.body.amount);
 
@@ -25,7 +26,7 @@ router.post("/spend", requireAuth, (req, res) => {
       return res.status(400).json({ message: "จำนวนเหรียญที่ใช้จ่ายไม่ถูกต้อง" });
     }
 
-    const user = db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+    const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
     if (!user) {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
@@ -33,8 +34,8 @@ router.post("/spend", requireAuth, (req, res) => {
       return res.status(400).json({ message: "เหรียญไม่พอ" });
     }
 
-    db.prepare("UPDATE users SET coins = coins - ? WHERE id = ?").run(amount, req.user.id);
-    const updated = db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+    await db.prepare("UPDATE users SET coins = coins - ? WHERE id = ?").run(amount, req.user.id);
+    const updated = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
 
     return res.json({ message: "ใช้จ่ายเหรียญสำเร็จ", coins: updated.coins });
   } catch (err) {

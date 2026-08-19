@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const db = require("./db/database");
 
 const authRoutes = require("./routes/auth");
 const goalRoutes = require("./routes/goal");
@@ -54,6 +55,19 @@ app.use((req, res) => {
   res.status(404).json({ message: "ไม่พบ endpoint นี้" });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Backend server กำลังรันที่ http://localhost:${PORT}`);
+// error handler รวม (จับ error จาก async route ที่โยนผ่าน next(err))
+app.use((err, req, res, _next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
 });
+
+db.init()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Backend server กำลังรันที่ http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ เชื่อมต่อฐานข้อมูลไม่สำเร็จ:", err);
+    process.exit(1);
+  });

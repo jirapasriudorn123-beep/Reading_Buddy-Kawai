@@ -8,7 +8,7 @@ const { findChatAnswer } = require("./chat");
 const router = express.Router();
 
 // ================== อัปโหลดไฟล์ (รูปภาพ/PDF) ==================
-// เก็บไว้ที่ BACKEND/uploads/{lessons|products}/ แล้ว serve ผ่าน /uploads (ตั้งไว้ใน server.js แล้ว)
+// หมายเหตุ: ไฟล์ใน uploads/ จะหายทุกครั้งที่ Render restart (ephemeral filesystem)
 const uploadsRoot = path.join(__dirname, "..", "..", "uploads");
 
 const storage = multer.diskStorage({
@@ -25,11 +25,10 @@ const storage = multer.diskStorage({
 const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => cb(null, ALLOWED_MIME.includes(file.mimetype)),
 });
 
-// body: multipart/form-data ฟิลด์ "file" | query: ?type=lesson|product (ใช้เลือกโฟลเดอร์ปลายทาง)
 router.post("/upload", requireAdmin, upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "อัปโหลดไฟล์ไม่สำเร็จ (ชนิดไฟล์ไม่รองรับ หรือไฟล์ใหญ่เกิน 20MB)" });
@@ -41,61 +40,62 @@ router.post("/upload", requireAdmin, upload.single("file"), (req, res) => {
 });
 
 // ================== แดชบอร์ด ==================
-router.get("/stats", requireAdmin, (req, res) => {
-  const totalUsers = db.prepare("SELECT COUNT(*) c FROM users WHERE is_admin = 0").get().c;
-  const onlineUsers = db
-    .prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')")
-    .get().c;
-  const totalReadingSeconds = db
-    .prepare("SELECT COALESCE(SUM(planned_read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'")
-    .get().s;
-  const totalCoinsSpent = db
-    .prepare(
-      `SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`
-    )
-    .get().s;
-  const gamePlayers = db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get().c;
+router.get("/stats", requireAdmin, async (req, res, next) => {
+  try {
+    const [totalUsersRow, onlineUsersRow, totalReadingRow, totalCoinsSpentRow, gamePlayersRow, chartRows] = await Promise.all([
+      db.prepare("SELECT COUNT(*) c FROM users WHERE is_admin = 0").get(),
+      db.prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')").get(),
+      db.prepare("SELECT COALESCE(SUM(planned_read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
+      db.prepare(`SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`).get(),
+      db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
+      db
+        .prepare(
+          `SELECT date(started_at) as day,
+                  COALESCE(SUM(planned_read_seconds), 0) as seconds,
+                  COALESCE(SUM(coins_earned), 0) as coins
+           FROM reading_sessions
+           WHERE status = 'completed' AND started_at >= datetime('now', '-6 days')
+           GROUP BY day
+           ORDER BY day ASC`
+        )
+        .all(),
+    ]);
 
-  const chartRows = db
-    .prepare(
-      `SELECT date(started_at) as day,
-              COALESCE(SUM(planned_read_seconds), 0) as seconds,
-              COALESCE(SUM(coins_earned), 0) as coins
-       FROM reading_sessions
-       WHERE status = 'completed' AND started_at >= datetime('now', '-6 days')
-       GROUP BY day
-       ORDER BY day ASC`
-    )
-    .all();
-
-  return res.json({
-    totalUsers,
-    onlineUsers,
-    totalReadingHours: Math.round((totalReadingSeconds / 3600) * 10) / 10,
-    totalCoinsSpent,
-    gamePlayers,
-    chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
-  });
+    return res.json({
+      totalUsers: totalUsersRow.c,
+      onlineUsers: onlineUsersRow.c,
+      totalReadingHours: Math.round((totalReadingRow.s / 3600) * 10) / 10,
+      totalCoinsSpent: totalCoinsSpentRow.s,
+      gamePlayers: gamePlayersRow.c,
+      chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ================== บทเรียน (chapters) ==================
-router.get("/chapters", requireAdmin, (req, res) => {
-  const chapters = db.prepare("SELECT * FROM chapters ORDER BY chapter_number ASC").all();
-  return res.json({ chapters });
+router.get("/chapters", requireAdmin, async (req, res, next) => {
+  try {
+    const chapters = await db.prepare("SELECT * FROM chapters ORDER BY chapter_number ASC").all();
+    return res.json({ chapters });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post("/chapters", requireAdmin, (req, res) => {
+router.post("/chapters", requireAdmin, async (req, res) => {
   try {
     const { chapterNumber, title, detail, coinReward, imageUrl, pdfUrl } = req.body;
     if (!chapterNumber || !title || !title.trim()) {
       return res.status(400).json({ message: "กรุณากรอก Chapter และชื่อบทเรียน" });
     }
-    const existing = db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(Number(chapterNumber));
+    const existing = await db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(Number(chapterNumber));
     if (existing) {
       return res.status(409).json({ message: "มี Chapter หมายเลขนี้อยู่แล้ว" });
     }
 
-    const result = db
+    const result = await db
       .prepare(
         `INSERT INTO chapters (chapter_number, title, detail, coin_reward, image_url, pdf_url)
          VALUES (?, ?, ?, ?, ?, ?)`
@@ -109,7 +109,7 @@ router.post("/chapters", requireAdmin, (req, res) => {
         pdfUrl || null
       );
 
-    const chapter = db.prepare("SELECT * FROM chapters WHERE id = ?").get(result.lastInsertRowid);
+    const chapter = await db.prepare("SELECT * FROM chapters WHERE id = ?").get(result.lastInsertRowid);
     return res.status(201).json({ message: "เพิ่มบทเรียนสำเร็จ", chapter });
   } catch (err) {
     console.error("Create chapter error:", err);
@@ -117,21 +117,21 @@ router.post("/chapters", requireAdmin, (req, res) => {
   }
 });
 
-router.put("/chapters/:id", requireAdmin, (req, res) => {
+router.put("/chapters/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const chapter = db.prepare("SELECT * FROM chapters WHERE id = ?").get(id);
+    const chapter = await db.prepare("SELECT * FROM chapters WHERE id = ?").get(id);
     if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
 
     const { chapterNumber, title, detail, coinReward, imageUrl, pdfUrl } = req.body;
     if (chapterNumber && Number(chapterNumber) !== chapter.chapter_number) {
-      const dup = db
+      const dup = await db
         .prepare("SELECT id FROM chapters WHERE chapter_number = ? AND id != ?")
         .get(Number(chapterNumber), id);
       if (dup) return res.status(409).json({ message: "มี Chapter หมายเลขนี้อยู่แล้ว" });
     }
 
-    db.prepare(
+    await db.prepare(
       `UPDATE chapters SET chapter_number = ?, title = ?, detail = ?, coin_reward = ?, image_url = ?, pdf_url = ?
        WHERE id = ?`
     ).run(
@@ -144,7 +144,7 @@ router.put("/chapters/:id", requireAdmin, (req, res) => {
       id
     );
 
-    const updated = db.prepare("SELECT * FROM chapters WHERE id = ?").get(id);
+    const updated = await db.prepare("SELECT * FROM chapters WHERE id = ?").get(id);
     return res.json({ message: "อัปเดตบทเรียนสำเร็จ", chapter: updated });
   } catch (err) {
     console.error("Update chapter error:", err);
@@ -152,36 +152,41 @@ router.put("/chapters/:id", requireAdmin, (req, res) => {
   }
 });
 
-router.delete("/chapters/:id", requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const chapter = db.prepare("SELECT id FROM chapters WHERE id = ?").get(id);
-  if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
-  db.prepare("DELETE FROM chapters WHERE id = ?").run(id);
-  return res.json({ message: "ลบบทเรียนสำเร็จ" });
+router.delete("/chapters/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(id);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+    await db.prepare("DELETE FROM chapters WHERE id = ?").run(id);
+    return res.json({ message: "ลบบทเรียนสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ================== ร้านค้า (products) ==================
-router.get("/products", requireAdmin, (req, res) => {
-  const products = db.prepare("SELECT * FROM products ORDER BY rowid ASC").all();
-  return res.json({ products });
+router.get("/products", requireAdmin, async (req, res, next) => {
+  try {
+    const products = await db.prepare("SELECT * FROM products ORDER BY rowid ASC").all();
+    return res.json({ products });
+  } catch (err) {
+    next(err);
+  }
 });
 
 function makeProductId() {
   return "item-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
 }
 
-// ไอเทมใช้กับน้องหมาได้ 4 แบบ (ต้องตรงกับ ACTION_STAT ใน routes/pet.js) ค่าว่าง = เป็นของสะสม ใช้ไม่ได้
 const PET_ACTIONS = ["feed", "bath", "happiness", "sleep"];
 const MAX_STAT_GAIN = 100;
 
-// คืน [petAction, statGain] ที่ตรวจแล้ว หรือโยน Error พร้อมข้อความถ้าไม่ถูกต้อง
 function validatePetUse(petAction, statGain) {
   const action = petAction ? String(petAction) : null;
   if (action && !PET_ACTIONS.includes(action)) {
     throw new Error("ประเภทการใช้กับน้องหมาไม่ถูกต้อง");
   }
 
-  // ของสะสมไม่ต้องมีค่าเติมสถานะ
   if (!action) return [null, 0];
 
   const gain = Number(statGain);
@@ -191,7 +196,7 @@ function validatePetUse(petAction, statGain) {
   return [action, gain];
 }
 
-router.post("/products", requireAdmin, (req, res) => {
+router.post("/products", requireAdmin, async (req, res) => {
   try {
     const { name, price, img, category, description, tag, petAction, statGain } = req.body;
     if (!name || !name.trim() || !category || price === undefined || price === "") {
@@ -209,7 +214,7 @@ router.post("/products", requireAdmin, (req, res) => {
     }
 
     const id = makeProductId();
-    db.prepare(
+    await db.prepare(
       `INSERT INTO products (id, name, price, img, category, description, tag, pet_action, stat_gain)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
@@ -224,7 +229,7 @@ router.post("/products", requireAdmin, (req, res) => {
       petUse[1]
     );
 
-    const product = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
+    const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
     return res.status(201).json({ message: "เพิ่มสินค้าสำเร็จ", product });
   } catch (err) {
     console.error("Create product error:", err);
@@ -232,10 +237,10 @@ router.post("/products", requireAdmin, (req, res) => {
   }
 });
 
-router.put("/products/:id", requireAdmin, (req, res) => {
+router.put("/products/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const product = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
+    const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
     if (!product) return res.status(404).json({ message: "ไม่พบสินค้านี้" });
 
     const { name, price, img, category, description, tag, petAction, statGain } = req.body;
@@ -243,7 +248,6 @@ router.put("/products/:id", requireAdmin, (req, res) => {
       return res.status(400).json({ message: "ราคาต้องไม่ติดลบ" });
     }
 
-    // ไม่ได้ส่ง petAction มาเลย = ไม่แตะค่าเดิม
     let petUse = [product.pet_action, product.stat_gain];
     if (petAction !== undefined) {
       try {
@@ -253,7 +257,7 @@ router.put("/products/:id", requireAdmin, (req, res) => {
       }
     }
 
-    db.prepare(
+    await db.prepare(
       `UPDATE products SET name = ?, price = ?, img = ?, category = ?, description = ?, tag = ?,
                            pet_action = ?, stat_gain = ?
        WHERE id = ?`
@@ -269,7 +273,7 @@ router.put("/products/:id", requireAdmin, (req, res) => {
       id
     );
 
-    const updated = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
+    const updated = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
     return res.json({ message: "อัปเดตสินค้าสำเร็จ", product: updated });
   } catch (err) {
     console.error("Update product error:", err);
@@ -277,73 +281,85 @@ router.put("/products/:id", requireAdmin, (req, res) => {
   }
 });
 
-router.delete("/products/:id", requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const product = db.prepare("SELECT id FROM products WHERE id = ?").get(id);
-  if (!product) return res.status(404).json({ message: "ไม่พบสินค้านี้" });
-  db.prepare("DELETE FROM products WHERE id = ?").run(id);
-  return res.json({ message: "ลบสินค้าสำเร็จ" });
+router.delete("/products/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await db.prepare("SELECT id FROM products WHERE id = ?").get(id);
+    if (!product) return res.status(404).json({ message: "ไม่พบสินค้านี้" });
+    await db.prepare("DELETE FROM products WHERE id = ?").run(id);
+    return res.json({ message: "ลบสินค้าสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ================== ผู้ใช้ ==================
-router.get("/users", requireAdmin, (req, res) => {
-  const search = (req.query.search || "").trim();
-  let rows;
-  if (search) {
-    const term = `%${search}%`;
-    rows = db
-      .prepare(
-        `SELECT id, email, username, coins, is_admin, last_active_at, created_at FROM users
-         WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC`
-      )
-      .all(term, term);
-  } else {
-    rows = db
-      .prepare(
-        `SELECT id, email, username, coins, is_admin, last_active_at, created_at FROM users ORDER BY created_at DESC`
-      )
-      .all();
+router.get("/users", requireAdmin, async (req, res, next) => {
+  try {
+    const search = (req.query.search || "").trim();
+    let rows;
+    if (search) {
+      const term = `%${search}%`;
+      rows = await db
+        .prepare(
+          `SELECT id, email, username, coins, is_admin, last_active_at, created_at FROM users
+           WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC`
+        )
+        .all(term, term);
+    } else {
+      rows = await db
+        .prepare(
+          `SELECT id, email, username, coins, is_admin, last_active_at, created_at FROM users ORDER BY created_at DESC`
+        )
+        .all();
+    }
+    return res.json({ users: rows });
+  } catch (err) {
+    next(err);
   }
-  return res.json({ users: rows });
 });
 
-router.delete("/users/:id", requireAdmin, (req, res) => {
-  const { id } = req.params;
-  if (Number(id) === req.user.id) {
-    return res.status(400).json({ message: "ลบบัญชีแอดมินที่ใช้งานอยู่ตอนนี้ไม่ได้" });
+router.delete("/users/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (Number(id) === req.user.id) {
+      return res.status(400).json({ message: "ลบบัญชีแอดมินที่ใช้งานอยู่ตอนนี้ไม่ได้" });
+    }
+    const user = await db.prepare("SELECT id FROM users WHERE id = ?").get(id);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+    await db.prepare("DELETE FROM users WHERE id = ?").run(id);
+    return res.json({ message: "ลบผู้ใช้สำเร็จ" });
+  } catch (err) {
+    next(err);
   }
-  const user = db.prepare("SELECT id FROM users WHERE id = ?").get(id);
-  if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
-  db.prepare("DELETE FROM users WHERE id = ?").run(id);
-  return res.json({ message: "ลบผู้ใช้สำเร็จ" });
 });
 
 // ================== คะแนน/อันดับ ==================
-router.get("/scores", requireAdmin, (req, res) => {
-  const byCoins = db
-    .prepare("SELECT username, coins FROM users WHERE is_admin = 0 ORDER BY coins DESC LIMIT 20")
-    .all();
-
-  const byReading = db
-    .prepare(
-      `SELECT u.username, COALESCE(SUM(rs.planned_read_seconds), 0) as totalSeconds
-       FROM users u
-       LEFT JOIN reading_sessions rs ON rs.user_id = u.id AND rs.status = 'completed'
-       WHERE u.is_admin = 0
-       GROUP BY u.id
-       ORDER BY totalSeconds DESC
-       LIMIT 20`
-    )
-    .all()
-    .map((r) => ({ username: r.username, totalMinutes: Math.round(r.totalSeconds / 60) }));
-
-  return res.json({ byCoins, byReading });
+router.get("/scores", requireAdmin, async (req, res, next) => {
+  try {
+    const [byCoins, byReadingRaw] = await Promise.all([
+      db.prepare("SELECT username, coins FROM users WHERE is_admin = 0 ORDER BY coins DESC LIMIT 20").all(),
+      db
+        .prepare(
+          `SELECT u.username, COALESCE(SUM(rs.planned_read_seconds), 0) as totalSeconds
+           FROM users u
+           LEFT JOIN reading_sessions rs ON rs.user_id = u.id AND rs.status = 'completed'
+           WHERE u.is_admin = 0
+           GROUP BY u.id
+           ORDER BY totalSeconds DESC
+           LIMIT 20`
+        )
+        .all(),
+    ]);
+    const byReading = byReadingRaw.map((r) => ({ username: r.username, totalMinutes: Math.round(r.totalSeconds / 60) }));
+    return res.json({ byCoins, byReading });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ================== คลังคำตอบแชทบอท (chat_answers) ==================
-// แอดมินหลายคนช่วยกันเพิ่มคำตอบได้จากหน้าเว็บ ไม่ต้องแก้โค้ดแล้วรีสตาร์ทเซิร์ฟเวอร์
 
-// แปลงคำสำคัญที่แอดมินพิมพ์มา (คั่นด้วยจุลภาค) ให้เป็นรูปแบบมาตรฐาน: ตัดช่องว่างหัวท้าย ตัดตัวซ้ำ ตัดตัวว่าง
 function normalizeKeywords(raw) {
   if (typeof raw !== "string") return [];
   const seen = new Set();
@@ -358,20 +374,24 @@ function normalizeKeywords(raw) {
     });
 }
 
-router.get("/chat-answers", requireAdmin, (req, res) => {
-  const answers = db
-    .prepare(
-      `SELECT ca.*, c.chapter_number, c.title AS chapter_title, u.username AS created_by_name
-       FROM chat_answers ca
-       LEFT JOIN chapters c ON c.id = ca.chapter_id
-       LEFT JOIN users u ON u.id = ca.created_by
-       ORDER BY c.chapter_number ASC, ca.id ASC`
-    )
-    .all();
-  return res.json({ answers });
+router.get("/chat-answers", requireAdmin, async (req, res, next) => {
+  try {
+    const answers = await db
+      .prepare(
+        `SELECT ca.*, c.chapter_number, c.title AS chapter_title, u.username AS created_by_name
+         FROM chat_answers ca
+         LEFT JOIN chapters c ON c.id = ca.chapter_id
+         LEFT JOIN users u ON u.id = ca.created_by
+         ORDER BY c.chapter_number ASC, ca.id ASC`
+      )
+      .all();
+    return res.json({ answers });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post("/chat-answers", requireAdmin, (req, res) => {
+router.post("/chat-answers", requireAdmin, async (req, res) => {
   try {
     const { chapterId, keywords, answer } = req.body;
 
@@ -382,17 +402,20 @@ router.post("/chat-answers", requireAdmin, (req, res) => {
     if (!answer || !answer.trim()) {
       return res.status(400).json({ message: "กรุณากรอกคำตอบ" });
     }
-    if (chapterId && !db.prepare("SELECT id FROM chapters WHERE id = ?").get(Number(chapterId))) {
-      return res.status(404).json({ message: "ไม่พบบทเรียนที่เลือก" });
+    if (chapterId) {
+      const chapterExists = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(Number(chapterId));
+      if (!chapterExists) {
+        return res.status(404).json({ message: "ไม่พบบทเรียนที่เลือก" });
+      }
     }
 
-    const result = db
+    const result = await db
       .prepare(
         `INSERT INTO chat_answers (chapter_id, keywords, answer, created_by) VALUES (?, ?, ?, ?)`
       )
       .run(chapterId ? Number(chapterId) : null, keywordList.join(","), answer.trim(), req.user.id);
 
-    const created = db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(result.lastInsertRowid);
+    const created = await db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(result.lastInsertRowid);
     return res.status(201).json({ message: "เพิ่มคำตอบสำเร็จ", answer: created });
   } catch (err) {
     console.error("Create chat answer error:", err);
@@ -400,10 +423,10 @@ router.post("/chat-answers", requireAdmin, (req, res) => {
   }
 });
 
-router.put("/chat-answers/:id", requireAdmin, (req, res) => {
+router.put("/chat-answers/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(id);
+    const existing = await db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(id);
     if (!existing) return res.status(404).json({ message: "ไม่พบคำตอบนี้" });
 
     const { chapterId, keywords, answer } = req.body;
@@ -415,11 +438,14 @@ router.put("/chat-answers/:id", requireAdmin, (req, res) => {
     if (answer !== undefined && !answer.trim()) {
       return res.status(400).json({ message: "กรุณากรอกคำตอบ" });
     }
-    if (chapterId && !db.prepare("SELECT id FROM chapters WHERE id = ?").get(Number(chapterId))) {
-      return res.status(404).json({ message: "ไม่พบบทเรียนที่เลือก" });
+    if (chapterId) {
+      const chapterExists = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(Number(chapterId));
+      if (!chapterExists) {
+        return res.status(404).json({ message: "ไม่พบบทเรียนที่เลือก" });
+      }
     }
 
-    db.prepare(
+    await db.prepare(
       `UPDATE chat_answers SET chapter_id = ?, keywords = ?, answer = ?, updated_at = datetime('now')
        WHERE id = ?`
     ).run(
@@ -429,7 +455,7 @@ router.put("/chat-answers/:id", requireAdmin, (req, res) => {
       id
     );
 
-    const updated = db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(id);
+    const updated = await db.prepare("SELECT * FROM chat_answers WHERE id = ?").get(id);
     return res.json({ message: "อัปเดตคำตอบสำเร็จ", answer: updated });
   } catch (err) {
     console.error("Update chat answer error:", err);
@@ -437,37 +463,48 @@ router.put("/chat-answers/:id", requireAdmin, (req, res) => {
   }
 });
 
-router.delete("/chat-answers/:id", requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const existing = db.prepare("SELECT id FROM chat_answers WHERE id = ?").get(id);
-  if (!existing) return res.status(404).json({ message: "ไม่พบคำตอบนี้" });
-  db.prepare("DELETE FROM chat_answers WHERE id = ?").run(id);
-  return res.json({ message: "ลบคำตอบสำเร็จ" });
+router.delete("/chat-answers/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM chat_answers WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำตอบนี้" });
+    await db.prepare("DELETE FROM chat_answers WHERE id = ?").run(id);
+    return res.json({ message: "ลบคำตอบสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- POST /api/admin/chat-answers/test ----------
-// ให้แอดมินลองพิมพ์คำถามดูว่าจะเข้าคำตอบไหน ก่อนปล่อยให้นักเรียนใช้จริง
-router.post("/chat-answers/test", requireAdmin, (req, res) => {
-  const { message } = req.body;
-  if (!message || !message.trim()) {
-    return res.status(400).json({ message: "กรุณาพิมพ์คำถามที่ต้องการทดสอบ" });
+router.post("/chat-answers/test", requireAdmin, async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: "กรุณาพิมพ์คำถามที่ต้องการทดสอบ" });
+    }
+    const match = await findChatAnswer(message.trim());
+    return res.json(match);
+  } catch (err) {
+    next(err);
   }
-  const match = findChatAnswer(message.trim());
-  return res.json(match);
 });
 
 // ================== มินิเกม (Phayao Adventure) ==================
-router.get("/game-progress", requireAdmin, (req, res) => {
-  const players = db
-    .prepare(
-      `SELECT u.username, gp.unlocked_world, gp.unlocked_stage, gp.updated_at
-       FROM game_progress gp
-       JOIN users u ON u.id = gp.user_id
-       ORDER BY gp.unlocked_world DESC, gp.unlocked_stage DESC`
-    )
-    .all();
+router.get("/game-progress", requireAdmin, async (req, res, next) => {
+  try {
+    const players = await db
+      .prepare(
+        `SELECT u.username, gp.unlocked_world, gp.unlocked_stage, gp.updated_at
+         FROM game_progress gp
+         JOIN users u ON u.id = gp.user_id
+         ORDER BY gp.unlocked_world DESC, gp.unlocked_stage DESC`
+      )
+      .all();
 
-  return res.json({ players, totalPlayers: players.length });
+    return res.json({ players, totalPlayers: players.length });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
