@@ -1,40 +1,23 @@
 const express = require("express");
-const path = require("path");
-const multer = require("multer");
 const db = require("../db/database");
 const { requireAdmin } = require("../middleware/auth");
 const { findChatAnswer } = require("./chat");
+const { makeAdminUpload } = require("../utils/cloudinary");
 
 const router = express.Router();
 
 // ================== อัปโหลดไฟล์ (รูปภาพ/PDF) ==================
-// หมายเหตุ: ไฟล์ใน uploads/ จะหายทุกครั้งที่ Render restart (ephemeral filesystem)
-const uploadsRoot = path.join(__dirname, "..", "..", "uploads");
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const sub = req.query.type === "product" ? "products" : "lessons";
-    cb(null, path.join(uploadsRoot, sub));
-  },
-  filename: (req, file, cb) => {
-    const ext = (path.extname(file.originalname) || "").replace(/[^a-zA-Z0-9.]/g, "");
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
-
-const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
-const upload = multer({
-  storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, ALLOWED_MIME.includes(file.mimetype)),
-});
+// เก็บบน Cloudinary — persistent (ไม่หายตอน Render restart) + มี CDN ให้เอง
+const upload = makeAdminUpload((req) =>
+  req.query.type === "product" ? "reading-buddy/products" : "reading-buddy/lessons"
+);
 
 router.post("/upload", requireAdmin, upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "อัปโหลดไฟล์ไม่สำเร็จ (ชนิดไฟล์ไม่รองรับ หรือไฟล์ใหญ่เกิน 20MB)" });
   }
-  const sub = req.query.type === "product" ? "products" : "lessons";
-  const url = `/uploads/${sub}/${req.file.filename}`;
+  // multer-storage-cloudinary ใส่ URL เต็มไว้ใน req.file.path
+  const url = req.file.path;
   const kind = req.file.mimetype === "application/pdf" ? "pdf" : "image";
   return res.json({ url, kind });
 });

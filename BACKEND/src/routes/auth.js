@@ -1,38 +1,17 @@
 const express = require("express");
-const path = require("path");
-const fs = require("fs");
-const multer = require("multer");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { sendPasswordResetEmail } = require("../utils/mailer");
+const { avatarUpload } = require("../utils/cloudinary");
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MINUTES = 15;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// ---------- อัปโหลดรูปโปรไฟล์ ----------
-// หมายเหตุ: บน Render free tier ไฟล์ใน uploads/ จะหายทุกครั้งที่ service restart
-// (แก้จริงต้องย้ายไป object storage เช่น Cloudinary/Supabase Storage)
-const avatarUploadRoot = path.join(__dirname, "..", "..", "uploads", "avatars");
-fs.mkdirSync(avatarUploadRoot, { recursive: true });
-const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, avatarUploadRoot),
-  filename: (req, file, cb) => {
-    const ext = (path.extname(file.originalname) || "").replace(/[^a-zA-Z0-9.]/g, "");
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
-  },
-});
-const AVATAR_ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-const avatarUpload = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, AVATAR_ALLOWED_MIME.includes(file.mimetype)),
-});
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -139,13 +118,15 @@ router.get("/me", requireAuth, async (req, res, next) => {
 });
 
 // ---------- POST /api/auth/avatar ----------
+// Cloudinary storage คืน URL เต็ม (https://res.cloudinary.com/.../xxx.png) ใน req.file.path
+// เก็บลง DB เป็น URL เต็มเลย ไม่ต้อง prefix backend origin เหมือนก่อน
 router.post("/avatar", requireAuth, avatarUpload.single("avatar"), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "อัปโหลดรูปไม่สำเร็จ (ชนิดไฟล์ไม่รองรับ หรือไฟล์ใหญ่เกิน 5MB)" });
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = req.file.path;
     await db.prepare("UPDATE users SET avatar_url = ? WHERE id = ?").run(avatarUrl, req.user.id);
 
     return res.json({ message: "อัปเดตรูปโปรไฟล์สำเร็จ", avatarUrl });

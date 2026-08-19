@@ -76,9 +76,12 @@ async function loadUserProfile() {
   if (coinElement) coinElement.textContent = user.coins;
 
   // แสดงรูปโปรไฟล์จริงจาก backend (ถ้าเคยอัปโหลดไว้)
+  // Cloudinary URL เริ่มด้วย https:// ใช้ตรงได้เลย; ของเก่าที่เก็บเป็น /uploads/... ต้อง prefix backend
   const avatarEl = document.getElementById("userAvatar");
   if (avatarEl && user.avatarUrl) {
-    avatarEl.src = `${UPLOADS_BASE_URL}${user.avatarUrl}`;
+    avatarEl.src = user.avatarUrl.startsWith("http")
+      ? user.avatarUrl
+      : `${UPLOADS_BASE_URL}${user.avatarUrl}`;
   }
 }
 
@@ -107,7 +110,10 @@ async function uploadImage(event) {
 
     if (avatarEl) {
       // เติม timestamp ต่อท้าย กัน browser cache รูปเก่าไว้ไม่ยอมโหลดรูปใหม่
-      avatarEl.src = `${UPLOADS_BASE_URL}${result.avatarUrl}?t=${Date.now()}`;
+      const fullUrl = result.avatarUrl.startsWith("http")
+        ? result.avatarUrl
+        : `${UPLOADS_BASE_URL}${result.avatarUrl}`;
+      avatarEl.src = `${fullUrl}?t=${Date.now()}`;
     }
     alert("อัปเดตรูปโปรไฟล์เรียบร้อย!");
   } catch (err) {
