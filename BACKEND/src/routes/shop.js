@@ -51,6 +51,8 @@ router.post("/buy", requireAuth, async (req, res) => {
     }
 
     const totalPrice = product.price * quantity;
+
+    // เช็คยอดเหรียญปัจจุบันไว้ใช้ในข้อความ error (แค่แจ้งเบื้องต้น — การหักจริงเช็ค atomic ใน UPDATE ด้านล่างอีกที)
     const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
     if (user.coins < totalPrice) {
       return res.status(400).json({
@@ -58,21 +60,42 @@ router.post("/buy", requireAuth, async (req, res) => {
       });
     }
 
-    await db.tx(async (t) => {
-      await t.prepare("UPDATE users SET coins = coins - ? WHERE id = ?").run(totalPrice, req.user.id);
+    try {
+      await db.tx(async (t) => {
+        // WHERE coins >= ? = atomic guard กันโกง/race condition
+        // เดิมเช็ค user.coins แยกก่อน UPDATE โล่งๆ ถ้า user เปิด 2 แท็บกดซื้อพร้อมกันทั้งคู่จะเห็นยอดเดิม
+        // แล้วหักผ่านทั้งคู่ → ติดลบได้
+        const update = await t
+          .prepare("UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?")
+          .run(totalPrice, req.user.id, totalPrice);
+        if (update.changes === 0) {
+          const err = new Error("INSUFFICIENT_COINS");
+          err.code = "INSUFFICIENT_COINS";
+          throw err;
+        }
 
-      await t.prepare(
-        `INSERT INTO inventory (user_id, product_id, count)
-         VALUES (?, ?, ?)
-         ON CONFLICT(user_id, product_id) DO UPDATE SET count = count + excluded.count`
-      ).run(req.user.id, productId, quantity);
-
-      for (let i = 0; i < quantity; i++) {
         await t.prepare(
-          `INSERT INTO purchase_log (user_id, product_name, price) VALUES (?, ?, ?)`
-        ).run(req.user.id, product.name, product.price);
+          `INSERT INTO inventory (user_id, product_id, count)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_id, product_id) DO UPDATE SET count = count + excluded.count`
+        ).run(req.user.id, productId, quantity);
+
+        for (let i = 0; i < quantity; i++) {
+          await t.prepare(
+            `INSERT INTO purchase_log (user_id, product_name, price) VALUES (?, ?, ?)`
+          ).run(req.user.id, product.name, product.price);
+        }
+      });
+    } catch (txErr) {
+      if (txErr.code === "INSUFFICIENT_COINS") {
+        // ยอดจริงถูกหักไปแล้วโดย request อื่นระหว่างที่เราเช็ค — ตอบเหมือนเคสยอดไม่พอปกติ
+        const nowUser = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+        return res.status(400).json({
+          message: `เหรียญไม่พอ — ต้องใช้ ${totalPrice} เหรียญ แต่คุณมี ${nowUser?.coins ?? 0} เหรียญ`,
+        });
       }
-    });
+      throw txErr;
+    }
 
     const updatedUser = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
 

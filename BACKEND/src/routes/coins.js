@@ -26,15 +26,16 @@ router.post("/spend", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "จำนวนเหรียญที่ใช้จ่ายไม่ถูกต้อง" });
     }
 
-    const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
-    }
-    if (user.coins < amount) {
-      return res.status(400).json({ message: "เหรียญไม่พอ" });
+    // atomic guard: หักได้เฉพาะถ้ายอดพอจริงตอน UPDATE (กัน race ระหว่างเช็คกับหัก)
+    const result = await db
+      .prepare("UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?")
+      .run(amount, req.user.id, amount);
+    if (result.changes === 0) {
+      const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+      if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+      return res.status(400).json({ message: `เหรียญไม่พอ (มี ${user.coins}, ต้องใช้ ${amount})` });
     }
 
-    await db.prepare("UPDATE users SET coins = coins - ? WHERE id = ?").run(amount, req.user.id);
     const updated = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
 
     return res.json({ message: "ใช้จ่ายเหรียญสำเร็จ", coins: updated.coins });
