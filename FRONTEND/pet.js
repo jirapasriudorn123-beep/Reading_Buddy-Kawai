@@ -376,6 +376,7 @@ function renderInventoryGrid(bagKey) {
     return;
   }
 
+  const isClothing = bagKey === "clothing";
   items.forEach((item) => {
     const imgSrc = resolveItemImg(item.img);
     const safeName = escapeHtml(item.name);
@@ -390,9 +391,15 @@ function renderInventoryGrid(bagKey) {
       }</div>
       <div class="name">${safeName}</div>
       <div class="stat-gain">+${item.stat_gain}%</div>
-      <button class="use-btn">ใช้</button>
+      <button class="use-btn">${isClothing ? "ใส่" : "ใช้"}</button>
     `;
-    card.querySelector(".use-btn").addEventListener("click", () => useItem(item.id));
+    const btn = card.querySelector(".use-btn");
+    if (isClothing) {
+      // กระเป๋าเสื้อผ้า — เพิ่ม animation ตอน "ใส่" (บินไปหาน้อง + เด้ง + sparkle)
+      btn.addEventListener("click", () => wearClothing(item, card));
+    } else {
+      btn.addEventListener("click", () => useItem(item.id));
+    }
     grid.appendChild(card);
   });
 }
@@ -446,6 +453,88 @@ function showFloater(text, isHeart) {
   f.textContent = text;
   wrap.appendChild(f);
   setTimeout(() => f.remove(), 1100);
+}
+
+// ปุ่ม "ใส่" ในกระเป๋าเสื้อผ้า:
+// 1) บิน sprite ของเสื้อจากการ์ดไปหาน้อง (fly animation ประมาณ 700ms)
+// 2) น้องเด้ง + sparkle รอบตัว
+// 3) เรียก /pet/use-item เหมือน useItem ปกติ (เสื้อผ้ามี pet_action="happiness" อยู่แล้ว → เติมความสุข)
+async function wearClothing(item, cardEl) {
+  if (!item || item.count <= 0) return;
+
+  // หา icon ในการ์ด กับตำแหน่งของน้องหมา ใช้คำนวณจุดเริ่ม-จุดปลายของ animation
+  const iconEl = cardEl.querySelector(".icon img") || cardEl.querySelector(".icon");
+  const petEl = document.querySelector(".pet-character");
+  if (iconEl && petEl) {
+    const from = iconEl.getBoundingClientRect();
+    const to = petEl.getBoundingClientRect();
+
+    // clone icon แล้วให้มัน fixed position แล้วบินไปหาน้อง
+    const flyer = iconEl.cloneNode(true);
+    flyer.className = "clothing-flyer";
+    flyer.style.left = from.left + from.width / 2 + "px";
+    flyer.style.top = from.top + from.height / 2 + "px";
+    flyer.style.width = from.width + "px";
+    flyer.style.height = from.height + "px";
+    document.body.appendChild(flyer);
+
+    // force layout เพื่อให้ transition วิ่งจริง
+    void flyer.offsetWidth;
+    flyer.style.left = to.left + to.width / 2 + "px";
+    flyer.style.top = to.top + to.height / 2 + "px";
+    flyer.style.transform = "translate(-50%, -50%) scale(0.5) rotate(360deg)";
+    flyer.style.opacity = "0";
+
+    // ตอน flyer ถึงน้อง (~600ms) → เด้ง + sparkle
+    setTimeout(() => {
+      bounceCharacter();
+      spawnSparkles(to.left + to.width / 2, to.top + to.height / 2);
+      showFloater("✨");
+    }, 600);
+
+    // ลบ flyer ทิ้งหลัง transition จบ
+    setTimeout(() => flyer.remove(), 900);
+  }
+
+  // เรียก backend หลัง animation เริ่มไปแล้ว (fire-and-forget รอผลตาม await ปกติ)
+  try {
+    const result = await apiFetch("/pet/use-item", {
+      method: "POST",
+      body: JSON.stringify({ productId: item.id }),
+    });
+    item.count = result.remainingCount;
+    currentPet = { ...currentPet, ...result.pet };
+    updatePetUI(currentPet);
+    showSpeech(`ผมใส่${item.name}แล้วครับ เท่ไหม?`);
+    renderInventoryGrid("clothing");
+    if (result.leveledUp) {
+      showPetPose("levelUp", 4000);
+      setTimeout(() => alert(result.message), 900);
+    }
+  } catch (err) {
+    console.error("Wear clothing error:", err);
+    alert(err.message);
+    await loadInventory();
+    renderInventoryGrid("clothing");
+  }
+}
+
+// สร้าง sparkle 6 อันวางเป็นวงรอบจุด (x, y) ค่อยๆ ลอยออกแล้วจางหายภายใน ~800ms
+function spawnSparkles(x, y) {
+  const symbols = ["✨", "⭐", "💫", "✨", "⭐", "💖"];
+  symbols.forEach((sym, i) => {
+    const s = document.createElement("div");
+    s.className = "clothing-sparkle";
+    s.textContent = sym;
+    s.style.left = x + "px";
+    s.style.top = y + "px";
+    const angle = (i / symbols.length) * Math.PI * 2;
+    const dist = 60 + Math.random() * 30;
+    s.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+    s.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 900);
+  });
 }
 
 async function useItem(productId) {

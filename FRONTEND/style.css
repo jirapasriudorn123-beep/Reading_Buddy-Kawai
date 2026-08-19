@@ -2886,6 +2886,44 @@ html.dark-mode body .noti-badge {
     100%{ transform:translateY(0) scale(1); }
 }
 
+/* ---- Clothing "ใส่" animation: บิน sprite ไปหาน้อง + sparkle รอบตัว ---- */
+.clothing-flyer{
+    position: fixed;
+    z-index: 100002;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(1);
+    transition: left .7s cubic-bezier(.4,.1,.4,1),
+                top .7s cubic-bezier(.4,.1,.4,1),
+                transform .7s cubic-bezier(.4,.1,.4,1),
+                opacity .3s ease .5s;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.25));
+}
+
+.clothing-sparkle{
+    position: fixed;
+    z-index: 100002;
+    pointer-events: none;
+    font-size: 24px;
+    transform: translate(-50%, -50%);
+    animation: sparkleFly .8s ease-out forwards;
+}
+
+@keyframes sparkleFly{
+    0%{
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(.4);
+    }
+    30%{
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100%{
+        opacity: 0;
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.8);
+    }
+}
+
 /* ---- Inventory (item bag) drawer ----
    Positioned relative to .main-content (not the whole viewport) so it
    centers under the visible stage instead of the full window behind
