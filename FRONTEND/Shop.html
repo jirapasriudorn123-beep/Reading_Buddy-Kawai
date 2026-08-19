@@ -90,18 +90,26 @@
 </div>
 
 <div class="shop-container">
-    <!-- Hero banner โฆษณาหมวดสัตว์เลี้ยง — โชว์เฉพาะตอนอยู่ tab "คูปอง" (ควบคุมโดย shop.js) -->
-    <div id="couponHeroBanner" class="coupon-hero" style="display:none;" onclick="filterItems('สัตว์เลี้ยง')">
-        <div class="coupon-hero-emoji">🐕</div>
-        <div class="coupon-hero-text">
-            <div class="coupon-hero-title">ดูแลน้องดีขึ้น!</div>
-            <div class="coupon-hero-sub">ช้อปเพื่อนสัตว์เลี้ยงตัวใหม่ให้น้อง 🎁</div>
-        </div>
-        <button class="coupon-hero-btn" type="button">ไปดูสินค้าน้องหมา →</button>
-    </div>
-
     <div id="productGrid" class="product-grid">
         </div>
+
+    <!-- Banner รูปโฆษณาหมวดสัตว์เลี้ยง — วางไว้ด้านล่างของหน้า คลิกทั้งรูปแล้วไป tab "สัตว์เลี้ยง" -->
+    <!-- โชว์เฉพาะตอนอยู่ tab "คูปอง" (ควบคุมโดย shop.js) -->
+    <!-- ถ้ามีรูป img/banner-pet-shop.png จะโชว์รูป ถ้าไม่มีจะโชว์ fallback (emoji+ข้อความ) -->
+    <a id="couponHeroBanner" class="coupon-hero-banner" style="display:none;"
+       href="#" onclick="event.preventDefault(); filterItems('สัตว์เลี้ยง'); return false;"
+       title="ไปดูสินค้าน้องหมาในหมวดสัตว์เลี้ยง">
+        <img class="coupon-hero-img" src="img/banner-pet-shop.png"
+             alt="ร้านค้าสัตว์เลี้ยง — คลิกเพื่อดูสินค้า"
+             onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+        <div class="coupon-hero-fallback">
+            <span class="coupon-hero-fallback-emoji">🐕</span>
+            <div>
+                <div class="coupon-hero-fallback-title">ช้อปเพื่อนสัตว์เลี้ยงให้น้อง!</div>
+                <div class="coupon-hero-fallback-sub">คลิกเพื่อดูสินค้าน้องหมา →</div>
+            </div>
+        </div>
+    </a>
 </div>
 
 <div id="productModal" class="modal-overlay" onclick="closeModalOutside(event)">

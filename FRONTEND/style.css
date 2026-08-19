@@ -1512,69 +1512,65 @@ body {
   border-radius: 999px;
 }
 
-/* ================== Coupon hero banner + coupon-style cards ================== */
+/* ================== Coupon banner (bottom) + coupon-style cards ================== */
 
-/* แถบโฆษณาบนสุดของ tab "คูปอง" — โฆษณาให้ user ไปดูหมวดสัตว์เลี้ยง */
-.coupon-hero {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  background: linear-gradient(135deg, #ffe8a3 0%, #f7c56b 100%);
+/* Banner ด้านล่างของ tab "คูปอง" — คลิกทั้งรูปแล้วไป tab "สัตว์เลี้ยง"
+   ถ้ามีรูป img/banner-pet-shop.png จะโชว์รูปเต็ม
+   ถ้าโหลดรูปไม่ขึ้น → onerror ใส่ class .no-img แล้ว fallback (emoji + ข้อความ) จะโผล่แทน */
+.coupon-hero-banner {
+  display: block;
+  margin: 32px 50px 24px;
   border-radius: 20px;
-  padding: 20px 28px;
-  margin: 0 50px 24px;
-  box-shadow: 0 4px 12px rgba(217, 113, 78, 0.15);
+  overflow: hidden;
   cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #ffe8a3 0%, #f7c56b 100%);
   border: 3px solid #ffb84f;
+  position: relative;
 }
 
-.coupon-hero:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(217, 113, 78, 0.25);
+.coupon-hero-banner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(217, 113, 78, 0.3);
 }
 
-.coupon-hero-emoji {
-  font-size: 60px;
+.coupon-hero-img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+/* fallback: โชว์เฉพาะตอนรูปโหลดไม่ขึ้น (parent มี class .no-img) */
+.coupon-hero-fallback {
+  display: none;
+  align-items: center;
+  gap: 24px;
+  padding: 32px 40px;
+  color: #6b3f1a;
+}
+
+.coupon-hero-banner.no-img .coupon-hero-fallback {
+  display: flex;
+}
+
+.coupon-hero-fallback-emoji {
+  font-size: 72px;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
 
-.coupon-hero-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.coupon-hero-title {
-  font-size: 22px;
+.coupon-hero-fallback-title {
+  font-size: 24px;
   font-weight: 700;
-  color: #6b3f1a;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-.coupon-hero-sub {
-  font-size: 15px;
+.coupon-hero-fallback-sub {
+  font-size: 16px;
   color: #8b5a2a;
-}
-
-.coupon-hero-btn {
-  background: #d9714e;
-  color: #fff;
-  border: none;
-  padding: 12px 22px;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 3px 6px rgba(217, 113, 78, 0.3);
-  transition: filter 0.15s ease;
-  flex-shrink: 0;
-}
-
-.coupon-hero-btn:hover {
-  filter: brightness(1.08);
 }
 
 /* การ์ดคูปอง — ให้ดูเหมือนคูปองจริง: พื้นเหลืองอ่อน, เส้นประกลาง, ขอบเว้าเล็กๆ 2 ข้าง */
