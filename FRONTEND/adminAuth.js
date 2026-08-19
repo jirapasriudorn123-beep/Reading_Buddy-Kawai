@@ -1,6 +1,8 @@
 // ================== ใช้ร่วมกันทุกหน้าแอดมิน (ยกเว้น adminlogin.html/adminforgot.html) ==================
 // เช็คว่ามี token แอดมินไหม ถ้าไม่มีเด้งไปหน้า login, ผูกปุ่ม sign out / ย่อ sidebar, และมี adminApiFetch ให้เรียก API แบบใส่ token อัตโนมัติ
 
+// escapeHtml อยู่ใน config.js (โหลดก่อนไฟล์นี้เสมอทุกหน้าแอดมิน) ใช้ร่วมกับหน้า user ได้
+
 function getAdminToken() {
   return localStorage.getItem("adminToken");
 }

@@ -105,15 +105,17 @@ function renderProducts(items) {
   grid.style.rowGap = "40px";
   grid.innerHTML = items
     .map((p) => {
-      const tagHTML = p.tag ? `<span class="product-tag">${p.tag}</span>` : "";
+      const safeName = escapeHtml(p.name);
+      const safeId = escapeHtml(p.id);
+      const tagHTML = p.tag ? `<span class="product-tag">${escapeHtml(p.tag)}</span>` : "";
       return `
-        <div class="product-card" onclick="showDetail('${p.id}')">
+        <div class="product-card" onclick="showDetail('${safeId}')">
           ${tagHTML}
           <div class="product-card-header">
-            <h4>${p.name}</h4>
+            <h4>${safeName}</h4>
           </div>
           <div class="product-img-container">
-            <img src="${resolveProductImg(p.img)}" alt="${p.name}" onerror="this.src='img/placeholder.png'">
+            <img src="${escapeHtml(resolveProductImg(p.img))}" alt="${safeName}" onerror="this.src='img/placeholder.png'">
           </div>
           <div class="product-card-footer">
             <div class="buy-now-action">
@@ -277,11 +279,12 @@ function openCart() {
     const subtotal = item.price * item.qty;
     total += subtotal;
 
+    const safeName = escapeHtml(item.name);
     itemList.innerHTML += `
       <div class="cart-item">
-        <img src="${resolveProductImg(item.img)}" onerror="this.src='img/placeholder.png'">
+        <img src="${escapeHtml(resolveProductImg(item.img))}" onerror="this.src='img/placeholder.png'">
         <div class="item-info">
-          <span class="item-name">${item.name}</span>
+          <span class="item-name">${safeName}</span>
           <div class="item-price">💰 ${item.price}</div>
         </div>
         <div class="quantity-control">
@@ -295,7 +298,7 @@ function openCart() {
 
     summaryList.innerHTML += `
       <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
-        <span>${item.name} x ${item.qty}</span>
+        <span>${safeName} x ${item.qty}</span>
         <span>${subtotal}</span>
       </div>
     `;

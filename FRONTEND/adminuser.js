@@ -15,11 +15,11 @@ function renderUserTable() {
     .map(
       (u) => `
     <tr>
-      <td>${u.username}</td>
-      <td>${u.email}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.email)}</td>
       <td>${u.coins}</td>
       <td>${u.is_admin ? "แอดมิน" : "ผู้ใช้ทั่วไป"}</td>
-      <td>${formatDate(u.created_at)}</td>
+      <td>${escapeHtml(formatDate(u.created_at))}</td>
       <td>
         ${
           u.is_admin

@@ -9,7 +9,7 @@ async function loadScores() {
             (u, i) => `
         <tr>
           <td>${i + 1}</td>
-          <td>${u.username}</td>
+          <td>${escapeHtml(u.username)}</td>
           <td>🪙 ${u.coins.toLocaleString()}</td>
         </tr>`
           )
@@ -23,7 +23,7 @@ async function loadScores() {
             (u, i) => `
         <tr>
           <td>${i + 1}</td>
-          <td>${u.username}</td>
+          <td>${escapeHtml(u.username)}</td>
           <td>${u.totalMinutes.toLocaleString()} นาที</td>
         </tr>`
           )

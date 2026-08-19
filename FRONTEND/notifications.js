@@ -64,8 +64,8 @@ function renderNotiList(panel, notifications) {
       <div class="noti-item">
         <span class="noti-item-icon">${NOTI_TYPE_ICON[n.type] || "🔔"}</span>
         <div class="noti-item-text">
-          ${n.message}
-          ${n.createdAt ? `<div class="noti-item-time">${notiTimeAgo(n.createdAt)}</div>` : ""}
+          ${escapeHtml(n.message)}
+          ${n.createdAt ? `<div class="noti-item-time">${escapeHtml(notiTimeAgo(n.createdAt))}</div>` : ""}
         </div>
       </div>`
     )

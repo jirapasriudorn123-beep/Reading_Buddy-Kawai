@@ -6,14 +6,7 @@ let currentChapters = [];
 let editingAnswerId = null; // null = โหมดเพิ่มใหม่
 
 // ─── ตัวช่วย ──────────────────────────────────────────────────
-// กัน HTML ที่แอดมินพิมพ์มาไปรันจริงในหน้าเว็บ (คำตอบเป็นข้อความล้วน ไม่ควรมีแท็ก)
-function escapeHtml(text) {
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+// escapeHtml อยู่ใน adminAuth.js (โหลดก่อนไฟล์นี้เสมอ) ใช้ร่วมกันทุกหน้าแอดมิน
 
 function truncate(text, max) {
   const clean = String(text ?? "").replace(/\s+/g, " ").trim();

@@ -24,7 +24,7 @@ function renderLessonTable() {
       (ch) => `
     <tr>
       <td>${ch.chapter_number}</td>
-      <td>${ch.title}</td>
+      <td>${escapeHtml(ch.title)}</td>
       <td><button class="action-btn edit-btn" onclick="openEditLesson(${ch.id})" title="แก้ไข">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.2c-1.8-1.3-4.1-2-6.3-2v12.6c2.2 0 4.5.7 6.3 2 1.8-1.3 4.1-2 6.3-2V4.2c-2.2 0-4.5.7-6.3 2z"/></svg>
       </button></td>

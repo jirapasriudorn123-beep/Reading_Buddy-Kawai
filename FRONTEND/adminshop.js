@@ -46,20 +46,22 @@ function renderProducts(items) {
   }
   grid.innerHTML = items
     .map((p) => {
-      const tagHTML = p.tag ? `<span class="product-tag">${p.tag}</span>` : "";
+      const tagHTML = p.tag ? `<span class="product-tag">${escapeHtml(p.tag)}</span>` : "";
       const petUseHTML = p.pet_action
         ? `<p class="pet-use-note">${PET_ACTION_LABEL[p.pet_action]} +${p.stat_gain}%</p>`
         : `<p class="pet-use-note muted">ของสะสม (ใช้กับน้องไม่ได้)</p>`;
+      const safeName = escapeHtml(p.name);
+      const safeId = escapeHtml(p.id);
       return `
             <div class="product-card">
                 ${tagHTML}
-                <p><strong>${p.name}</strong></p>
+                <p><strong>${safeName}</strong></p>
                 ${petUseHTML}
-                <img src="${resolveProductImg(p.img)}" width="100" alt="${p.name}" onerror="this.src='img/placeholder.png'">
+                <img src="${escapeHtml(resolveProductImg(p.img))}" width="100" alt="${safeName}" onerror="this.src='img/placeholder.png'">
                 <button class="price-btn"><img src="img/coin_ja.png" alt="เหรียญ" class="price-coin-icon">${p.price}</button>
                 <div class="admin-card-actions">
-                    <button class="edit-item-btn" onclick="openEditModal('${p.id}')">✏️ แก้ไข</button>
-                    <button class="delete-item-btn" onclick="deleteProduct('${p.id}')">🗑️ ลบ</button>
+                    <button class="edit-item-btn" onclick="openEditModal('${safeId}')">✏️ แก้ไข</button>
+                    <button class="delete-item-btn" onclick="deleteProduct('${safeId}')">🗑️ ลบ</button>
                 </div>
             </div>
         `;

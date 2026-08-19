@@ -368,16 +368,17 @@ function renderInventoryGrid(bagKey) {
 
   items.forEach((item) => {
     const imgSrc = resolveItemImg(item.img);
+    const safeName = escapeHtml(item.name);
     const card = document.createElement("div");
     card.className = "item-card";
     card.innerHTML = `
       <span class="qty">x${item.count}</span>
       <div class="icon">${
         imgSrc
-          ? `<img src="${imgSrc}" alt="${item.name}" onerror="this.replaceWith(document.createTextNode('${BAG_FALLBACK_ICON[bagKey]}'))">`
+          ? `<img src="${escapeHtml(imgSrc)}" alt="${safeName}" onerror="this.replaceWith(document.createTextNode('${BAG_FALLBACK_ICON[bagKey]}'))">`
           : BAG_FALLBACK_ICON[bagKey]
       }</div>
-      <div class="name">${item.name}</div>
+      <div class="name">${safeName}</div>
       <div class="stat-gain">+${item.stat_gain}%</div>
       <button class="use-btn">ใช้</button>
     `;

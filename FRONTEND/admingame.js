@@ -9,10 +9,10 @@ async function loadGameProgress() {
           .map(
             (p) => `
       <tr>
-        <td>${p.username}</td>
+        <td>${escapeHtml(p.username)}</td>
         <td>World ${p.unlocked_world}</td>
         <td>Stage ${p.unlocked_stage}</td>
-        <td>${p.updated_at || "-"}</td>
+        <td>${escapeHtml(p.updated_at || "-")}</td>
       </tr>`
           )
           .join("")
