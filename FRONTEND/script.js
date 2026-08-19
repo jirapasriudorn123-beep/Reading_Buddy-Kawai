@@ -458,7 +458,7 @@ function resumeBreakCountdown() {
   breakCountdownInterval = setInterval(() => {
     remainingSeconds -= 1;
     updateBreakClockDisplay(Math.max(0, remainingSeconds));
-    if (remainingSeconds === 5) playSoftBeep();
+    // ไม่เล่นเสียงเตือนตอนพักใกล้หมด (เฉพาะเวลาอ่านใกล้หมดเท่านั้น — user ตั้งใจให้เตือนแค่ตอนอ่าน)
 
     if (remainingSeconds <= 0) {
       finishBreak(true);
