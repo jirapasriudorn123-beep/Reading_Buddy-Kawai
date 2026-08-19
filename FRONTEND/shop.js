@@ -122,7 +122,8 @@ async function loadProducts() {
   const { products, readingMinutes } = await apiFetch("/shop/products");
   allProducts = products;
   userReadingMinutes = readingMinutes || 0;
-  renderProducts(allProducts);
+  // เริ่มที่ tab "ทั้งหมด" (filterItems จะกรองคูปองออก + toggle banner ให้เอง)
+  filterItems("ทั้งหมด");
 }
 
 // แปลง (นาที) → "X ชม. Y นาที" (ตัด "Y นาที" ถ้า = 0)
