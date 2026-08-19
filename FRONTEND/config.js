@@ -1,6 +1,8 @@
 const API_BASE_URL =
   location.hostname === "localhost" || location.hostname === "127.0.0.1"
     ? "http://localhost:3000/api"
+    : location.hostname.includes("app.github.dev")
+    ? location.origin.replace(/-5500./, "-3000.") + "/api"
     : "https://reading-buddy-kawai.onrender.com/api";
 
 // กัน HTML/JS ที่อยู่ในข้อมูล (ชื่อสินค้า, username, ฯลฯ) รันจริงเวลาถูก render ผ่าน innerHTML
