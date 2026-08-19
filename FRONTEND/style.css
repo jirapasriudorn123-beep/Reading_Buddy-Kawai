@@ -1682,6 +1682,60 @@ html.dark-mode body .coupon-terms-list strong {
   white-space: pre-wrap;
 }
 
+/* Lock overlay ครอบคูปองที่ยังปลดล็อคไม่ได้ + progress bar */
+.coupon-banner {
+  position: relative;
+}
+
+.coupon-banner.locked {
+  cursor: pointer;
+}
+
+.coupon-banner.locked .coupon-banner-img {
+  filter: grayscale(60%) brightness(0.85);
+}
+
+.coupon-lock {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+}
+
+.coupon-lock-inner {
+  max-width: 500px;
+  font-size: 16px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.coupon-progress {
+  margin: 10px auto 6px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 300px;
+}
+
+.coupon-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #b7d67d 0%, #f0b23d 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.coupon-progress-text {
+  font-size: 13px;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
 /* dark mode */
 html.dark-mode body .coupon-hero {
   background: linear-gradient(135deg, #6b4a20 0%, #4a3010 100%);

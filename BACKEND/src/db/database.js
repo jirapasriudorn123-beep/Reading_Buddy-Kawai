@@ -264,6 +264,10 @@ async function initDatabase() {
   if (!productColumns.includes("stat_gain")) {
     await client.execute("ALTER TABLE products ADD COLUMN stat_gain INTEGER NOT NULL DEFAULT 0");
   }
+  // ใช้กับคูปอง: ต้องอ่านสะสมกี่นาทีถึงจะแลกได้ (0 = ไม่ต้องอ่านสะสม ใช้เฉพาะการซื้อของทั่วไป)
+  if (!productColumns.includes("required_reading_minutes")) {
+    await client.execute("ALTER TABLE products ADD COLUMN required_reading_minutes INTEGER NOT NULL DEFAULT 0");
+  }
 
   if (isFirstProductMigration) {
     const defaults = [

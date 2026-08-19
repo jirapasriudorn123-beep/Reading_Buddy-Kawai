@@ -116,10 +116,22 @@ function updateCoinDisplay(coins) {
 
 // ================== โหลด + แสดงสินค้า ==================
 
+let userReadingMinutes = 0; // เวลาอ่านสะสมรวม (นาที) ของ user — ใช้เช็คแลกคูปอง
+
 async function loadProducts() {
-  const { products } = await apiFetch("/shop/products");
+  const { products, readingMinutes } = await apiFetch("/shop/products");
   allProducts = products;
+  userReadingMinutes = readingMinutes || 0;
   renderProducts(allProducts);
+}
+
+// แปลง (นาที) → "X ชม. Y นาที" (ตัด "Y นาที" ถ้า = 0)
+function formatMinsHours(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h && m) return `${h} ชม. ${m} นาที`;
+  if (h) return `${h} ชม.`;
+  return `${m} นาที`;
 }
 
 function renderProducts(items) {
@@ -144,18 +156,31 @@ function renderProducts(items) {
              <span class="price-val">${p.price}</span>
            </div>`;
       const cardClickAttr = isOwnedBreed ? "" : `onclick="showDetail('${safeId}')"`;
-      // สินค้าหมวด "คูปอง" render เป็น banner ใหญ่ 1 แถวต่อชิ้น (ไม่ใช่ grid เล็ก)
-      // คลิก → เปิด modal แสดง description = "การใช้งานและเงื่อนไข"
+      // สินค้าหมวด "คูปอง" render เป็น banner ใหญ่ 1 แถวต่อชิ้น
+      // คลิก → เปิด modal แสดง เงื่อนไข + ปุ่มแลก (ถ้าอ่านครบ)
       const isCoupon = p.category === "คูปอง";
       if (isCoupon) {
+        const requiredMins = p.required_reading_minutes || 0;
+        const unlocked = userReadingMinutes >= requiredMins;
+        const progressPct = requiredMins ? Math.min(100, Math.round((userReadingMinutes / requiredMins) * 100)) : 100;
+        const lockOverlay = unlocked
+          ? ""
+          : `<div class="coupon-lock">
+               <div class="coupon-lock-inner">
+                 🔒 อ่านต่ออีก ${formatMinsHours(requiredMins - userReadingMinutes)} เพื่อปลดล็อค
+                 <div class="coupon-progress"><div class="coupon-progress-bar" style="width:${progressPct}%"></div></div>
+                 <div class="coupon-progress-text">${formatMinsHours(userReadingMinutes)} / ${formatMinsHours(requiredMins)}</div>
+               </div>
+             </div>`;
         return `
-          <div class="coupon-banner" onclick="showDetail('${safeId}')" title="คลิกเพื่อดูเงื่อนไขการใช้งาน">
+          <div class="coupon-banner ${unlocked ? "" : "locked"}" onclick="showDetail('${safeId}')" title="คลิกเพื่อดูรายละเอียด">
             <img class="coupon-banner-img" src="${escapeHtml(resolveProductImg(p.img))}"
                  alt="${safeName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
             <div class="coupon-banner-fallback">
               <div class="coupon-banner-fallback-name">🎫 ${safeName}</div>
               <div class="coupon-banner-fallback-hint">คลิกเพื่อดูรายละเอียด</div>
             </div>
+            ${lockOverlay}
           </div>
         `;
       }
@@ -234,10 +259,18 @@ function onModalQtyInput() {
 }
 
 // ราคาบนปุ่มซื้อ = ราคาต่อชิ้น x จำนวน จะได้เห็นยอดจริงก่อนกด
+// สำหรับคูปอง (dataset.couponLabel ตั้งไว้จาก showDetail) เปลี่ยนปุ่มเป็นข้อความ "แลกคูปอง" แทน
 function updateModalTotalPrice() {
   if (!tempItem) return;
   const priceEl = document.getElementById("modalBuyPrice");
-  if (priceEl) priceEl.innerText = tempItem.price * getModalQty();
+  if (!priceEl) return;
+  const buyBtn = document.querySelector(".buy-now-btn");
+  const couponLabel = buyBtn?.dataset?.couponLabel;
+  if (couponLabel) {
+    priceEl.innerText = couponLabel;
+  } else {
+    priceEl.innerText = tempItem.price * getModalQty();
+  }
 }
 
 function showDetail(id) {
@@ -248,13 +281,38 @@ function showDetail(id) {
 
   document.getElementById("modalName").innerText = product.name;
   document.getElementById("modalImg").src = resolveProductImg(product.img);
-  // คูปอง: prefix ให้ description ดูเป็น "การใช้งานและเงื่อนไข" ชัดเจน
+  // คูปอง: เติมข้อมูล requirement + progress ก่อน description
   const isCoupon = product.category === "คูปอง";
   const desc = product.description || (isCoupon ? "ยังไม่ระบุเงื่อนไขการใช้งาน" : "ไม่มีรายละเอียดสินค้า");
-  document.getElementById("modalDesc").innerText = isCoupon
-    ? `📋 การใช้งานและเงื่อนไข\n\n${desc}`
-    : desc;
+  if (isCoupon) {
+    const reqMins = product.required_reading_minutes || 0;
+    const unlocked = userReadingMinutes >= reqMins;
+    const header = reqMins
+      ? `⏱️ ต้องอ่านสะสม ${formatMinsHours(reqMins)}\n` +
+        `📖 คุณอ่านไปแล้ว ${formatMinsHours(userReadingMinutes)}` +
+        (unlocked ? " ✅ ปลดล็อคแล้ว!" : ` (ขาดอีก ${formatMinsHours(reqMins - userReadingMinutes)})`) +
+        `\n\n`
+      : "";
+    document.getElementById("modalDesc").innerText = header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`;
+  } else {
+    document.getElementById("modalDesc").innerText = desc;
+  }
   setModalQty(1);
+
+  // ปุ่มซื้อคูปอง = "แลกคูปอง" + disable ถ้าอ่านยังไม่ครบ
+  const buyBtn = document.querySelector(".buy-now-btn");
+  if (buyBtn) {
+    if (isCoupon) {
+      const reqMins = product.required_reading_minutes || 0;
+      const unlocked = userReadingMinutes >= reqMins;
+      buyBtn.disabled = !unlocked;
+      buyBtn.dataset.couponLabel = unlocked ? "แลกคูปอง" : "🔒 ยังปลดล็อคไม่ได้";
+    } else {
+      buyBtn.disabled = false;
+      delete buyBtn.dataset.couponLabel;
+    }
+  }
+  updateModalTotalPrice(); // เรียก re-render ราคาบนปุ่ม (ใช้ dataset.couponLabel ถ้าเป็นคูปอง)
 
   document.getElementById("productModal").style.display = "flex";
 }
