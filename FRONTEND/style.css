@@ -1578,6 +1578,23 @@ body {
   margin: 0;
 }
 
+/* หัวข้อ "ร้านที่ร่วมรายการ" ก่อน banner (มีหลายร้าน) */
+.coupon-partners-title {
+  margin: 32px 50px 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #6b3f1a;
+}
+
+/* หลาย .coupon-hero-banner ในหน้าเดียว — เพิ่ม gap ระหว่างอันเพื่อไม่ให้ติดกัน */
+.coupon-banner-wrap .coupon-hero-banner + .coupon-hero-banner {
+  margin-top: 16px;
+}
+
+html.dark-mode body .coupon-partners-title {
+  color: #f5e8c8;
+}
+
 /* กล่องเงื่อนไขการใช้คูปอง — วางใต้ banner รูปร้าน */
 .coupon-terms {
   margin: 12px 50px 24px;

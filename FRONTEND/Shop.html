@@ -97,6 +97,10 @@
     <!-- คลิกทั้งรูป → เปิดเฟสบุ๊คร้านในแท็บใหม่ (target="_blank" + rel noopener) -->
     <!-- โชว์เฉพาะตอนอยู่ tab "คูปอง" (ควบคุมโดย shop.js) -->
     <div id="couponBannerWrap" class="coupon-banner-wrap" style="display:none;">
+        <!-- หัวข้อ "ร้านที่ร่วมรายการ" -->
+        <h3 class="coupon-partners-title">🏪 ร้านที่ร่วมรายการ</h3>
+
+        <!-- Banner ร้านที่ 1: Polsom Petshop -->
         <a class="coupon-hero-banner" href="https://www.facebook.com/p/Polsom-Petshop-สาขาขอนแก่น-61559388980545/"
            target="_blank" rel="noopener noreferrer"
            title="เปิดเฟสบุ๊ค Polsom Petshop สาขาขอนแก่น (แท็บใหม่)">
@@ -111,12 +115,29 @@
                 </div>
             </div>
         </a>
+
+        <!-- Banner ร้านที่ 2: KKC Pet Shop -->
+        <a class="coupon-hero-banner" href="https://www.facebook.com/p/KKC-Pet-Shop-ขอนแก่น-จำหน่ายอาหาร-ยา-และอุปกรณ์สำหรับสัตว์-100083182066080/"
+           target="_blank" rel="noopener noreferrer"
+           title="เปิดเฟสบุ๊ค KKC Pet Shop ขอนแก่น (แท็บใหม่)">
+            <img class="coupon-hero-img" src="img/banner-kkc-shop.png"
+                 alt="KKC Pet Shop ขอนแก่น — คลิกเพื่อไปดูที่เฟสบุ๊ค"
+                 onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+            <div class="coupon-hero-fallback">
+                <span class="coupon-hero-fallback-emoji">🐾</span>
+                <div>
+                    <div class="coupon-hero-fallback-title">KKC Pet Shop ขอนแก่น</div>
+                    <div class="coupon-hero-fallback-sub">จำหน่ายอาหาร ยา และอุปกรณ์สำหรับสัตว์ →</div>
+                </div>
+            </div>
+        </a>
+
         <!-- เงื่อนไขการใช้คูปองในร้านจริง — แสดงใต้ banner -->
         <div class="coupon-terms">
             <div class="coupon-terms-title">📋 เงื่อนไขการใช้คูปอง</div>
             <ul class="coupon-terms-list">
-                <li>ใช้ได้เฉพาะสาขาขอนแก่นเท่านั้น</li>
-                <li>ใช้ได้กับสินค้าประเภท <strong>อาหารสุนัข ของใช้น้องหมา ของเล่น เสื้อผ้า</strong> ที่ร้านระบุไว้</li>
+                <li>ใช้ได้เฉพาะร้านที่ร่วมรายการ (Polsom Petshop / KKC Pet Shop) สาขาขอนแก่นเท่านั้น</li>
+                <li>ใช้ได้กับสินค้าประเภท <strong>อาหารสุนัข ยา ของใช้น้องหมา ของเล่น เสื้อผ้า</strong> ที่ร้านระบุไว้</li>
                 <li>คูปองมีอายุ <strong>30 วัน</strong> นับจากวันที่แลก ห้ามใช้เกินอายุ</li>
                 <li>ใช้ได้ครั้งเดียวต่อ 1 คูปอง แสดงคูปองในแอปให้พนักงานที่หน้าร้านเพื่อรับส่วนลด</li>
                 <li>ไม่สามารถแลกเป็นเงินสด หรือใช้ร่วมกับโปรโมชั่นอื่นได้</li>
