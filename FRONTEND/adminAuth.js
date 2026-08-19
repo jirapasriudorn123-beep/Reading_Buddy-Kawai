@@ -1,5 +1,6 @@
-// ================== ใช้ร่วมกันทุกหน้าแอดมิน (ยกเว้น adminlogin.html/adminforgot.html) ==================
-// เช็คว่ามี token แอดมินไหม ถ้าไม่มีเด้งไปหน้า login, ผูกปุ่ม sign out / ย่อ sidebar, และมี adminApiFetch ให้เรียก API แบบใส่ token อัตโนมัติ
+// ================== ใช้ร่วมกันทุกหน้าแอดมิน ==================
+// แอดมิน login ที่หน้า login.html เดียวกับ user ทั่วไป (login.html จะเช็ค isAdmin แล้วเด้งมาที่ adminhome.html เอง)
+// เช็คว่ามี token แอดมินไหม ถ้าไม่มีเด้งกลับไป login.html, ผูกปุ่ม sign out / ย่อ sidebar, และมี adminApiFetch ให้เรียก API แบบใส่ token อัตโนมัติ
 
 // escapeHtml อยู่ใน config.js (โหลดก่อนไฟล์นี้เสมอทุกหน้าแอดมิน) ใช้ร่วมกับหน้า user ได้
 
@@ -35,7 +36,7 @@ async function adminApiFetch(path, options = {}) {
 
   if (response.status === 401 || response.status === 403) {
     clearAdminSession();
-    window.location.href = "adminlogin.html";
+    window.location.href = "login.html";
     throw new Error("ไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบแอดมินใหม่");
   }
 
@@ -50,7 +51,7 @@ async function adminApiFetch(path, options = {}) {
 
 function requireAdminSession() {
   if (!getAdminToken()) {
-    window.location.href = "adminlogin.html";
+    window.location.href = "login.html";
     return false;
   }
   return true;
@@ -75,7 +76,7 @@ function setupAdminChrome() {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault();
       clearAdminSession();
-      window.location.href = "adminlogin.html";
+      window.location.href = "login.html";
     });
   }
 

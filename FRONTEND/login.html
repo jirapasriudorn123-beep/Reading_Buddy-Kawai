@@ -129,10 +129,17 @@ form.addEventListener("submit", async function (e) {
       return;
     }
 
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("currentUser", data.user.username);
-
-    window.location.href = "index.html";
+    // ตรวจ isAdmin แล้วเก็บ token คนละ key ให้ตรงกับที่ adminAuth.js / apiFetch คาดหวัง
+    // แอดมิน login ที่หน้าเดียวกับ user เลย ไม่ต้องมีหน้า /adminlogin แยก (user ทั่วไปเลยไม่รู้ว่ามีระบบแอดมิน)
+    if (data.user.isAdmin) {
+      localStorage.setItem("adminToken", data.token);
+      localStorage.setItem("adminUser", JSON.stringify(data.user));
+      window.location.href = "adminhome.html";
+    } else {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("currentUser", data.user.username);
+      window.location.href = "index.html";
+    }
   } catch (err) {
     console.error("Login request failed:", err);
     passwordError.textContent = "เชื่อมต่อ server ไม่ได้ กรุณาลองใหม่อีกครั้ง";
