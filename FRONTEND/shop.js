@@ -144,11 +144,23 @@ function renderProducts(items) {
              <span class="price-val">${p.price}</span>
            </div>`;
       const cardClickAttr = isOwnedBreed ? "" : `onclick="showDetail('${safeId}')"`;
-      // สินค้าหมวด "คูปอง" ใช้ดีไซน์การ์ดคูปองแยก (มีเส้นประกลาง, ขอบเว้า, พื้นเหลืองอ่อน)
+      // สินค้าหมวด "คูปอง" render เป็น banner ใหญ่ 1 แถวต่อชิ้น (ไม่ใช่ grid เล็ก)
+      // คลิก → เปิด modal แสดง description = "การใช้งานและเงื่อนไข"
       const isCoupon = p.category === "คูปอง";
+      if (isCoupon) {
+        return `
+          <div class="coupon-banner" onclick="showDetail('${safeId}')" title="คลิกเพื่อดูเงื่อนไขการใช้งาน">
+            <img class="coupon-banner-img" src="${escapeHtml(resolveProductImg(p.img))}"
+                 alt="${safeName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+            <div class="coupon-banner-fallback">
+              <div class="coupon-banner-fallback-name">🎫 ${safeName}</div>
+              <div class="coupon-banner-fallback-hint">คลิกเพื่อดูรายละเอียด</div>
+            </div>
+          </div>
+        `;
+      }
       const cardClass = ["product-card"];
       if (isOwnedBreed) cardClass.push("owned");
-      if (isCoupon) cardClass.push("coupon-card");
       return `
         <div class="${cardClass.join(" ")}" ${cardClickAttr}>
           ${tagHTML}
@@ -236,8 +248,13 @@ function showDetail(id) {
 
   document.getElementById("modalName").innerText = product.name;
   document.getElementById("modalImg").src = resolveProductImg(product.img);
-  document.getElementById("modalDesc").innerText = product.description || "ไม่มีรายละเอียดสินค้า";
-  setModalQty(1); // เปิด modal ใหม่ทุกครั้งเริ่มที่ 1 เสมอ (setModalQty อัปเดตราคารวมให้ด้วย)
+  // คูปอง: prefix ให้ description ดูเป็น "การใช้งานและเงื่อนไข" ชัดเจน
+  const isCoupon = product.category === "คูปอง";
+  const desc = product.description || (isCoupon ? "ยังไม่ระบุเงื่อนไขการใช้งาน" : "ไม่มีรายละเอียดสินค้า");
+  document.getElementById("modalDesc").innerText = isCoupon
+    ? `📋 การใช้งานและเงื่อนไข\n\n${desc}`
+    : desc;
+  setModalQty(1);
 
   document.getElementById("productModal").style.display = "flex";
 }

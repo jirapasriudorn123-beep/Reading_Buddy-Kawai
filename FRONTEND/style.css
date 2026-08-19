@@ -1573,47 +1573,61 @@ body {
   color: #8b5a2a;
 }
 
-/* การ์ดคูปอง — ให้ดูเหมือนคูปองจริง: พื้นเหลืองอ่อน, เส้นประกลาง, ขอบเว้าเล็กๆ 2 ข้าง */
-.product-card.coupon-card {
-  background: linear-gradient(180deg, #fffbe6 0%, #fef3c7 100%);
-  border: 2px dashed #f0b23d;
-  position: relative;
+/* Coupon banner — สินค้าหมวด "คูปอง" render เป็น banner เต็มความกว้าง 1 แถวต่อชิ้น
+   คลิกได้ทั้งแบนเนอร์ → เปิด modal แสดง description = การใช้งานและเงื่อนไข */
+.coupon-banner {
+  grid-column: 1 / -1; /* กินเต็มความกว้างของ grid ไม่แบ่งคอลัมน์ */
+  display: block;
+  cursor: pointer;
+  border-radius: 16px;
   overflow: hidden;
-}
-
-/* เว้าซ้าย/ขวา ใช้ radial-gradient สร้างวงกลมสีพื้นหลังของ shop */
-.product-card.coupon-card::before,
-.product-card.coupon-card::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  background: #f4ecd8; /* ต้องตรงกับสีพื้น shop */
-  border-radius: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-}
-
-.product-card.coupon-card::before {
-  left: -12px;
-}
-
-.product-card.coupon-card::after {
-  right: -12px;
-}
-
-/* เส้นประกลางแนวนอน แบ่งส่วนบน/ล่างของคูปอง (เหนือ footer) */
-.product-card.coupon-card .product-card-footer {
-  border-top: 2px dashed #f0b23d;
-  padding-top: 12px;
-  margin-top: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #fffdf5;
+  border: 2px solid transparent;
   position: relative;
-  z-index: 2;
 }
 
-.product-card.coupon-card .buy-now-action {
-  background-color: #d9714e; /* ปุ่มส้มให้เข้ากับธีมคูปอง (ไม่ใช่เขียวเหมือนสินค้าปกติ) */
+.coupon-banner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+  border-color: #f0b23d;
+}
+
+.coupon-banner-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+/* fallback: โชว์เฉพาะตอนรูปโหลดไม่ขึ้น (parent มี .no-img) */
+.coupon-banner-fallback {
+  display: none;
+  padding: 40px 32px;
+  text-align: center;
+  background: linear-gradient(135deg, #ffe8a3 0%, #f7c56b 100%);
+  color: #6b3f1a;
+}
+
+.coupon-banner.no-img .coupon-banner-fallback {
+  display: block;
+}
+
+.coupon-banner-fallback-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.coupon-banner-fallback-hint {
+  font-size: 14px;
+  color: #8b5a2a;
+}
+
+/* modal description ของคูปอง — preserve line breaks จาก \n ใน description */
+.product-desc {
+  white-space: pre-wrap;
 }
 
 /* dark mode */
