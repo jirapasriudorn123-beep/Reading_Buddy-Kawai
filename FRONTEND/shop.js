@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    await loadUserCoins();
+    await Promise.all([loadUserCoins(), loadCurrentPet()]);
     await loadProducts();
   } catch (err) {
     console.error("โหลดข้อมูลร้านค้าไม่สำเร็จ:", err);
@@ -82,6 +82,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadUserCoins() {
   const { user } = await apiFetch("/auth/me");
   updateCoinDisplay(user.coins);
+}
+
+// ================== สัตว์เลี้ยงปัจจุบัน (ใช้เช็คว่าพันธุ์นี้มีอยู่แล้วในร้าน) ==================
+
+let currentPetBreed = null;
+
+async function loadCurrentPet() {
+  try {
+    const { pet } = await apiFetch("/pet");
+    currentPetBreed = pet ? pet.breed : null;
+  } catch {
+    currentPetBreed = null;
+  }
+}
+
+// จับคู่ชื่อสินค้า → รหัสพันธุ์ที่ backend ใช้ (golden/shiba/siberian/thairidgeback)
+// admin ตั้งชื่อสินค้าเองใน adminshop เลยใช้ substring match — ครอบคลุมทั้งไทย/อังกฤษ
+function getBreedFromProductName(name) {
+  if (!name) return null;
+  const s = name.toLowerCase();
+  if (s.includes("ชิบะ") || s.includes("shiba")) return "shiba";
+  if (s.includes("โกลเด้น") || s.includes("golden")) return "golden";
+  if (s.includes("ไซบีเรียน") || s.includes("ฮัสกี้") || s.includes("husky") || s.includes("siberian")) return "siberian";
+  if (s.includes("ไทยหลังอาน") || s.includes("หลังอาน") || s.includes("ridgeback") || s.includes("thai")) return "thairidgeback";
+  return null;
 }
 
 function updateCoinDisplay(coins) {
@@ -108,8 +133,19 @@ function renderProducts(items) {
       const safeName = escapeHtml(p.name);
       const safeId = escapeHtml(p.id);
       const tagHTML = p.tag ? `<span class="product-tag">${escapeHtml(p.tag)}</span>` : "";
+      // ถ้าสินค้าเป็นพันธุ์ที่ user มีอยู่แล้ว → โชว์ป้าย "มีอยู่แล้ว" แทนราคา
+      // การ์ดคลิกไม่ได้ (ปิด showDetail) กันไม่ให้ซื้อซ้ำโดยไม่ตั้งใจ
+      const productBreed = getBreedFromProductName(p.name);
+      const isOwnedBreed = productBreed && productBreed === currentPetBreed;
+      const footerHTML = isOwnedBreed
+        ? `<div class="owned-badge">✓ มีอยู่แล้ว</div>`
+        : `<div class="buy-now-action">
+             <img src="img/coin_ja.png" alt="เหรียญ" class="coin-icon-img">
+             <span class="price-val">${p.price}</span>
+           </div>`;
+      const cardClickAttr = isOwnedBreed ? "" : `onclick="showDetail('${safeId}')"`;
       return `
-        <div class="product-card" onclick="showDetail('${safeId}')">
+        <div class="product-card ${isOwnedBreed ? "owned" : ""}" ${cardClickAttr}>
           ${tagHTML}
           <div class="product-card-header">
             <h4>${safeName}</h4>
@@ -118,9 +154,7 @@ function renderProducts(items) {
             <img src="${escapeHtml(resolveProductImg(p.img))}" alt="${safeName}" onerror="this.src='img/placeholder.png'">
           </div>
           <div class="product-card-footer">
-            <div class="buy-now-action">
-            <img src="img/coin_ja.png" alt="เหรียญ" class="coin-icon-img">
-             <span class="price-val">${p.price}</span></div>
+            ${footerHTML}
           </div>
         </div>
       `;

@@ -1512,6 +1512,31 @@ body {
   border-radius: 999px;
 }
 
+/* ป้าย "มีอยู่แล้ว" สำหรับพันธุ์สุนัขที่ user มีอยู่แล้ว — แทนที่ปุ่มราคาสีเขียว */
+.owned-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #c0c0c0;
+  color: #fff;
+  font-weight: bold;
+  font-size: 15px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  cursor: default;
+}
+
+/* การ์ดสินค้าที่ user มีอยู่แล้ว — ทำให้ดูจางลงเพื่อบอกว่าคลิกไม่ได้ */
+.product-card.owned {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.product-card.owned:hover {
+  transform: none;
+}
+
 .product-tag {
     position: absolute;
     top: 10px;
