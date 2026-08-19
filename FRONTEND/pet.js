@@ -129,7 +129,9 @@ async function saveAndStart() {
       method: "POST",
       body: JSON.stringify({ breed: selectedBreed, name: nameInput }),
     });
-    window.location.href = "Pet.html";
+    // สมัครใหม่เลือก pet เสร็จ → เข้าหน้าหลักเริ่มใช้งาน (ไม่ใช่ Pet.html)
+    // ตาม flow: register → login → select-pet → index (หน้าแรก)
+    window.location.href = "index.html";
   } catch (err) {
     alert(err.message);
   }

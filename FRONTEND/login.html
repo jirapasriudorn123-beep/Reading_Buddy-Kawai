@@ -138,7 +138,19 @@ form.addEventListener("submit", async function (e) {
     } else {
       localStorage.setItem("token", data.token);
       localStorage.setItem("currentUser", data.user.username);
-      window.location.href = "index.html";
+
+      // user ที่ยังไม่เคยเลือกสัตว์เลี้ยง (สมัครใหม่) บังคับให้ไปหน้าเลือกก่อน
+      // user เก่าที่มี pet อยู่แล้วให้เข้าหน้าหลักเลย
+      try {
+        const petRes = await fetch(`${API_BASE_URL}/pet`, {
+          headers: { Authorization: `Bearer ${data.token}` },
+        });
+        const petData = await petRes.json().catch(() => ({}));
+        window.location.href = petData.pet ? "index.html" : "select-pet.html";
+      } catch {
+        // ถ้าเช็คไม่สำเร็จ ให้ไปหน้าหลักเป็น default (user เดิมจะไม่เห็นหน้าเลือกซ้ำ)
+        window.location.href = "index.html";
+      }
     }
   } catch (err) {
     console.error("Login request failed:", err);
