@@ -1,10 +1,17 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { askGemini } = require("../services/gemini");
 
 const router = express.Router();
 
+// ================== แชทบอทน้องหมา (ตอบตามกฎ ไม่ใช้ AI) ==================
+// จับคำสำคัญในข้อความที่ผู้ใช้พิมพ์ แล้วตอบจากข้อมูลจริงในฐานข้อมูลของผู้ใช้คนนั้น
+// (ไม่ได้เรียกบริการภายนอกใดๆ เลย จึงไม่ต้องมี API key และไม่มีค่าใช้จ่าย)
+
 const MAX_MESSAGE_LENGTH = 500;
+
+// ---- ตัวช่วยจัดรูปแบบข้อความ ----
 
 function formatMinutes(seconds) {
   const m = Math.floor(seconds / 60);
@@ -26,35 +33,43 @@ const STAT_ADVICE = {
   energy: "ให้น้องนอนพักหน่อย กดปุ่มนอนแล้วเลือกผ้าห่มหรือหมอนได้เลย",
 };
 
-async function loadContext(userId, chapterId) {
-  const [user, pet, chapters, goal, currentChapter, cheapestProducts] = await Promise.all([
-    db.prepare("SELECT username, coins FROM users WHERE id = ?").get(userId),
-    db
-      .prepare("SELECT name, breed, hunger, cleanliness, happiness, energy, care_points FROM pets WHERE user_id = ?")
-      .get(userId),
-    db
-      .prepare("SELECT chapter_number, title, coin_reward, detail FROM chapters ORDER BY chapter_number ASC")
-      .all(),
-    db.prepare("SELECT goal_minutes, goal_seconds FROM reading_goals WHERE user_id = ?").get(userId),
-    chapterId
-      ? db.prepare("SELECT id, chapter_number, title, detail FROM chapters WHERE id = ?").get(chapterId)
-      : Promise.resolve(null),
-    db.prepare("SELECT name, price, category FROM products ORDER BY price ASC LIMIT 5").all(),
-  ]);
+// ---- ดึงข้อมูลของผู้ใช้ที่กำลังคุยอยู่ มาใช้ประกอบคำตอบ ----
 
-  return { user, pet, chapters, goal, currentChapter, cheapestProducts };
+function loadContext(userId, chapterId) {
+  const user = db.prepare("SELECT username, coins FROM users WHERE id = ?").get(userId);
+  const pet = db
+    .prepare("SELECT name, breed, hunger, cleanliness, happiness, energy, care_points FROM pets WHERE user_id = ?")
+    .get(userId);
+  const chapters = db
+    .prepare("SELECT chapter_number, title, coin_reward, detail FROM chapters ORDER BY chapter_number ASC")
+    .all();
+  const goal = db
+    .prepare("SELECT goal_minutes, goal_seconds FROM reading_goals WHERE user_id = ?")
+    .get(userId);
+
+  // บทที่ผู้ใช้กำลังเปิดอ่านอยู่ตอนนี้ (frontend ส่ง chapterId มาให้ตอนอยู่ในหน้าอ่าน PDF)
+  const currentChapter = chapterId
+    ? db.prepare("SELECT id, chapter_number, title, detail FROM chapters WHERE id = ?").get(chapterId)
+    : null;
+
+  return { user, pet, chapters, goal, currentChapter };
 }
+
+// ---- กฎการตอบ: เรียงจากเฉพาะเจาะจงมากสุดไปหากว้างสุด ตัวแรกที่ตรงคือตัวที่ใช้ตอบ ----
 
 const RULES = [
   {
+    // ทักทาย
     keywords: ["สวัสดี", "หวัดดี", "ดีจ้า", "hello", "hi", "โฮ่ง"],
     reply: ({ user }) => `โฮ่ง! สวัสดีครับคุณ${user.username} 🐶 วันนี้อยากให้ผมช่วยเรื่องอะไรดีครับ?`,
   },
   {
+    // ขอบคุณ
     keywords: ["ขอบคุณ", "ขอบใจ", "thank"],
     reply: () => "ยินดีเสมอเลยครับ! 🐾 มีอะไรอีกถามผมได้ตลอดนะ",
   },
   {
+    // ถามว่าตอนนี้อ่านบทอะไรอยู่
     keywords: ["บทนี้", "กำลังอ่าน", "อ่านอะไรอยู่", "เรื่องนี้"],
     reply: ({ currentChapter }) => {
       if (!currentChapter) {
@@ -65,6 +80,7 @@ const RULES = [
     },
   },
   {
+    // ถามรายชื่อบทเรียนทั้งหมด
     keywords: ["บทเรียน", "บทไหน", "มีกี่บท", "chapter", "เนื้อหา", "หัวข้อ"],
     reply: ({ chapters }) => {
       const list = chapters.map((c) => `${c.chapter_number}. ${c.title}`).join("\n");
@@ -72,6 +88,7 @@ const RULES = [
     },
   },
   {
+    // ถามเรื่องเหรียญของตัวเอง / วิธีหาเหรียญ
     keywords: ["เหรียญ", "คอยน์", "coin", "เงิน"],
     reply: ({ user }) =>
       `ตอนนี้คุณมี ${user.coins} เหรียญครับ 🪙\n\n` +
@@ -79,6 +96,8 @@ const RULES = [
       `(ถ้าอ่านไม่ครบ 5 นาทีในรอบนั้นจะยังไม่ได้เหรียญของรอบนั้นนะ) ยิ่งอ่านนานยิ่งได้เยอะเลย!`,
   },
   {
+    // ถามเรื่องเป้าหมายเวลาอ่าน
+    // ต้องเช็คก่อนกฎน้องหมา เพราะคำว่า "เป้าหมาย" มีคำว่า "หมา" ซ่อนอยู่ข้างใน
     keywords: ["เป้าหมาย", "goal", "ตั้งเวลา", "เป้า"],
     reply: ({ goal }) => {
       if (!goal || (goal.goal_minutes === 0 && goal.goal_seconds === 0)) {
@@ -89,6 +108,7 @@ const RULES = [
     },
   },
   {
+    // ถามสถานะน้องหมา (ไม่ใส่คำว่า "หมา" เดี่ยวๆ เพราะไปชนกับคำอื่นที่มี "หมา" ประกอบอยู่)
     keywords: ["น้องหมา", "สัตว์เลี้ยง", "สุนัข", "เจ้าตูบ", "สถานะ", "หิว", "อาบน้ำ", "เลเวล", "level", "ดูแล"],
     reply: ({ pet }) => {
       if (!pet) {
@@ -108,19 +128,25 @@ const RULES = [
     },
   },
   {
+    // ถามเรื่องร้านค้า
     keywords: ["ร้าน", "ซื้อ", "ขาย", "shop", "ของเล่น", "อาหาร", "ราคา", "สินค้า"],
-    reply: ({ cheapestProducts }) => {
-      const list = cheapestProducts.map((p) => `• ${p.name} (${p.category}) — ${p.price} เหรียญ`).join("\n");
+    reply: () => {
+      const cheapest = db
+        .prepare("SELECT name, price, category FROM products ORDER BY price ASC LIMIT 5")
+        .all();
+      const list = cheapest.map((p) => `• ${p.name} (${p.category}) — ${p.price} เหรียญ`).join("\n");
       return `ในร้านมีของให้เลือกเยอะเลยครับ 🛍️ ตัวอย่างของที่ราคาย่อมเยา:\n\n${list}\n\nเข้าไปดูทั้งหมดได้ที่หน้าร้านค้าเลยครับ ใช้เหรียญที่ได้จากการอ่านซื้อได้เลย!`;
     },
   },
   {
+    // ถามเรื่องเกม
     keywords: ["เกม", "game", "ด่าน", "เล่น", "ผจญภัย"],
     reply: () =>
       "เกม Phayao Adventure เข้าได้จากหน้าน้องหมาครับ 🎮 กดที่ไอคอนเกมได้เลย\n\n" +
       "ในเกมจะมีทั้งหมด 6 โลก โลกละ 4 ด่าน เล่นผ่านแล้วจะปลดล็อคด่านถัดไปเรื่อยๆ ครับ",
   },
   {
+    // ถามวิธีเปลี่ยน/ลืมรหัสผ่าน
     keywords: ["รหัสผ่าน", "password", "ลืมรหัส", "เปลี่ยนรหัส"],
     reply: () =>
       "เรื่องรหัสผ่านทำได้ 2 แบบครับ 🔑\n\n" +
@@ -128,6 +154,7 @@ const RULES = [
       "• ถ้าลืมรหัส: กดลืมรหัสผ่านที่หน้าเข้าสู่ระบบ ระบบจะส่งลิงก์ไปที่อีเมลให้ ลิงก์มีอายุ 15 นาทีครับ",
   },
   {
+    // ถามวิธีใช้งานเว็บโดยรวม
     keywords: ["ใช้ยังไง", "วิธีใช้", "ทำยังไง", "เริ่มยังไง", "ช่วย", "help", "แนะนำ"],
     reply: () =>
       "ผมช่วยได้หลายเรื่องเลยครับ 🐾 ลองถามผมแบบนี้ได้:\n\n" +
@@ -140,6 +167,7 @@ const RULES = [
   },
 ];
 
+// ถามถึงบทเรียนด้วยเลขบท เช่น "บทที่ 3" / "chapter 5" — เช็คแยกก่อนกฎอื่นเพราะต้องดึงเลขออกมาจากข้อความ
 function matchChapterNumber(message, chapters) {
   const hasChapterWord = /บท|chapter|ch\./i.test(message);
   if (!hasChapterWord) return null;
@@ -156,10 +184,13 @@ function matchChapterNumber(message, chapters) {
   return `Chapter ${chapter.chapter_number}: ${chapter.title} ครับ 📖${detail}\n\nอ่านจบแล้วได้เหรียญตามเวลาที่อ่านจริงเลยนะครับ (10 เหรียญต่อทุกๆ 5 นาที)`;
 }
 
-async function findChatAnswer(message, currentChapterId = null) {
+// ---- คลังคำตอบเนื้อหาบทเรียนที่แอดมินกรอกไว้ (ตาราง chat_answers) ----
+// ใช้กฎ "คำสำคัญที่ยาวที่สุดชนะ" เพราะภาษาไทยไม่มีช่องว่างระหว่างคำ คำสั้นๆ จึงไปซ่อนอยู่ในคำอื่นได้ง่าย
+// (เช่น "หมา" ซ่อนอยู่ใน "เป้าหมาย") ถ้าใช้กฎ "เจอตัวแรกชนะ" คำตอบจะสลับกันมั่วเวลาคำสำคัญชนกัน
+function findChatAnswer(message, currentChapterId = null) {
   const lower = message.toLowerCase();
 
-  const rows = await db
+  const rows = db
     .prepare(
       `SELECT ca.id, ca.chapter_id, ca.keywords, ca.answer, c.chapter_number, c.title AS chapter_title
        FROM chat_answers ca
@@ -182,6 +213,7 @@ async function findChatAnswer(message, currentChapterId = null) {
         chapterNumber: row.chapter_number,
         chapterTitle: row.chapter_title,
         score: trimmed.length,
+        // คำตอบของบทที่ผู้ใช้เปิดอ่านอยู่ได้เปรียบเวลาคะแนนเท่ากัน (ศัพท์คำเดียวกันอาจโผล่หลายบท)
         isCurrentChapter: currentChapterId != null && row.chapter_id === currentChapterId,
       };
 
@@ -199,27 +231,148 @@ async function findChatAnswer(message, currentChapterId = null) {
 }
 
 async function buildReply(message, context) {
-  const authored = await findChatAnswer(message, context.currentChapter ? context.currentChapter.id : null);
+  // ทักทาย / ขอบคุณ
+  const basicRule = RULES.find((r) =>
+    ["สวัสดี", "หวัดดี", "ดีจ้า", "hello", "hi", "โฮ่ง", "ขอบคุณ", "ขอบใจ", "thank"]
+      .some((k) => message.toLowerCase().includes(k.toLowerCase()))
+  );
+
+  if (basicRule) {
+    return basicRule.reply(context);
+  }
+
+  // ไม่ใช่เรื่องสุนัขหรือบทเรียน → ปฏิเสธ
+  if (!isAllowedTopic(message)) {
+    return "ขอโทษครับ 🐶 ผมสามารถช่วยตอบได้เฉพาะเรื่องน้องหมาและบทเรียนเท่านั้นครับ 📖🐾";
+  }
+
+  // คำตอบจากฐานข้อมูล
+  const authored = findChatAnswer(
+    message,
+    context.currentChapter ? context.currentChapter.id : null
+  );
+
   if (authored) {
-    const source = authored.chapterNumber ? `\n\n📖 อ้างอิงจาก Chapter ${authored.chapterNumber}: ${authored.chapterTitle}` : "";
+    const source = authored.chapterNumber
+      ? `\n\n📖 อ้างอิงจาก Chapter ${authored.chapterNumber}: ${authored.chapterTitle}`
+      : "";
+
     return `${authored.answer}${source}`;
   }
 
+  // ถามบทที่มีเลข เช่น บทที่ 3
   const chapterReply = matchChapterNumber(message, context.chapters);
-  if (chapterReply) return chapterReply;
+
+  if (chapterReply) {
+    return chapterReply;
+  }
+
+  // เรื่องสุนัขหรือบทเรียน → Gemini
+  try {
+    return await buildGeminiReply(message, context);
+  } catch (error) {
+    console.error("Gemini fallback error:", error);
+
+    return "ขอโทษครับ ตอนนี้น้อง AI ไม่สามารถตอบได้ชั่วคราว 🐶 กรุณาลองใหม่อีกครั้งนะครับ";
+  }
+}
+
+// ---------- Gemini สำหรับเรื่องสุนัขและบทเรียน ----------
+
+function isAllowedTopic(message) {
+  const keywords = [
+    // 🐶 เรื่องสุนัข
+    "หมา",
+    "น้องหมา",
+    "สุนัข",
+    "เจ้าตูบ",
+    "สุนัขพันธุ์",
+    "พันธุ์หมา",
+    "เลี้ยงหมา",
+    "ดูแลหมา",
+    "อาหารหมา",
+    "อาบน้ำหมา",
+    "สุขภาพหมา",
+    "พฤติกรรมหมา",
+    "สุนัขกิน",
+    "หมากิน",
+
+    // 📖 เรื่องบทเรียน / การอ่าน
+    "บทเรียน",
+    "บทที่",
+    "chapter",
+    "เนื้อหา",
+    "อ่านหนังสือ",
+    "การอ่าน",
+    "หนังสือ",
+    "บทความ",
+    "อธิบายบทเรียน",
+    "สรุปบทเรียน",
+    "คำถามบทเรียน",
+  ];
 
   const lower = message.toLowerCase();
-  const rule = RULES.find((r) => r.keywords.some((k) => lower.includes(k.toLowerCase())));
-  if (rule) return rule.reply(context);
 
-  return (
-    "ขอโทษครับ ผมยังไม่เข้าใจคำถามนี้ 🐶 ผมตอบได้เฉพาะเรื่องที่มีคนสอนผมไว้เท่านั้นครับ\n\n" +
-    "ลองถามผมเรื่องบทเรียน เหรียญ น้องหมา เป้าหมายการอ่าน ร้านค้า หรือเกมดูนะครับ " +
-    'หรือพิมพ์ว่า "ช่วยหน่อย" ผมจะบอกตัวอย่างคำถามให้ครับ'
+  return keywords.some((keyword) =>
+    lower.includes(keyword.toLowerCase())
   );
 }
 
+async function buildReply(message, context) {
+  const chapterInfo = context.currentChapter
+    ? `
+ผู้ใช้กำลังอ่าน:
+Chapter ${context.currentChapter.chapter_number}: ${context.currentChapter.title}
+
+เนื้อหาบท:
+${context.currentChapter.detail || "ไม่มีรายละเอียดเพิ่มเติม"}
+`
+    : "ตอนนี้ผู้ใช้ไม่ได้เปิดบทเรียนอยู่";
+
+  const petInfo = context.pet
+    ? `
+ข้อมูลน้องหมาของผู้ใช้:
+ชื่อ: ${context.pet.name}
+พันธุ์: ${context.pet.breed}
+ความอิ่ม: ${context.pet.hunger}%
+ความสะอาด: ${context.pet.cleanliness}%
+ความสุข: ${context.pet.happiness}%
+พลังงาน: ${context.pet.energy}%
+`
+    : "ผู้ใช้ยังไม่มีข้อมูลน้องหมา";
+
+  const prompt = `
+คุณคือ "น้องหมาผู้ช่วย" ของเว็บไซต์ Reading Buddy 🐶📖
+
+คุณสามารถตอบได้เฉพาะ 2 เรื่อง:
+1. เรื่องสุนัขและการดูแลสุนัข
+2. เรื่องบทเรียนและการอ่านหนังสือ
+
+กฎ:
+- ตอบเป็นภาษาไทย
+- ใช้ภาษาที่เป็นมิตรและเข้าใจง่าย
+- ห้ามตอบคำถามที่ไม่เกี่ยวกับสุนัขหรือบทเรียน
+- ห้ามสร้างข้อมูลส่วนตัวของผู้ใช้ขึ้นมาเอง
+- ถ้าถามเรื่องสถานะน้องหมา ให้ใช้ข้อมูลที่ระบบให้มา
+- ถ้าถามเกี่ยวกับบทเรียน ให้ใช้ข้อมูลบทเรียนที่ระบบให้มาเป็นหลัก
+- ถ้าข้อมูลไม่เพียงพอ ให้บอกว่าไม่มีข้อมูลเพียงพอ
+- อย่าแกล้งทำเป็นรู้ข้อมูลที่ไม่มี
+- ตอบกระชับ
+
+${petInfo}
+
+${chapterInfo}
+
+คำถามของผู้ใช้:
+${message}
+`;
+
+  return await askGemini(prompt);
+}
+
 // ---------- POST /api/chat/message ----------
+// body: { message: string, chapterId?: number, history?: array }
+// หมายเหตุ: history ที่ frontend ส่งมายังไม่ได้ใช้ (บอทตอบทีละข้อความ ไม่ต้องจำบริบทย้อนหลัง)
 router.post("/message", requireAuth, async (req, res) => {
   try {
     const { message, chapterId } = req.body;
@@ -231,17 +384,17 @@ router.post("/message", requireAuth, async (req, res) => {
       return res.status(400).json({ message: `ข้อความยาวเกินไป (สูงสุด ${MAX_MESSAGE_LENGTH} ตัวอักษร)` });
     }
 
-    const context = await loadContext(req.user.id, Number(chapterId) || null);
+    const context = loadContext(req.user.id, Number(chapterId) || null);
     if (!context.user) {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    const reply = await buildReply(message.trim(), context);
-    return res.json({ reply });
+    return res.json({ reply: await buildReply(message.trim(), context) });
   } catch (err) {
     console.error("Chat message error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
   }
 });
 
+// findChatAnswer ถูกใช้ซ้ำที่ routes/admin.js ด้วย (ปุ่มทดสอบคำถามในหน้าจัดการแชทบอท)
 module.exports = { router, findChatAnswer };
