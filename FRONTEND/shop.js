@@ -214,7 +214,11 @@ function filterItems(categoryName) {
   const bannerWrap = document.getElementById("couponBannerWrap");
   if (bannerWrap) bannerWrap.style.display = categoryName === "คูปอง" ? "block" : "none";
 
-  const filtered = categoryName === "ทั้งหมด" ? allProducts : allProducts.filter((p) => p.category === categoryName);
+  // tab "ทั้งหมด" ตัดคูปองออก (คูปองมี banner + terms พิเศษเฉพาะ tab ของตัวเอง ไม่เข้ากับ grid สินค้าปกติ)
+  const filtered =
+    categoryName === "ทั้งหมด"
+      ? allProducts.filter((p) => p.category !== "คูปอง")
+      : allProducts.filter((p) => p.category === categoryName);
   renderProducts(filtered);
 }
 
@@ -222,12 +226,14 @@ function searchProduct() {
   const searchInput = document.getElementById("searchInput");
   const term = searchInput.value.trim().toLowerCase();
 
+  // ค้นหาไม่แสดงคูปอง (คูปองอยู่ tab ของตัวเองเท่านั้น)
+  const searchable = allProducts.filter((p) => p.category !== "คูปอง");
   if (term === "") {
-    renderProducts(allProducts);
+    renderProducts(searchable);
     return;
   }
 
-  renderProducts(allProducts.filter((p) => p.name.toLowerCase().includes(term)));
+  renderProducts(searchable.filter((p) => p.name.toLowerCase().includes(term)));
 }
 
 // ================== รายละเอียดสินค้า (Modal) ==================
