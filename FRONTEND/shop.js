@@ -144,8 +144,13 @@ function renderProducts(items) {
              <span class="price-val">${p.price}</span>
            </div>`;
       const cardClickAttr = isOwnedBreed ? "" : `onclick="showDetail('${safeId}')"`;
+      // สินค้าหมวด "คูปอง" ใช้ดีไซน์การ์ดคูปองแยก (มีเส้นประกลาง, ขอบเว้า, พื้นเหลืองอ่อน)
+      const isCoupon = p.category === "คูปอง";
+      const cardClass = ["product-card"];
+      if (isOwnedBreed) cardClass.push("owned");
+      if (isCoupon) cardClass.push("coupon-card");
       return `
-        <div class="product-card ${isOwnedBreed ? "owned" : ""}" ${cardClickAttr}>
+        <div class="${cardClass.join(" ")}" ${cardClickAttr}>
           ${tagHTML}
           <div class="product-card-header">
             <h4>${safeName}</h4>
@@ -167,6 +172,10 @@ function filterItems(categoryName) {
     tab.classList.remove("active");
     if (tab.innerText === categoryName) tab.classList.add("active");
   });
+
+  // แสดง hero banner โปรโมทหมวดสัตว์เลี้ยง เฉพาะตอนอยู่ tab "คูปอง"
+  const banner = document.getElementById("couponHeroBanner");
+  if (banner) banner.style.display = categoryName === "คูปอง" ? "flex" : "none";
 
   const filtered = categoryName === "ทั้งหมด" ? allProducts : allProducts.filter((p) => p.category === categoryName);
   renderProducts(filtered);
