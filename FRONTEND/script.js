@@ -147,11 +147,17 @@ function renderChapters(chapters) {
     card.className = `chapter-card ${colorClass}`;
     card.dataset.chapterId = chapter.id;
     card.dataset.chapterTitle = chapter.title;
+    // ไอคอนบทเรียนอยู่ที่ img/chapters/{เลขบท}.png (มีเฉพาะบท 1-6 ตอนนี้)
+    // ถ้ามีบทเพิ่มในอนาคตแล้วรูปไม่มี ให้ fallback เป็นอิโมจิสลับ
+    const iconHtml =
+      chapter.chapter_number >= 1 && chapter.chapter_number <= 6
+        ? `<img src="img/chapters/${chapter.chapter_number}.png" alt="Chapter ${chapter.chapter_number}" onerror="this.replaceWith(document.createTextNode('${index % 2 === 0 ? "💻" : "⚙️"}'))">`
+        : `${index % 2 === 0 ? "💻" : "⚙️"}`;
     card.innerHTML = `
       <div class="card-inner">
         <div class="chapter-label">CHAPTER ${chapter.chapter_number}</div>
-        <p class="chapter-desc">${chapter.title}</p>
-        <div class="card-icon">${index % 2 === 0 ? "💻" : "⚙️"}</div>
+        <p class="chapter-desc">${escapeHtml(chapter.title)}</p>
+        <div class="card-icon">${iconHtml}</div>
       </div>
     `;
     card.addEventListener("click", () => openChapterTimeModal(chapter));

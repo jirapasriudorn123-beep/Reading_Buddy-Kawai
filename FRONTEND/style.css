@@ -976,6 +976,16 @@ body.dark-mode .time-add-btn:hover {
     transform: translateY(-5px);
 }
 
+/* ไอคอนบทเรียนถูก render สลับได้ทั้งอิโมจิกับรูป .png (ดู renderChapters ใน script.js)
+   บังคับให้รูป .png ไม่ล้นการ์ด และ scale ตาม card */
+.chapter-card .card-icon img {
+    max-width: 100%;
+    max-height: 160px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
 .chapter-scroll-wrapper::-webkit-scrollbar {
     height: 6px; 
 }
