@@ -161,10 +161,20 @@
     <div id="inventoryDrawer" class="inventory-drawer">
         <div class="inventory-handle"></div>
         <div class="inventory-head">
-            <div class="inventory-mode-title" id="inventoryModeTitle"></div>
+            <div class="inventory-mode-title" id="inventoryModeTitle">กระเป๋า</div>
             <button class="inventory-close" onclick="toggleInventory(false)">✕</button>
         </div>
-        <div id="inventoryGrid" class="inventory-grid"></div>
+        <!-- แถบแท็บซ้ายมือ = สลับกระเป๋าได้เลยจากในนี้ (ตามดีไซน์ที่แอดมินเลือก) -->
+        <div class="inventory-body">
+            <div class="inventory-tabs" id="inventoryTabs">
+                <button class="inv-tab" data-bag="feed" title="อาหาร" onclick="openBag('feed')">🍽️</button>
+                <button class="inv-tab" data-bag="happiness" title="ของเล่น" onclick="openBag('happiness')">🎾</button>
+                <button class="inv-tab" data-bag="clothing" title="เสื้อผ้า" onclick="openBag('clothing')">👕</button>
+                <button class="inv-tab" data-bag="bath" title="อาบน้ำ" onclick="openBag('bath')">🛁</button>
+                <button class="inv-tab" data-bag="sleep" title="ที่นอน" onclick="openBag('sleep')">🛏️</button>
+            </div>
+            <div id="inventoryGrid" class="inventory-grid"></div>
+        </div>
     </div>
 
     <div id="helpModal" class="modal-overlay" onclick="toggleModal('helpModal', false)">

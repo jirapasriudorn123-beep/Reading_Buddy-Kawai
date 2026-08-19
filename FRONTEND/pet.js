@@ -415,9 +415,14 @@ function openBag(bagKey) {
   currentBagKey = bagKey;
   const bag = bags[bagKey];
 
-  // หัวข้อบนกล่องกระเป๋าเปลี่ยนตามโหมดที่กดเข้ามา (ไม่ใช้แท็บสลับโหมดในกล่องแล้ว)
+  // header ใช้คำว่า "กระเป๋า" อย่างเดียว (subtitle = ชื่อกระเป๋าจริงของ tab ปัจจุบัน) เพราะมี tab ให้สลับได้ในตัวแล้ว
   const modeTitleEl = document.getElementById("inventoryModeTitle");
   if (modeTitleEl) modeTitleEl.textContent = `${bag.tag} ${bag.title}`;
+
+  // highlight tab ที่กำลังเลือกอยู่
+  document.querySelectorAll(".inv-tab").forEach((t) => {
+    t.classList.toggle("active", t.dataset.bag === bagKey);
+  });
 
   renderInventoryGrid(bagKey);
   setInventoryVisible(true);
