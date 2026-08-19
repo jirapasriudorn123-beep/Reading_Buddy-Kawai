@@ -329,42 +329,28 @@ async function extendReadingTime() {
 
 // ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (ไฟล์ buzzer 5 วิ จาก sound/timer-end.mp3) ==================
 
-// preload ตอนโหลดไฟล์ script.js เลย จะได้ไม่ต้องรอโหลดครั้งแรกที่เรียก
-// (browser autoplay policy ยอมให้เล่นได้เพราะ user เพิ่งกดปุ่ม "เริ่ม" ไปก่อนหน้า)
-const timerEndSound = new Audio("sound/timer-end.mp3");
-timerEndSound.preload = "auto";
-timerEndSound.volume = 1.0; // <Audio> volume สูงสุดคือ 1.0 — ต้องขยายเพิ่มผ่าน Web Audio GainNode ถ้าอยากดังกว่านี้
-
-// ต่อ <Audio> ผ่าน MediaElementSource + GainNode เพื่อขยายเสียงเกิน 100%
-// (ไฟล์ buzzer ต้นฉบับดังไม่พอ user บ่นว่าไม่ค่อยได้ยิน)
-let boostedSoundReady = false;
-function ensureBoostedSound() {
-  if (boostedSoundReady) return;
-  try {
-    const AudioCtxCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtxCtor) return;
-    const ctx = new AudioCtxCtor();
-    const source = ctx.createMediaElementSource(timerEndSound);
-    const gain = ctx.createGain();
-    gain.gain.value = 3.0; // ×3 จากเสียงต้นฉบับ (browser จะ clip อัตโนมัติถ้าเกิน 0dBFS)
-    source.connect(gain).connect(ctx.destination);
-    boostedSoundReady = true;
-    // บาง browser เริ่ม AudioContext ในสถานะ suspended ต้อง resume ก่อน (จะเกิดตอน user เพิ่งกดปุ่ม)
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
-  } catch (err) {
-    console.warn("ตั้งค่าเสียงขยายไม่สำเร็จ (จะใช้เสียงระดับ 100% ปกติแทน):", err);
-  }
-}
+// ใช้ <Audio> element หลายอันเล่นซ้อนกัน = ดังขึ้นทวีคูณ (Web Audio GainNode boost
+// เคยลอง แต่ createMediaElementSource ตัด default output แล้วบาง browser เสียงหายเลย
+// เลยกลับมาใช้วิธีนี้ที่รองรับทุก browser 100%)
+const SOUND_URL = "sound/timer-end.mp3";
+const SOUND_COPIES = 3; // จำนวน audio element ที่เล่นพร้อมกัน (ยิ่งเยอะ = ดังยิ่งขึ้น)
+const timerEndSounds = Array.from({ length: SOUND_COPIES }, () => {
+  const a = new Audio(SOUND_URL);
+  a.preload = "auto";
+  a.volume = 1.0;
+  return a;
+});
 
 function playSoftBeep() {
-  try {
-    ensureBoostedSound();
-    timerEndSound.pause();
-    timerEndSound.currentTime = 0; // reset ให้เล่นตั้งแต่ต้นเสมอ (กันกรณีเสียงยังเล่นค้างจากรอบก่อน)
-    timerEndSound.play().catch((err) => console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err));
-  } catch (err) {
-    console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
-  }
+  timerEndSounds.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.play().catch((err) => console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err));
+    } catch (err) {
+      console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
+    }
+  });
 }
 
 // ================== นับถอยหลังระหว่างอ่าน (แสดงผลในช่องเวลาอ่านโดยตรง) ==================
@@ -486,10 +472,12 @@ function resetReaderTimerState() {
   clearInterval(countdownInterval);
   clearInterval(breakCountdownInterval);
   // ปิดเสียงเตือนถ้ายังเล่นค้างอยู่ (เช่น user กดยกเลิกช่วง 5 วิสุดท้าย)
-  try {
-    timerEndSound.pause();
-    timerEndSound.currentTime = 0;
-  } catch (_) {}
+  timerEndSounds.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (_) {}
+  });
   activeSession = null;
   remainingSeconds = 0;
   onBreak = false;
