@@ -93,23 +93,36 @@
     <div id="productGrid" class="product-grid">
         </div>
 
-    <!-- Banner รูปโฆษณาหมวดสัตว์เลี้ยง — วางไว้ด้านล่างของหน้า คลิกทั้งรูปแล้วไป tab "สัตว์เลี้ยง" -->
+    <!-- Banner รูปโฆษณาร้านค้าจริง Polsom Petshop สาขาขอนแก่น -->
+    <!-- คลิกทั้งรูป → เปิดเฟสบุ๊คร้านในแท็บใหม่ (target="_blank" + rel noopener) -->
     <!-- โชว์เฉพาะตอนอยู่ tab "คูปอง" (ควบคุมโดย shop.js) -->
-    <!-- ถ้ามีรูป img/banner-pet-shop.png จะโชว์รูป ถ้าไม่มีจะโชว์ fallback (emoji+ข้อความ) -->
-    <a id="couponHeroBanner" class="coupon-hero-banner" style="display:none;"
-       href="#" onclick="event.preventDefault(); filterItems('สัตว์เลี้ยง'); return false;"
-       title="ไปดูสินค้าน้องหมาในหมวดสัตว์เลี้ยง">
-        <img class="coupon-hero-img" src="img/banner-pet-shop.png"
-             alt="ร้านค้าสัตว์เลี้ยง — คลิกเพื่อดูสินค้า"
-             onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
-        <div class="coupon-hero-fallback">
-            <span class="coupon-hero-fallback-emoji">🐕</span>
-            <div>
-                <div class="coupon-hero-fallback-title">ช้อปเพื่อนสัตว์เลี้ยงให้น้อง!</div>
-                <div class="coupon-hero-fallback-sub">คลิกเพื่อดูสินค้าน้องหมา →</div>
+    <div id="couponBannerWrap" class="coupon-banner-wrap" style="display:none;">
+        <a class="coupon-hero-banner" href="https://www.facebook.com/p/Polsom-Petshop-สาขาขอนแก่น-61559388980545/"
+           target="_blank" rel="noopener noreferrer"
+           title="เปิดเฟสบุ๊ค Polsom Petshop สาขาขอนแก่น (แท็บใหม่)">
+            <img class="coupon-hero-img" src="img/banner-pet-shop.png"
+                 alt="Polsom Petshop สาขาขอนแก่น — คลิกเพื่อไปดูที่เฟสบุ๊ค"
+                 onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+            <div class="coupon-hero-fallback">
+                <span class="coupon-hero-fallback-emoji">🏪</span>
+                <div>
+                    <div class="coupon-hero-fallback-title">Polsom Petshop สาขาขอนแก่น</div>
+                    <div class="coupon-hero-fallback-sub">คลิกเพื่อไปเฟสบุ๊คร้าน →</div>
+                </div>
             </div>
+        </a>
+        <!-- เงื่อนไขการใช้คูปองในร้านจริง — แสดงใต้ banner -->
+        <div class="coupon-terms">
+            <div class="coupon-terms-title">📋 เงื่อนไขการใช้คูปอง</div>
+            <ul class="coupon-terms-list">
+                <li>ใช้ได้เฉพาะสาขาขอนแก่นเท่านั้น</li>
+                <li>ใช้ได้กับสินค้าประเภท <strong>อาหารสุนัข ของใช้น้องหมา ของเล่น เสื้อผ้า</strong> ที่ร้านระบุไว้</li>
+                <li>คูปองมีอายุ <strong>30 วัน</strong> นับจากวันที่แลก ห้ามใช้เกินอายุ</li>
+                <li>ใช้ได้ครั้งเดียวต่อ 1 คูปอง แสดงคูปองในแอปให้พนักงานที่หน้าร้านเพื่อรับส่วนลด</li>
+                <li>ไม่สามารถแลกเป็นเงินสด หรือใช้ร่วมกับโปรโมชั่นอื่นได้</li>
+            </ul>
         </div>
-    </a>
+    </div>
 </div>
 
 <div id="productModal" class="modal-overlay" onclick="closeModalOutside(event)">

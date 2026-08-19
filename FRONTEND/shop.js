@@ -185,9 +185,9 @@ function filterItems(categoryName) {
     if (tab.innerText === categoryName) tab.classList.add("active");
   });
 
-  // แสดง banner โปรโมทหมวดสัตว์เลี้ยง (ด้านล่าง) เฉพาะตอนอยู่ tab "คูปอง"
-  const banner = document.getElementById("couponHeroBanner");
-  if (banner) banner.style.display = categoryName === "คูปอง" ? "block" : "none";
+  // แสดง banner + เงื่อนไขคูปอง (ด้านล่าง) เฉพาะตอนอยู่ tab "คูปอง"
+  const bannerWrap = document.getElementById("couponBannerWrap");
+  if (bannerWrap) bannerWrap.style.display = categoryName === "คูปอง" ? "block" : "none";
 
   const filtered = categoryName === "ทั้งหมด" ? allProducts : allProducts.filter((p) => p.category === categoryName);
   renderProducts(filtered);

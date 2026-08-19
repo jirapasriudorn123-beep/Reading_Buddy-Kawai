@@ -1573,6 +1573,58 @@ body {
   color: #8b5a2a;
 }
 
+/* wrapper รอบ banner + เงื่อนไข — ให้ทั้งสองส่วนไป/หายด้วยกัน (toggle เดียวใน shop.js) */
+.coupon-banner-wrap {
+  margin: 0;
+}
+
+/* กล่องเงื่อนไขการใช้คูปอง — วางใต้ banner รูปร้าน */
+.coupon-terms {
+  margin: 12px 50px 24px;
+  background: #fff8e6;
+  border: 2px solid #f0b23d;
+  border-radius: 16px;
+  padding: 20px 28px;
+  color: #5a3a15;
+}
+
+.coupon-terms-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #6b3f1a;
+  margin-bottom: 12px;
+}
+
+.coupon-terms-list {
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.coupon-terms-list li {
+  margin-bottom: 4px;
+}
+
+.coupon-terms-list strong {
+  color: #b8540b;
+}
+
+/* dark mode */
+html.dark-mode body .coupon-terms {
+  background: #3a2f18;
+  border-color: #8b6529;
+  color: #e5d4a8;
+}
+
+html.dark-mode body .coupon-terms-title {
+  color: #f5e8c8;
+}
+
+html.dark-mode body .coupon-terms-list strong {
+  color: #f7b26b;
+}
+
 /* Coupon banner — สินค้าหมวด "คูปอง" render เป็น banner เต็มความกว้าง 1 แถวต่อชิ้น
    คลิกได้ทั้งแบนเนอร์ → เปิด modal แสดง description = การใช้งานและเงื่อนไข */
 .coupon-banner {
