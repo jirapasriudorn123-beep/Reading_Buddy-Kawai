@@ -8,11 +8,31 @@ async function loadGameConfig() {
     const { chapters } = await adminApiFetch("/admin/game-config");
     currentChapters = chapters;
     renderGameCards();
+    populateChapterNav();
   } catch (err) {
     console.error("โหลดค่ามินิเกมไม่สำเร็จ:", err);
     document.getElementById("gameCards").innerHTML =
       '<p style="color:#d9534f; text-align:center; padding:40px;">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</p>';
   }
+}
+
+// เติมรายชื่อบทลงใน dropdown "เลือกบท" — user เลือกบทไหน จะเด้งไปหน้าจัดการคำถามของบทนั้น
+function populateChapterNav() {
+  const select = document.getElementById("chapterNav");
+  if (!select) return;
+  const options = ['<option value="all">ทุกบทเรียน</option>'];
+  currentChapters.forEach((ch) => {
+    options.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
+  });
+  select.innerHTML = options.join("");
+  select.value = "all"; // default อยู่ที่ "ทุกบทเรียน" — คือหน้ารายชื่อบท (page 2)
+}
+
+// เลือกบทจาก dropdown → เด้งไปหน้าจัดการคำถามของบทนั้น (page 1)
+// ถ้าเลือก "all" อยู่แล้ว = ไม่ทำอะไร (อยู่หน้ารายชื่อบทต่อ)
+function onChapterNavChange(value) {
+  if (value === "all") return;
+  window.location.href = `admingame-edit.html?chapterId=${value}`;
 }
 
 function renderGameCards() {

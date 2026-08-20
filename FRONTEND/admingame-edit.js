@@ -14,16 +14,43 @@ async function loadPage() {
     return;
   }
   try {
-    const { chapter, questions } = await adminApiFetch(`/admin/game-questions/chapter/${chapterId}`);
-    currentChapter = chapter;
-    currentQuestions = questions;
+    // โหลด chapter+questions ของบทปัจจุบัน คู่กับ list บททั้งหมด (ใช้เติม dropdown สลับบท)
+    const [main, allChapters] = await Promise.all([
+      adminApiFetch(`/admin/game-questions/chapter/${chapterId}`),
+      adminApiFetch("/admin/game-config"),
+    ]);
+    currentChapter = main.chapter;
+    currentQuestions = main.questions;
     renderConditionBar();
     renderLevelFilter();
     renderQuestions();
+    populateChapterNav(allChapters.chapters || []);
   } catch (err) {
     console.error("โหลดข้อมูลไม่สำเร็จ:", err);
     document.getElementById("questionList").innerHTML =
       '<p style="color:#d9534f; text-align:center; padding:40px;">โหลดข้อมูลไม่สำเร็จ</p>';
+  }
+}
+
+// เติมรายชื่อบทลง dropdown สลับบท + set default ไปที่บทปัจจุบัน
+function populateChapterNav(chapters) {
+  const select = document.getElementById("chapterNav");
+  if (!select) return;
+  const opts = ['<option value="all">← ทุกบทเรียน</option>'];
+  chapters.forEach((ch) => {
+    opts.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
+  });
+  select.innerHTML = opts.join("");
+  select.value = String(chapterId);
+}
+
+// เลือกบทใหม่จาก dropdown
+// "all" = กลับหน้ารายชื่อบท / ค่าอื่น = โหลด question editor ของบทนั้นแทน
+function onChapterNavChange(value) {
+  if (value === "all") {
+    window.location.href = "admingame.html";
+  } else if (Number(value) !== chapterId) {
+    window.location.href = `admingame-edit.html?chapterId=${value}`;
   }
 }
 

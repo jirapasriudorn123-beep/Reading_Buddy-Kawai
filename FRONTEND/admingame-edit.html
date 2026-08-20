@@ -63,6 +63,12 @@
         </header>
 
         <div class="qe-toolbar">
+            <!-- Dropdown สลับบท: "ทุกบทเรียน" = กลับหน้ารายชื่อบท, บทอื่น = โหลดคำถามของบทนั้น -->
+            <div class="qe-level-filter">
+                <select id="chapterNav" class="qe-level-select" onchange="onChapterNavChange(this.value)">
+                    <option value="all">← ทุกบทเรียน</option>
+                </select>
+            </div>
             <div class="qe-level-filter">
                 <select id="levelFilter" class="qe-level-select">
                     <option value="all">ทุกเลเวล</option>
