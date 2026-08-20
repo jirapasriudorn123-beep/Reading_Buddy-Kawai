@@ -56,12 +56,16 @@ function renderConditionBar() {
     `คำถาม: ${currentChapter.game_question_count} ข้อ`;
 }
 
+// 1 โลก (บทเรียน) มี 5 ด่านเสมอ — โชว์ตัวเลือกด่าน 1-5 ครบทุกครั้งไม่ว่าจะมีคำถามอยู่ในด่านนั้นแล้วหรือยัง
+const STAGES_PER_WORLD = 5;
+
 function renderLevelFilter() {
-  const levels = Array.from(new Set(currentQuestions.map((q) => q.level))).sort((a, b) => a - b);
   const select = document.getElementById("levelFilter");
   select.innerHTML =
     '<option value="all">ด่านทั้งหมด</option>' +
-    levels.map((lv) => `<option value="${lv}">ด่าน ${lv}</option>`).join("");
+    Array.from({ length: STAGES_PER_WORLD }, (_, i) => i + 1)
+      .map((lv) => `<option value="${lv}">ด่าน ${lv}</option>`)
+      .join("");
   select.value = currentLevelFilter;
   select.onchange = (e) => {
     currentLevelFilter = e.target.value;
