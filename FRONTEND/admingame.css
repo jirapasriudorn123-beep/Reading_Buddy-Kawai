@@ -152,6 +152,13 @@
   flex-wrap: wrap;
 }
 
+.qe-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .qe-level-select {
   background: #fff;
   border: 1.5px solid #e5e0d5;

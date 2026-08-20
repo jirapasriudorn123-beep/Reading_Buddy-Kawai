@@ -63,17 +63,19 @@
         </header>
 
         <div class="qe-toolbar">
-            <!-- Dropdown สลับบท: "ทุกบทเรียน" = กลับหน้ารายชื่อบท, บทอื่น = โหลดคำถามของบทนั้น -->
-            <div class="qe-level-filter">
-                <select id="chapterNav" class="qe-level-select" onchange="onChapterNavChange(this.value)">
-                    <option value="all">← วิชาสถาปัตย์คอมฯ</option>
-                    <option value="dogs">เกี่ยวกับสุนัข</option>
-                </select>
-            </div>
-            <div class="qe-level-filter">
-                <select id="levelFilter" class="qe-level-select">
-                    <option value="all">ทุกเลเวล</option>
-                </select>
+            <div class="qe-toolbar-left">
+                <!-- Dropdown สลับบท: "ทุกบทเรียน" = กลับหน้ารายชื่อบท, บทอื่น = โหลดคำถามของบทนั้น -->
+                <div class="qe-level-filter">
+                    <select id="chapterNav" class="qe-level-select" onchange="onChapterNavChange(this.value)">
+                        <option value="all">← วิชาสถาปัตย์คอมฯ</option>
+                        <option value="dogs">เกี่ยวกับสุนัข</option>
+                    </select>
+                </div>
+                <div class="qe-level-filter">
+                    <select id="levelFilter" class="qe-level-select">
+                        <option value="all">ด่านทั้งหมด</option>
+                    </select>
+                </div>
             </div>
             <button class="qe-add-btn" onclick="openAddQuestionModal()">
                 <span class="qe-add-plus">+</span> เพิ่มคำถาม
@@ -107,7 +109,7 @@
         <input type="hidden" id="editQuestionId">
 
         <div class="edit-form-group">
-            <label class="edit-form-label" for="editQuestionLevel">ระดับ (Level)</label>
+            <label class="edit-form-label" for="editQuestionLevel">ด่านที่</label>
             <input class="edit-form-input" id="editQuestionLevel" type="number" min="1" max="20" value="1">
         </div>
 

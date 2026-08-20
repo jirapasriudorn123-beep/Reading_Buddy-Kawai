@@ -45,9 +45,7 @@ function onChapterNavChange(value) {
   if (value === "all") {
     window.location.href = "admingame.html";
   } else if (value === "dogs") {
-    alert("หน้าจัดการคำถาม 'เกี่ยวกับสุนัข' ยังอยู่ระหว่างเตรียม 🐕");
-    const sel = document.getElementById("chapterNav");
-    if (sel) sel.value = "all";
+    window.location.href = "admingame-dogs.html";
   }
 }
 
@@ -62,8 +60,8 @@ function renderLevelFilter() {
   const levels = Array.from(new Set(currentQuestions.map((q) => q.level))).sort((a, b) => a - b);
   const select = document.getElementById("levelFilter");
   select.innerHTML =
-    '<option value="all">ทุกเลเวล</option>' +
-    levels.map((lv) => `<option value="${lv}">Level ${lv}</option>`).join("");
+    '<option value="all">ด่านทั้งหมด</option>' +
+    levels.map((lv) => `<option value="${lv}">ด่าน ${lv}</option>`).join("");
   select.value = currentLevelFilter;
   select.onchange = (e) => {
     currentLevelFilter = e.target.value;
@@ -91,7 +89,7 @@ function renderQuestions() {
       <div class="qe-q-card ${q.enabled ? "" : "disabled"}">
         <div class="qe-q-header">
           <div class="qe-q-header-left">
-            <span class="qe-lv-badge">LV${q.level}</span>
+            <span class="qe-lv-badge">ด่านที่ ${q.level}</span>
             <p class="qe-q-title">คำถามที่ ${idx + 1} : ${escapeHtml(currentChapter.title)}</p>
           </div>
           <div class="qe-q-header-right">
