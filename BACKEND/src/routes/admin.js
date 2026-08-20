@@ -684,6 +684,121 @@ router.delete("/game-questions/:id", requireAdmin, async (req, res, next) => {
   }
 });
 
+// ================== คำถามเกี่ยวกับพันธุ์สุนัข (breed_quiz_questions) ==================
+// ใช้ในด่าน 2,4 ของทุกโลกในเกม แยกจาก quiz_questions ที่ผูกกับบทเรียน
+const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
+
+router.get("/breed-questions", requireAdmin, async (req, res, next) => {
+  try {
+    const breed = req.query.breed;
+    if (!breed || !VALID_BREEDS.includes(breed)) {
+      return res.status(400).json({ message: "ระบุพันธุ์สุนัขให้ถูกต้อง (golden/shiba/siberian/thairidgeback)" });
+    }
+    const questions = await db
+      .prepare(
+        `SELECT id, breed, stage, question, option_1, option_2, option_3, option_4, correct_option, enabled, created_at
+         FROM breed_quiz_questions WHERE breed = ? ORDER BY id ASC`
+      )
+      .all(breed);
+    return res.json({ breed, questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ใช้ validate เหมือน quiz_questions — แต่รับ breed + stage (2 หรือ 4) แทน level
+const VALID_BREED_STAGES = [2, 4];
+
+function validateBreedQuestionPayload(body) {
+  const breed = body.breed;
+  const stage = Number(body.stage);
+  const q = String(body.question || "").trim();
+  const options = [1, 2, 3, 4].map((i) => String(body["option_" + i] || "").trim());
+  const correct = Number(body.correctOption);
+
+  if (!VALID_BREEDS.includes(breed)) return { error: "พันธุ์สุนัขไม่ถูกต้อง" };
+  if (!VALID_BREED_STAGES.includes(stage)) return { error: "ด่านต้องเป็น 2 หรือ 4 เท่านั้น" };
+  if (!q) return { error: "กรุณากรอกคำถาม" };
+  if (options.some((o) => !o)) return { error: "กรุณากรอกตัวเลือกให้ครบทั้ง 4 ข้อ" };
+  if (!Number.isInteger(correct) || correct < 1 || correct > 4) {
+    return { error: "ต้องเลือกคำตอบที่ถูก (1-4)" };
+  }
+  return { breed, stage, question: q, options, correct };
+}
+
+router.post("/breed-questions", requireAdmin, async (req, res) => {
+  try {
+    const v = validateBreedQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    const result = await db
+      .prepare(
+        `INSERT INTO breed_quiz_questions
+         (breed, stage, question, option_1, option_2, option_3, option_4, correct_option)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(v.breed, v.stage, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct);
+
+    const created = await db
+      .prepare("SELECT * FROM breed_quiz_questions WHERE id = ?")
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "เพิ่มคำถามสำเร็จ", question: created });
+  } catch (err) {
+    console.error("Create breed question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.put("/breed-questions/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+
+    const v = validateBreedQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    await db
+      .prepare(
+        `UPDATE breed_quiz_questions
+         SET breed = ?, stage = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?
+         WHERE id = ?`
+      )
+      .run(v.breed, v.stage, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, id);
+
+    const updated = await db.prepare("SELECT * FROM breed_quiz_questions WHERE id = ?").get(id);
+    return res.json({ message: "อัปเดตคำถามสำเร็จ", question: updated });
+  } catch (err) {
+    console.error("Update breed question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.patch("/breed-questions/:id/toggle", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const q = await db.prepare("SELECT id, enabled FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!q) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    const nextVal = q.enabled ? 0 : 1;
+    await db.prepare("UPDATE breed_quiz_questions SET enabled = ? WHERE id = ?").run(nextVal, id);
+    return res.json({ id: q.id, enabled: nextVal });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/breed-questions/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    await db.prepare("DELETE FROM breed_quiz_questions WHERE id = ?").run(id);
+    return res.json({ message: "ลบคำถามสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== มินิเกม (Phayao Adventure) — ความคืบหน้าผู้เล่น ==================
 router.get("/game-progress", requireAdmin, async (req, res, next) => {
   try {

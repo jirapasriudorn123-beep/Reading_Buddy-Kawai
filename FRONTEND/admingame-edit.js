@@ -36,7 +36,7 @@ function populateChapterNav(_chapters) {
   const select = document.getElementById("chapterNav");
   if (!select) return;
   select.innerHTML =
-    '<option value="all">← วิชาสถาปัตย์คอมฯ</option>' +
+    '<option value="all">วิชาสถาปัตย์คอมฯ</option>' +
     '<option value="dogs">เกี่ยวกับสุนัข</option>';
   select.value = "all";
 }
@@ -56,16 +56,14 @@ function renderConditionBar() {
     `คำถาม: ${currentChapter.game_question_count} ข้อ`;
 }
 
-// 1 โลก (บทเรียน) มี 5 ด่านเสมอ — โชว์ตัวเลือกด่าน 1-5 ครบทุกครั้งไม่ว่าจะมีคำถามอยู่ในด่านนั้นแล้วหรือยัง
-const STAGES_PER_WORLD = 5;
+// คำถามวิชา (บทเรียน) ใช้ได้เฉพาะด่าน 1, 3, 5 ของโลก (ด่าน 2, 4 เป็นคำถามพันธุ์สุนัข — จัดการที่ admingame-dogs.html)
+const SUBJECT_STAGES = [1, 3, 5];
 
 function renderLevelFilter() {
   const select = document.getElementById("levelFilter");
   select.innerHTML =
     '<option value="all">ด่านทั้งหมด</option>' +
-    Array.from({ length: STAGES_PER_WORLD }, (_, i) => i + 1)
-      .map((lv) => `<option value="${lv}">ด่าน ${lv}</option>`)
-      .join("");
+    SUBJECT_STAGES.map((lv) => `<option value="${lv}">ด่าน ${lv}</option>`).join("");
   select.value = currentLevelFilter;
   select.onchange = (e) => {
     currentLevelFilter = e.target.value;

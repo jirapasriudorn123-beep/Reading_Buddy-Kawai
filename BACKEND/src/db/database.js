@@ -345,6 +345,31 @@ async function initDatabase() {
     )
   `);
 
+  // ---- ตาราง breed_quiz_questions (คำถามในด่านที่เกี่ยวกับพันธุ์สุนัข ด่าน 2,4 ในเกม) ----
+  // breed = golden / shiba / siberian / thairidgeback ต้องตรงกับ PLAYER_BREEDS ใน game.js
+  // stage = 2 หรือ 4 (ด่านไหนของโลกที่คำถามนี้อยู่ในหมวด) — ใช้จัดกลุ่มในหน้าแอดมินเท่านั้น
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS breed_quiz_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      breed TEXT NOT NULL,
+      stage INTEGER NOT NULL DEFAULT 2,
+      question TEXT NOT NULL,
+      option_1 TEXT NOT NULL,
+      option_2 TEXT NOT NULL,
+      option_3 TEXT NOT NULL,
+      option_4 TEXT NOT NULL,
+      correct_option INTEGER NOT NULL CHECK(correct_option BETWEEN 1 AND 4),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // เผื่อฐานข้อมูลเก่าที่สร้างตารางนี้ไว้ก่อนมีคอลัมน์ stage
+  const breedQuizColumns = (await client.execute("PRAGMA table_info(breed_quiz_questions)")).rows.map((c) => c.name);
+  if (!breedQuizColumns.includes("stage")) {
+    await client.execute("ALTER TABLE breed_quiz_questions ADD COLUMN stage INTEGER NOT NULL DEFAULT 2");
+  }
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (

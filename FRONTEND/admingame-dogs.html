@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการมินิเกม</title>
+    <title>จัดการมินิเกม — เกี่ยวกับสุนัข</title>
     <link rel="stylesheet" href="adminstyle.css">
     <link rel="stylesheet" href="admingame.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
@@ -58,37 +58,39 @@
         <header class="header-action" style="display:flex; align-items:center; justify-content:space-between;">
             <h2 style="display:flex; align-items:center; gap:12px;">
                 <a href="admingame.html" style="text-decoration:none; color:#888; font-size:22px;">&#8592;</a>
-                จัดการมินิเกม
+                จัดการมินิเกม — เกี่ยวกับสุนัข
             </h2>
         </header>
 
         <div class="qe-toolbar">
             <div class="qe-toolbar-left">
-                <!-- Dropdown สลับบท: "ทุกบทเรียน" = กลับหน้ารายชื่อบท, บทอื่น = โหลดคำถามของบทนั้น -->
+                <!-- Dropdown สลับหมวด: กลับไปหน้ารายชื่อบท / อยู่หน้าเกี่ยวกับสุนัข -->
                 <div class="qe-level-filter">
                     <select id="chapterNav" class="qe-level-select" onchange="onChapterNavChange(this.value)">
                         <option value="all">วิชาสถาปัตย์คอมฯ</option>
                         <option value="dogs">เกี่ยวกับสุนัข</option>
                     </select>
                 </div>
+                <!-- Dropdown เลือกพันธุ์สุนัข (คำถามด่าน 2, 4 ในเกม) -->
                 <div class="qe-level-filter">
-                    <select id="levelFilter" class="qe-level-select">
+                    <select id="breedNav" class="qe-level-select" onchange="onBreedChange(this.value)">
+                        <option value="golden">🦮 โกลเด้นรีทรีฟเวอร์</option>
+                        <option value="shiba">🐕 ชิบะอินุ</option>
+                        <option value="siberian">🐺 ไซบีเรียนฮัสกี้</option>
+                        <option value="thairidgeback">🐶 ไทยหลังอาน</option>
+                    </select>
+                </div>
+                <!-- Dropdown กรองตามด่าน (คำถามพันธุ์สุนัขใช้ได้เฉพาะด่าน 2, 4) -->
+                <div class="qe-level-filter">
+                    <select id="stageFilter" class="qe-level-select">
                         <option value="all">ด่านทั้งหมด</option>
+                        <option value="2">ด่าน 2</option>
+                        <option value="4">ด่าน 4</option>
                     </select>
                 </div>
             </div>
             <button class="qe-add-btn" onclick="openAddQuestionModal()">
                 <span class="qe-add-plus">+</span> เพิ่มคำถาม
-            </button>
-        </div>
-
-        <div class="qe-condition-bar" id="conditionBar">
-            <span class="qe-condition-label">เงื่อนไข</span>
-            <span class="qe-condition-text" id="conditionText">กำลังโหลด...</span>
-            <button class="qe-condition-edit" onclick="openChapterConfigModal()" title="แก้ไขเงื่อนไข">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
             </button>
         </div>
 
@@ -109,17 +111,16 @@
         <input type="hidden" id="editQuestionId">
 
         <div class="edit-form-group">
-            <label class="edit-form-label" for="editQuestionLevel">ด่านที่</label>
-            <select class="edit-form-input" id="editQuestionLevel">
-                <option value="1">ด่าน 1</option>
-                <option value="3">ด่าน 3</option>
-                <option value="5">ด่าน 5</option>
+            <label class="edit-form-label" for="editQuestionStage">ด่านที่</label>
+            <select class="edit-form-input" id="editQuestionStage">
+                <option value="2">ด่าน 2</option>
+                <option value="4">ด่าน 4</option>
             </select>
         </div>
 
         <div class="edit-form-group">
             <label class="edit-form-label" for="editQuestionText">คำถาม</label>
-            <textarea class="edit-form-textarea" id="editQuestionText" placeholder="เช่น CPU ย่อมาจากอะไร?"></textarea>
+            <textarea class="edit-form-textarea" id="editQuestionText" placeholder="เช่น โกลเด้นรีทรีฟเวอร์มีถิ่นกำเนิดจากประเทศใด?"></textarea>
         </div>
 
         <div class="edit-form-group">
@@ -150,33 +151,8 @@
     </div>
 </div>
 
-<!-- Modal แก้ไขเงื่อนไขบท (reading time + question count) -->
-<div id="chapterConfigModal" class="edit-overlay">
-    <div class="edit-modal-box">
-        <div class="edit-modal-header">
-            <button class="edit-modal-back" onclick="closeChapterConfigModal()">&#8592;</button>
-            <span class="edit-modal-title">แก้ไขเงื่อนไข</span>
-        </div>
-
-        <div class="edit-form-group">
-            <label class="edit-form-label" for="cfgRequiredMinutes">เวลาที่ต้องอ่าน (นาที)</label>
-            <input class="edit-form-input" id="cfgRequiredMinutes" type="number" min="0" max="240">
-        </div>
-
-        <div class="edit-form-group">
-            <label class="edit-form-label" for="cfgQuestionCount">จำนวนคำถามในเกม (ข้อ)</label>
-            <input class="edit-form-input" id="cfgQuestionCount" type="number" min="1" max="50">
-        </div>
-
-        <div class="edit-form-actions">
-            <button class="edit-cancel-btn" onclick="closeChapterConfigModal()">ยกเลิก</button>
-            <button class="edit-confirm-btn" onclick="saveChapterConfig()">บันทึก</button>
-        </div>
-    </div>
-</div>
-
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="admingame-edit.js"></script>
+<script src="admingame-dogs.js"></script>
 </body>
 </html>

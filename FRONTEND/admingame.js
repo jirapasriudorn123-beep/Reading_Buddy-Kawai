@@ -30,10 +30,7 @@ function populateChapterNav() {
 function onChapterNavChange(value) {
   if (value === "all") return;
   if (value === "dogs") {
-    // ยังไม่ได้ทำหน้าจัดการคำถามเกี่ยวกับสุนัข — แจ้งไว้ก่อน แล้วรีเซ็ต dropdown กลับ
-    alert("หน้าจัดการคำถาม 'เกี่ยวกับสุนัข' ยังอยู่ระหว่างเตรียม 🐕");
-    const sel = document.getElementById("chapterNav");
-    if (sel) sel.value = "all";
+    window.location.href = "admingame-dogs.html";
   }
 }
 
