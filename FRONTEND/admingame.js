@@ -15,6 +15,21 @@ async function loadGameConfig() {
   }
 }
 
+// เพิ่ม World ใหม่ต่อท้าย (เลขถัดจาก World ล่าสุด) — ตั้งชื่อชั่วคราวไว้ก่อน ค่อยมาแก้ทีหลังได้
+async function addWorld() {
+  const nextNumber = currentChapters.reduce((max, c) => Math.max(max, c.chapter_number), 0) + 1;
+  if (!confirm(`เพิ่ม World ${nextNumber} ใหม่?`)) return;
+  try {
+    await adminApiFetch("/admin/chapters", {
+      method: "POST",
+      body: JSON.stringify({ chapterNumber: nextNumber, title: `World ${nextNumber}` }),
+    });
+    await loadGameConfig();
+  } catch (err) {
+    alert("เพิ่ม World ไม่สำเร็จ: " + err.message);
+  }
+}
+
 function renderGameCards() {
   const wrap = document.getElementById("gameCards");
   if (!currentChapters.length) {
