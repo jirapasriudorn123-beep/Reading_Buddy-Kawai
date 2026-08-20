@@ -535,6 +535,7 @@ let battleActive = false;
 let enemyEncountered = false; // เจอตัวร้ายไปแล้วในรอบนี้ (กันลูปเดินสั่งเข้าต่อสู้ซ้ำทันทีหลังจบการต่อสู้)
 let battleQuiz = [];
 let battleTopic = "";
+let battleCategory = "subject"; // 'subject' (ด่าน 1,3,5) หรือ 'dog' (ด่าน 2,4) — ใช้ตอนบันทึกคะแนน
 let battleQuizIndex = 0;
 let enemyHp = ENEMY_MAX_HP;
 let playerHearts = PLAYER_MAX_HEARTS;
@@ -588,13 +589,26 @@ function pickQuizForStage(worldI, stageNo) {
     return {
       list: quizByBreed[selectedPlayerBreed] || [],
       topic: `พันธุ์${BREED_NAME_TH[selectedPlayerBreed] || "สุนัข"}`,
+      category: "dog",
     };
   }
   const chapterNo = worldI + 1;
   return {
     list: quizByChapter[chapterNo] || [],
     topic: WORLD_CHAPTER_TITLE[worldI] || `บทที่ ${chapterNo}`,
+    category: "subject",
   };
+}
+
+// บันทึกผลตอบคำถาม (ถูก/ผิด) ไปเก็บสถิติที่หน้าแอดมิน "จัดการคะแนน" — ไม่บล็อกเกม ถ้าพลาดก็แค่ log ไว้เฉยๆ
+function reportAnswer(category, correct) {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  fetch(`${API_BASE_URL}/game/answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ category, correct }),
+  }).catch((err) => console.error("บันทึกคะแนนไม่สำเร็จ:", err));
 }
 
 // สลับลำดับคำถามแบบสุ่ม เล่นซ้ำจะได้ไม่เจอลำดับเดิม
@@ -624,7 +638,7 @@ function startBattle(e) {
   if (battleActive) return;
 
   const stageNo = currentStageNo();
-  const { list, topic } = pickQuizForStage(worldIdx, stageNo);
+  const { list, topic, category } = pickQuizForStage(worldIdx, stageNo);
 
   if (!list.length) {
     alert(`ด่านนี้ยังไม่มีคำถาม (${topic})\nเพิ่มคำถามได้ที่หน้าแอดมิน (จัดการมินิเกม)`);
@@ -633,6 +647,7 @@ function startBattle(e) {
 
   battleActive = true;
   enemyEncountered = true;
+  battleCategory = category;
   // สุ่มคำถามจากคลังทั้งหมดมาแค่ 10 ข้อต่อการต่อสู้ 1 ครั้ง (ถ้าคลังมีน้อยกว่า 10 ก็ใช้เท่าที่มี)
   battleQuiz = shuffled(list).slice(0, ENEMY_MAX_HP);
   battleQuizIndex = 0;
@@ -700,6 +715,8 @@ function answerQuiz(picked, correct, wrap) {
   const buttons = [...wrap.querySelectorAll(".quiz-opt")];
   buttons.forEach((b) => (b.disabled = true));
   buttons[correct].classList.add("correct");
+
+  reportAnswer(battleCategory, picked === correct);
 
   if (picked === correct) {
     enemyHp -= 1;

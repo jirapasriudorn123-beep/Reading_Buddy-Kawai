@@ -362,6 +362,47 @@ router.get("/scores", requireAdmin, async (req, res, next) => {
   }
 });
 
+// GET คะแนนควิซแยกหมวด (subject/dog) สะสมทุกครั้งที่เคยตอบ ต่อผู้ใช้ 1 คน — ใช้หน้า "จัดการคะแนน"
+router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT u.id, u.username, u.email,
+                COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN qa.correct ELSE 0 END), 0) AS subjectCorrect,
+                COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN 1 ELSE 0 END), 0) AS subjectTotal,
+                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN qa.correct ELSE 0 END), 0) AS dogCorrect,
+                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN 1 ELSE 0 END), 0) AS dogTotal
+         FROM users u
+         LEFT JOIN quiz_answer_log qa ON qa.user_id = u.id
+         WHERE u.is_admin = 0
+         GROUP BY u.id
+         ORDER BY u.username ASC`
+      )
+      .all();
+
+    const pct = (correct, total) => (total > 0 ? Math.round((correct / total) * 100) : 0);
+    const users = rows.map((r) => {
+      const overallCorrect = r.subjectCorrect + r.dogCorrect;
+      const overallTotal = r.subjectTotal + r.dogTotal;
+      return {
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        subjectPercent: pct(r.subjectCorrect, r.subjectTotal),
+        subjectTotal: r.subjectTotal,
+        dogPercent: pct(r.dogCorrect, r.dogTotal),
+        dogTotal: r.dogTotal,
+        overallPercent: pct(overallCorrect, overallTotal),
+        overallTotal,
+      };
+    });
+
+    return res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== คลังคำตอบแชทบอท (chat_answers) ==================
 
 function normalizeKeywords(raw) {

@@ -1,0 +1,135 @@
+/* ================== หน้าจัดการคะแนน (คะแนนควิซแยกหมวด) ================== */
+
+.qs-panel {
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 20px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.qs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.qs-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #e5e0d5;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.qs-reset-btn {
+  background: var(--card-yellow);
+  border: 1.5px solid #e0c060;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.qs-reset-btn:hover {
+  filter: brightness(0.97);
+}
+
+.qs-thresholds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.qs-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qs-threshold-row .qs-threshold-label {
+  min-width: 190px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qs-threshold-row input[type="number"] {
+  width: 60px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1.5px solid #e5e0d5;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: center;
+}
+
+.qs-threshold-bar {
+  flex: 1;
+  height: 12px;
+  background: #f2e6d8;
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 420px;
+}
+
+.qs-threshold-fill {
+  height: 100%;
+  background: var(--orange-btn);
+  border-radius: 999px;
+  transition: width 0.15s ease;
+}
+
+.qs-status-pill {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.qs-status-pill.pass {
+  background: var(--green-btn);
+}
+
+.qs-status-pill.fail {
+  background: #d9534f;
+}
+
+.qs-detail-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid #e5e0d5;
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qs-detail-btn:hover {
+  background: #f7f3ea;
+}
+
+.qs-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.qs-detail-row:last-child {
+  border-bottom: none;
+}

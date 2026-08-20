@@ -370,6 +370,19 @@ async function initDatabase() {
     await client.execute("ALTER TABLE breed_quiz_questions ADD COLUMN stage INTEGER NOT NULL DEFAULT 2");
   }
 
+  // ---- ตาราง quiz_answer_log (log ทุกครั้งที่ผู้เล่นตอบคำถามในมินิเกม ใช้คิด % คะแนนแยกตามหมวดที่หน้า "จัดการคะแนน") ----
+  // category: 'subject' = ด่าน 1,3,5 (คำถามวิชา) | 'dog' = ด่าน 2,4 (คำถามพันธุ์สุนัข)
+  // % คะแนนของผู้ใช้แต่ละคนคิดสะสมจากทุกครั้งที่เคยตอบ (ไม่ใช่แค่รอบล่าสุด) ยิ่งเล่นซ้ำยิ่งนับสะสมเพิ่ม
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS quiz_answer_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category TEXT NOT NULL CHECK(category IN ('subject', 'dog')),
+      correct INTEGER NOT NULL CHECK(correct IN (0, 1)),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (

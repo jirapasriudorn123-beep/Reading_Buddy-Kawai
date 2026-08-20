@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css">
+    <link rel="stylesheet" href="adminscore.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -57,8 +58,52 @@
     </aside>
 <main class="main-content">
     <header class="header-action">
-        <h2>อันดับผู้ใช้</h2>
+        <h2>จัดการคะแนน</h2>
     </header>
+
+    <!-- คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ ด่าน 1,3,5 / เกี่ยวกับสุนัข ด่าน 2,4) คิดสะสมจากทุกครั้งที่เคยตอบ -->
+    <div class="qs-panel">
+        <div class="qs-toolbar">
+            <input type="text" id="scoreSearchInput" class="qs-search" placeholder="ค้นหาชื่อ, อีเมล...">
+            <button class="qs-reset-btn" onclick="resetThresholds()">↻ Reset</button>
+        </div>
+
+        <div class="qs-thresholds">
+            <div class="qs-threshold-row">
+                <span class="qs-threshold-label">คะแนนวิชาสถาปัตย์คอมฯ ≥</span>
+                <input type="number" id="thresholdSubject" value="80" min="0" max="100" oninput="onThresholdChange()">
+                <div class="qs-threshold-bar"><div class="qs-threshold-fill" id="fillSubject"></div></div>
+            </div>
+            <div class="qs-threshold-row">
+                <span class="qs-threshold-label">คะแนนเกี่ยวกับสุนัข ≥</span>
+                <input type="number" id="thresholdDog" value="80" min="0" max="100" oninput="onThresholdChange()">
+                <div class="qs-threshold-bar"><div class="qs-threshold-fill" id="fillDog"></div></div>
+            </div>
+            <div class="qs-threshold-row">
+                <span class="qs-threshold-label">คะแนนทั้งหมด ≥</span>
+                <input type="number" id="thresholdOverall" value="80" min="0" max="100" oninput="onThresholdChange()">
+                <div class="qs-threshold-bar"><div class="qs-threshold-fill" id="fillOverall"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container" style="margin-bottom:24px;">
+        <table class="lesson-table">
+            <thead>
+                <tr>
+                    <th>ชื่อ</th>
+                    <th>วิชาสถาปัตย์คอมฯ</th>
+                    <th>เกี่ยวกับสุนัข</th>
+                    <th>ทั้งหมด</th>
+                    <th>สถานะ</th>
+                    <th width="10%">ดูรายละเอียด</th>
+                </tr>
+            </thead>
+            <tbody id="quizScoreBody">
+                <tr><td colspan="6" style="text-align:center;color:#999;">กำลังโหลด...</td></tr>
+            </tbody>
+        </table>
+    </div>
 
     <div class="dashboard-grid" style="grid-template-columns: repeat(2, 1fr);">
         <div class="chart-container" style="margin:0;">
@@ -95,6 +140,18 @@
     </div>
 </main>
 </div>
+
+<!-- Modal ดูรายละเอียดคะแนนของผู้ใช้ 1 คน -->
+<div id="scoreDetailModal" class="edit-overlay">
+    <div class="edit-modal-box">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" onclick="closeScoreDetailModal()">&#8592;</button>
+            <span class="edit-modal-title" id="scoreDetailTitle">รายละเอียดคะแนน</span>
+        </div>
+        <div id="scoreDetailBody"></div>
+    </div>
+</div>
+
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
 <script src="adminscore.js"></script>

@@ -70,6 +70,22 @@ router.post("/progress/complete", requireAuth, async (req, res, next) => {
   }
 });
 
+// ================== log คำตอบ (ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน") ==================
+router.post("/answer", requireAuth, async (req, res, next) => {
+  try {
+    const { category, correct } = req.body;
+    if (category !== "subject" && category !== "dog") {
+      return res.status(400).json({ message: "category ต้องเป็น subject หรือ dog" });
+    }
+    await db
+      .prepare("INSERT INTO quiz_answer_log (user_id, category, correct) VALUES (?, ?, ?)")
+      .run(req.user.id, category, correct ? 1 : 0);
+    return res.status(201).json({ message: "บันทึกแล้ว" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== คำถามควิซที่ใช้เล่นจริง (ดึงจากที่แอดมินตั้งไว้) ==================
 // ด่าน 1,3,5 ของแต่ละโลก = คำถามของบทเรียนนั้น (quiz_questions)
 router.get("/quiz/chapter/:chapterNumber", requireAuth, async (req, res, next) => {
