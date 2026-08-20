@@ -633,7 +633,8 @@ function startBattle(e) {
 
   battleActive = true;
   enemyEncountered = true;
-  battleQuiz = shuffled(list);
+  // สุ่มคำถามจากคลังทั้งหมดมาแค่ 10 ข้อต่อการต่อสู้ 1 ครั้ง (ถ้าคลังมีน้อยกว่า 10 ก็ใช้เท่าที่มี)
+  battleQuiz = shuffled(list).slice(0, ENEMY_MAX_HP);
   battleQuizIndex = 0;
   // เลือดตัวร้ายไม่เกินจำนวนคำถามที่มี ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
   enemyHp = Math.min(ENEMY_MAX_HP, battleQuiz.length);
