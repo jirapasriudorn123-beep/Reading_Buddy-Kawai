@@ -17,15 +17,16 @@ async function loadGameConfig() {
 }
 
 // เติมรายชื่อบทลงใน dropdown "เลือกบท" — user เลือกบทไหน จะเด้งไปหน้าจัดการคำถามของบทนั้น
+// ตัวเลือกแรกเป็นชื่อวิชา (default = อยู่หน้ารายชื่อบท) ตรงกับ mockup ที่ผู้ใช้ให้มา
 function populateChapterNav() {
   const select = document.getElementById("chapterNav");
   if (!select) return;
-  const options = ['<option value="all">ทุกบทเรียน</option>'];
+  const options = ['<option value="all">วิชาสถาปัตย์คอมฯ</option>'];
   currentChapters.forEach((ch) => {
     options.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
   });
   select.innerHTML = options.join("");
-  select.value = "all"; // default อยู่ที่ "ทุกบทเรียน" — คือหน้ารายชื่อบท (page 2)
+  select.value = "all";
 }
 
 // เลือกบทจาก dropdown → เด้งไปหน้าจัดการคำถามของบทนั้น (page 1)

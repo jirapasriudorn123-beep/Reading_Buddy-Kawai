@@ -36,7 +36,7 @@ async function loadPage() {
 function populateChapterNav(chapters) {
   const select = document.getElementById("chapterNav");
   if (!select) return;
-  const opts = ['<option value="all">← ทุกบทเรียน</option>'];
+  const opts = ['<option value="all">← วิชาสถาปัตย์คอมฯ</option>'];
   chapters.forEach((ch) => {
     opts.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
   });
