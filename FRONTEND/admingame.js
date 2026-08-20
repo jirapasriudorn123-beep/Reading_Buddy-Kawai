@@ -8,29 +8,10 @@ async function loadGameConfig() {
     const { chapters } = await adminApiFetch("/admin/game-config");
     currentChapters = chapters;
     renderGameCards();
-    populateChapterNav();
   } catch (err) {
     console.error("โหลดค่ามินิเกมไม่สำเร็จ:", err);
     document.getElementById("gameCards").innerHTML =
       '<p style="color:#d9534f; text-align:center; padding:40px;">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</p>';
-  }
-}
-
-// Dropdown "เลือกวิชา" มี 2 ตัวเลือกเท่านั้น: วิชาสถาปัตย์คอมฯ (บทเรียน) และ เกี่ยวกับสุนัข (คำถามพันธุ์หมา)
-// การนำทางไปหน้าคำถามของแต่ละบทใช้ปุ่ม ✏️ บนการ์ดบทแทน (ไม่ได้ใช้ dropdown สลับบทแล้ว)
-function populateChapterNav() {
-  const select = document.getElementById("chapterNav");
-  if (!select) return;
-  select.innerHTML =
-    '<option value="all">วิชาสถาปัตย์คอมฯ</option>' +
-    '<option value="dogs">เกี่ยวกับสุนัข</option>';
-  select.value = "all";
-}
-
-function onChapterNavChange(value) {
-  if (value === "all") return;
-  if (value === "dogs") {
-    window.location.href = "admingame-dogs.html";
   }
 }
 
@@ -48,9 +29,8 @@ function renderGameCards() {
       return `
       <div class="game-card ${enabled ? "" : "disabled"}">
         <div class="game-card-left">
-          <span class="game-ch-badge">CH${ch.chapter_number}</span>
+          <span class="game-ch-badge">World ${ch.chapter_number}</span>
           <div class="game-card-info">
-            <p class="game-card-title">Chapter ${ch.chapter_number} : ${escapeHtml(ch.title)}</p>
             <div class="game-card-conditions">
               เงื่อนไข : ต้องอ่านบทเรียน ${ch.game_required_minutes} นาที
               <span class="separator">|</span>
