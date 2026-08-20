@@ -123,11 +123,31 @@ function resetThresholds() {
 function openScoreDetail(userId) {
   const u = allQuizScores.find((x) => x.id === userId);
   if (!u) return;
-  document.getElementById("scoreDetailTitle").textContent = `รายละเอียดคะแนน — ${u.username}`;
+  const { overall } = currentThresholds();
+  const passed = u.overallPercent >= overall;
+
+  document.getElementById("scoreDetailTitle").textContent = "รายละเอียด";
   document.getElementById("scoreDetailBody").innerHTML = `
-    <div class="qs-detail-row"><span>วิชาสถาปัตย์คอมฯ</span><strong>${u.subjectPercent}% (${u.subjectTotal} ข้อที่เคยตอบ)</strong></div>
-    <div class="qs-detail-row"><span>เกี่ยวกับสุนัข</span><strong>${u.dogPercent}% (${u.dogTotal} ข้อที่เคยตอบ)</strong></div>
-    <div class="qs-detail-row"><span>คะแนนทั้งหมด</span><strong>${u.overallPercent}% (${u.overallTotal} ข้อที่เคยตอบ)</strong></div>
+    <div class="qs-detail-header">
+      <span>ชื่อผู้ใช้ : ${escapeHtml(u.username)}</span>
+      <span class="qs-status-pill ${passed ? "pass" : "fail"}">${passed ? "ผ่าน" : "ไม่ผ่าน"}</span>
+    </div>
+    <div class="qs-detail-cards">
+      <div class="qs-detail-card">
+        <span class="qs-detail-card-label">คะแนนวิชาสถาปัตย์คอมฯ</span>
+        <div class="qs-detail-card-score">${u.subjectPercent}<span class="qs-detail-card-max">/100</span></div>
+      </div>
+      <div class="qs-detail-card">
+        <span class="qs-detail-card-label">คะแนนเกี่ยวกับสุนัข</span>
+        <div class="qs-detail-card-score">${u.dogPercent}<span class="qs-detail-card-max">/100</span></div>
+      </div>
+    </div>
+    <hr class="qs-detail-divider">
+    <div class="qs-detail-summary">
+      <p>คะแนนวิชาสถาปัตย์คอมฯ = ${u.subjectPercent}</p>
+      <p>คะแนนเกี่ยวกับสุนัข = ${u.dogPercent}</p>
+    </div>
+    <p class="qs-detail-total">คะแนนทั้งหมด = ${u.overallPercent}</p>
   `;
   document.getElementById("scoreDetailModal").classList.add("active");
 }
