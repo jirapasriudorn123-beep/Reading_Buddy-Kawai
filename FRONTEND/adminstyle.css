@@ -832,6 +832,19 @@ body {
     color: #555;
 }
 
+/* modifier ที่ JS ตั้งตามทิศทางการเปลี่ยนแปลง (มากกว่า/น้อยกว่าเดือนที่แล้ว) */
+.trend-pill.trend-up {
+    background: #e8f4d4;
+    border-color: #b7d67d;
+    color: #4a6b1f;
+}
+
+.trend-pill.trend-down {
+    background: #fce4d9;
+    border-color: #e9a58b;
+    color: #8b3a1a;
+}
+
 .chart-outer-title {
     margin: 20px 20px 10px;
 }

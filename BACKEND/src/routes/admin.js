@@ -25,15 +25,23 @@ router.post("/upload", requireAdmin, upload.single("file"), (req, res) => {
 // ================== แดชบอร์ด ==================
 router.get("/stats", requireAdmin, async (req, res, next) => {
   try {
-    const [totalUsersRow, onlineUsersRow, totalReadingRow, totalCoinsSpentRow, gamePlayersRow, chartRows] = await Promise.all([
+    const [totalUsersRow, usersEndOfLastMonthRow, onlineUsersRow, totalReadingRow, totalCoinsSpentRow, gamePlayersRow, chartRows] = await Promise.all([
       db.prepare("SELECT COUNT(*) c FROM users WHERE is_admin = 0").get(),
+      // จำนวน user ณ สิ้นเดือนที่แล้ว = users ที่สมัครก่อนวันที่ 1 เดือนนี้ (เวลาไทย)
+      // ใช้เปรียบเทียบว่าเดือนนี้ user เพิ่มขึ้นกี่ % จากสิ้นเดือนที่แล้ว
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM users
+           WHERE is_admin = 0
+             AND datetime(created_at, '+7 hours') < datetime('now', '+7 hours', 'start of month')`
+        )
+        .get(),
       db.prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')").get(),
       db.prepare("SELECT COALESCE(SUM(planned_read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
       db.prepare(`SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`).get(),
       db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
       db
         .prepare(
-          // เทียบวันด้วยเวลาไทย (UTC+7) ไม่งั้นเซสชันที่จบช่วง 00:00-07:00 ไทยจะไปโผล่วันเมื่อวานในกราฟ
           `SELECT date(started_at, '+7 hours') as day,
                   COALESCE(SUM(planned_read_seconds), 0) as seconds,
                   COALESCE(SUM(coins_earned), 0) as coins
@@ -45,8 +53,20 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
         .all(),
     ]);
 
+    // คำนวณ % เปลี่ยนแปลงเทียบกับสิ้นเดือนที่แล้ว
+    // - ถ้าเดือนที่แล้ว 0 คน → ส่ง newSinceLastMonth เป็นตัวเลขเพิ่ม (frontend จะโชว์ "+N คนใหม่")
+    // - ถ้ามีอยู่แล้ว → คำนวณเป็น %
+    const currentTotal = totalUsersRow.c;
+    const lastMonthTotal = usersEndOfLastMonthRow.c;
+    const newSinceLastMonth = currentTotal - lastMonthTotal;
+    const usersChangePercent = lastMonthTotal > 0
+      ? Math.round(((currentTotal - lastMonthTotal) / lastMonthTotal) * 100)
+      : null; // null = ไม่มี baseline (เดือนที่แล้ว 0 คน)
+
     return res.json({
-      totalUsers: totalUsersRow.c,
+      totalUsers: currentTotal,
+      usersChangePercent,       // % เทียบกับสิ้นเดือนที่แล้ว (null ถ้าไม่มี baseline)
+      newSinceLastMonth,        // จำนวน user ใหม่ (absolute) — ใช้ตอน % คำนวณไม่ได้
       onlineUsers: onlineUsersRow.c,
       totalReadingHours: Math.round((totalReadingRow.s / 3600) * 10) / 10,
       totalCoinsSpent: totalCoinsSpentRow.s,
