@@ -16,24 +16,25 @@ async function loadGameConfig() {
   }
 }
 
-// เติมรายชื่อบทลงใน dropdown "เลือกบท" — user เลือกบทไหน จะเด้งไปหน้าจัดการคำถามของบทนั้น
-// ตัวเลือกแรกเป็นชื่อวิชา (default = อยู่หน้ารายชื่อบท) ตรงกับ mockup ที่ผู้ใช้ให้มา
+// Dropdown "เลือกวิชา" มี 2 ตัวเลือกเท่านั้น: วิชาสถาปัตย์คอมฯ (บทเรียน) และ เกี่ยวกับสุนัข (คำถามพันธุ์หมา)
+// การนำทางไปหน้าคำถามของแต่ละบทใช้ปุ่ม ✏️ บนการ์ดบทแทน (ไม่ได้ใช้ dropdown สลับบทแล้ว)
 function populateChapterNav() {
   const select = document.getElementById("chapterNav");
   if (!select) return;
-  const options = ['<option value="all">วิชาสถาปัตย์คอมฯ</option>'];
-  currentChapters.forEach((ch) => {
-    options.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
-  });
-  select.innerHTML = options.join("");
+  select.innerHTML =
+    '<option value="all">วิชาสถาปัตย์คอมฯ</option>' +
+    '<option value="dogs">เกี่ยวกับสุนัข</option>';
   select.value = "all";
 }
 
-// เลือกบทจาก dropdown → เด้งไปหน้าจัดการคำถามของบทนั้น (page 1)
-// ถ้าเลือก "all" อยู่แล้ว = ไม่ทำอะไร (อยู่หน้ารายชื่อบทต่อ)
 function onChapterNavChange(value) {
   if (value === "all") return;
-  window.location.href = `admingame-edit.html?chapterId=${value}`;
+  if (value === "dogs") {
+    // ยังไม่ได้ทำหน้าจัดการคำถามเกี่ยวกับสุนัข — แจ้งไว้ก่อน แล้วรีเซ็ต dropdown กลับ
+    alert("หน้าจัดการคำถาม 'เกี่ยวกับสุนัข' ยังอยู่ระหว่างเตรียม 🐕");
+    const sel = document.getElementById("chapterNav");
+    if (sel) sel.value = "all";
+  }
 }
 
 function renderGameCards() {

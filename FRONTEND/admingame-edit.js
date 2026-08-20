@@ -14,17 +14,14 @@ async function loadPage() {
     return;
   }
   try {
-    // โหลด chapter+questions ของบทปัจจุบัน คู่กับ list บททั้งหมด (ใช้เติม dropdown สลับบท)
-    const [main, allChapters] = await Promise.all([
-      adminApiFetch(`/admin/game-questions/chapter/${chapterId}`),
-      adminApiFetch("/admin/game-config"),
-    ]);
+    // Dropdown ตอนนี้ไม่ต้องรายชื่อบทแล้ว (เหลือแค่ "วิชา + เกี่ยวกับสุนัข") — ไม่ต้อง fetch chapters เพิ่ม
+    const main = await adminApiFetch(`/admin/game-questions/chapter/${chapterId}`);
     currentChapter = main.chapter;
     currentQuestions = main.questions;
     renderConditionBar();
     renderLevelFilter();
     renderQuestions();
-    populateChapterNav(allChapters.chapters || []);
+    populateChapterNav();
   } catch (err) {
     console.error("โหลดข้อมูลไม่สำเร็จ:", err);
     document.getElementById("questionList").innerHTML =
@@ -33,24 +30,24 @@ async function loadPage() {
 }
 
 // เติมรายชื่อบทลง dropdown สลับบท + set default ไปที่บทปัจจุบัน
-function populateChapterNav(chapters) {
+// Dropdown สลับหมวด: "← วิชาสถาปัตย์คอมฯ" กลับหน้ารายชื่อบท / "เกี่ยวกับสุนัข" ยังไม่พร้อม
+// การสลับระหว่างบท ใช้กลับหน้ารายชื่อบทแล้วเลือกใหม่ (ไม่ได้อยู่ใน dropdown แล้ว)
+function populateChapterNav(_chapters) {
   const select = document.getElementById("chapterNav");
   if (!select) return;
-  const opts = ['<option value="all">← วิชาสถาปัตย์คอมฯ</option>'];
-  chapters.forEach((ch) => {
-    opts.push(`<option value="${ch.id}">บทที่ ${ch.chapter_number} : ${escapeHtml(ch.title)}</option>`);
-  });
-  select.innerHTML = opts.join("");
-  select.value = String(chapterId);
+  select.innerHTML =
+    '<option value="all">← วิชาสถาปัตย์คอมฯ</option>' +
+    '<option value="dogs">เกี่ยวกับสุนัข</option>';
+  select.value = "all";
 }
 
-// เลือกบทใหม่จาก dropdown
-// "all" = กลับหน้ารายชื่อบท / ค่าอื่น = โหลด question editor ของบทนั้นแทน
 function onChapterNavChange(value) {
   if (value === "all") {
     window.location.href = "admingame.html";
-  } else if (Number(value) !== chapterId) {
-    window.location.href = `admingame-edit.html?chapterId=${value}`;
+  } else if (value === "dogs") {
+    alert("หน้าจัดการคำถาม 'เกี่ยวกับสุนัข' ยังอยู่ระหว่างเตรียม 🐕");
+    const sel = document.getElementById("chapterNav");
+    if (sel) sel.value = "all";
   }
 }
 
