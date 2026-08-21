@@ -1,0 +1,363 @@
+/* ================== หน้าจัดการมินิเกม ================== */
+
+.game-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.game-card {
+  background: #ffffff;
+  border: 2px solid #f0e5d6;
+  border-radius: 20px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.game-card.disabled {
+  opacity: 0.55;
+}
+
+.game-card-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.game-ch-badge {
+  background: #f0b23d;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.game-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  word-break: break-word;
+}
+
+.game-card-conditions {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.game-card-conditions .separator {
+  margin: 0 8px;
+  color: #ccc;
+}
+
+.game-card-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* pill สถานะ เปิด/ปิดใช้งาน */
+.game-status-pill {
+  background: #b7d67d;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.game-status-pill.off {
+  background: #cccccc;
+}
+
+.game-status-pill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.game-status-pill:hover {
+  filter: brightness(1.05);
+}
+
+/* ปุ่ม edit + ลบ */
+.game-card-edit,
+.game-card-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.game-card-edit:hover {
+  background: #fff4dc;
+}
+
+.game-card-delete {
+  color: #d9534f;
+  font-size: 22px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+}
+
+.game-card-delete:hover {
+  background: #fce4e4;
+}
+
+/* ================== หน้า admingame-edit (จัดการคำถาม) ================== */
+
+.qe-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qe-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qe-level-select {
+  background: #fff;
+  border: 1.5px solid #e5e0d5;
+  border-radius: 999px;
+  padding: 10px 40px 10px 40px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='2' width='8' height='4' rx='1'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 14px center, left 14px center;
+  background-size: 12px, 18px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.qe-add-btn {
+  background: #d9714e;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 6px rgba(217, 113, 78, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.qe-add-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.qe-add-plus {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.qe-condition-bar {
+  background: #fff;
+  border: 1.5px solid #e5e0d5;
+  border-radius: 999px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.qe-condition-label {
+  background: #fff;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #e5e0d5;
+  font-weight: 500;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.qe-condition-text {
+  flex: 1;
+  color: #444;
+  font-size: 14px;
+}
+
+.qe-condition-edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s ease;
+}
+
+.qe-condition-edit:hover {
+  background: #f0f0f0;
+}
+
+.qe-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.qe-q-card {
+  background: #fdfbf3;
+  border: 2px solid #f0e5d6;
+  border-radius: 20px;
+  padding: 20px 24px;
+  transition: transform 0.15s ease;
+}
+
+.qe-q-card.disabled {
+  opacity: 0.55;
+}
+
+.qe-q-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.qe-q-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.qe-lv-badge {
+  background: #d9714e;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.qe-q-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  word-break: break-word;
+}
+
+.qe-q-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.qe-q-question {
+  font-size: 17px;
+  color: #222;
+  font-weight: 500;
+  margin: 0 0 16px 0;
+}
+
+.qe-q-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.qe-q-option {
+  background: #fff;
+  border: 1.5px solid #e5e0d5;
+  border-radius: 999px;
+  padding: 14px 22px;
+  font-size: 15px;
+  color: #333;
+  text-align: center;
+  word-break: break-word;
+}
+
+.qe-q-option.correct {
+  background: #dcebc4;
+  border-color: #b7d67d;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.qe-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.qe-option-input {
+  flex: 1;
+}
+
+/* dark mode */
+html.dark-mode body .game-card {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+
+html.dark-mode body .game-card-title {
+  color: #eee;
+}
+
+html.dark-mode body .game-card-conditions {
+  color: #aaa;
+}

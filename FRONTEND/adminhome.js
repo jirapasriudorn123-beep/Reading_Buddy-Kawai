@@ -17,9 +17,35 @@ async function loadStats() {
     document.getElementById("statTotalReadingHours").textContent = data.totalReadingHours.toLocaleString();
     document.getElementById("statTotalCoins").textContent = data.totalCoinsSpent.toLocaleString();
     document.getElementById("statMiniGamePlayers").textContent = data.gamePlayers.toLocaleString();
+    renderUsersTrend(data.usersChangePercent, data.newSinceLastMonth);
     renderChart(data.chart);
   } catch (err) {
     console.error("โหลดสถิติแอดมินไม่สำเร็จ:", err);
+  }
+}
+
+// อัปเดต pill "มากกว่าเดือนที่แล้ว X%" ให้เป็นตัวเลขจริงจาก backend
+// - percent = null → ไม่มี baseline (เดือนที่แล้ว 0 user) → โชว์เป็นจำนวน user ใหม่แทน
+// - percent > 0 → มากกว่า (📈)
+// - percent < 0 → น้อยกว่า (📉)
+// - percent = 0 → เท่าเดิม
+function renderUsersTrend(percent, newSince) {
+  const pill = document.getElementById("statUsersTrend");
+  if (!pill) return;
+  if (percent === null || percent === undefined) {
+    pill.textContent = newSince > 0 ? `+${newSince} คนใหม่เดือนนี้ 📈` : "ยังไม่มี user 🐾";
+    pill.className = "trend-pill";
+    return;
+  }
+  if (percent > 0) {
+    pill.textContent = `มากกว่าเดือนที่แล้ว ${percent}% 📈`;
+    pill.className = "trend-pill trend-up";
+  } else if (percent < 0) {
+    pill.textContent = `น้อยกว่าเดือนที่แล้ว ${Math.abs(percent)}% 📉`;
+    pill.className = "trend-pill trend-down";
+  } else {
+    pill.textContent = "เท่ากับเดือนที่แล้ว 🟰";
+    pill.className = "trend-pill";
   }
 }
 

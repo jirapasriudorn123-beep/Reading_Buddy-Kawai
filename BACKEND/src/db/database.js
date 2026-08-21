@@ -128,6 +128,13 @@ async function initDatabase() {
     ["detail", "ALTER TABLE chapters ADD COLUMN detail TEXT"],
     ["image_url", "ALTER TABLE chapters ADD COLUMN image_url TEXT"],
     ["pdf_url", "ALTER TABLE chapters ADD COLUMN pdf_url TEXT"],
+    // ค่าที่แอดมินตั้งในหน้า "จัดการมินิเกม" สำหรับแต่ละบท
+    // required_minutes = ต้องอ่านครบกี่นาทีถึงจะเล่นมินิเกมของบทนี้ได้
+    // question_count = จำนวนข้อคำถามในมินิเกม
+    // enabled = เปิดใช้งานมินิเกมบทนี้หรือไม่ (0/1)
+    ["game_required_minutes", "ALTER TABLE chapters ADD COLUMN game_required_minutes INTEGER NOT NULL DEFAULT 20"],
+    ["game_question_count", "ALTER TABLE chapters ADD COLUMN game_question_count INTEGER NOT NULL DEFAULT 5"],
+    ["game_enabled", "ALTER TABLE chapters ADD COLUMN game_enabled INTEGER NOT NULL DEFAULT 1"],
   ];
   for (const [col, sql] of chapterColumnMigrations) {
     if (!chapterColumns.includes(col)) await client.execute(sql);
@@ -238,7 +245,7 @@ async function initDatabase() {
       ["hoodie", "เสื้อฮู้ด", 50, "hoodie.png", "เสื้อผ้า", "เสื้อผ้าเนื้อนุ่ม ใส่สบาย ไม่ร้อน", null],
       ["hat", "หมวกแก๊ป", 30, "hat.png", "เสื้อผ้า", "หมวกสุดเท่ กันแดดเวลาออกไปเที่ยว", null],
       ["friend-dog", "ตุ๊กตาเพื่อนเล่น", 100, "mini-dog.png", "สัตว์เลี้ยง", "ตุ๊กตาจำลองเป็นเพื่อนแก้เหงาให้น้อง", null],
-      ["bone-discount", "กระดูกปลอม", 5, "bone.png", "ส่วนลด", "ราคาพิเศษ! กระดูกช่วยขัดฟัน", null],
+      ["bone-discount", "กระดูกปลอม", 5, "bone.png", "คูปอง", "ราคาพิเศษ! กระดูกช่วยขัดฟัน", null],
     ];
     await client.batch(
       seedProducts.map((row) => ({
@@ -256,6 +263,10 @@ async function initDatabase() {
   }
   if (!productColumns.includes("stat_gain")) {
     await client.execute("ALTER TABLE products ADD COLUMN stat_gain INTEGER NOT NULL DEFAULT 0");
+  }
+  // ใช้กับคูปอง: ต้องอ่านสะสมกี่นาทีถึงจะแลกได้ (0 = ไม่ต้องอ่านสะสม ใช้เฉพาะการซื้อของทั่วไป)
+  if (!productColumns.includes("required_reading_minutes")) {
+    await client.execute("ALTER TABLE products ADD COLUMN required_reading_minutes INTEGER NOT NULL DEFAULT 0");
   }
 
   if (isFirstProductMigration) {
@@ -315,6 +326,63 @@ async function initDatabase() {
     )
   `);
 
+  // ---- ตาราง quiz_questions (คำถามในมินิเกมแต่ละบท ที่แอดมินสร้างเอง) ----
+  // level = ระดับความยาก 1,2,3... (ใช้จัดกลุ่มในหน้าจัดการเกม)
+  // correct_option = 1-4 ชี้ไปที่ option_1..option_4
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS quiz_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+      level INTEGER NOT NULL DEFAULT 1,
+      question TEXT NOT NULL,
+      option_1 TEXT NOT NULL,
+      option_2 TEXT NOT NULL,
+      option_3 TEXT NOT NULL,
+      option_4 TEXT NOT NULL,
+      correct_option INTEGER NOT NULL CHECK(correct_option BETWEEN 1 AND 4),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ---- ตาราง breed_quiz_questions (คำถามในด่านที่เกี่ยวกับพันธุ์สุนัข ด่าน 2,4 ในเกม) ----
+  // breed = golden / shiba / siberian / thairidgeback ต้องตรงกับ PLAYER_BREEDS ใน game.js
+  // stage = 2 หรือ 4 (ด่านไหนของโลกที่คำถามนี้อยู่ในหมวด) — ใช้จัดกลุ่มในหน้าแอดมินเท่านั้น
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS breed_quiz_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      breed TEXT NOT NULL,
+      stage INTEGER NOT NULL DEFAULT 2,
+      question TEXT NOT NULL,
+      option_1 TEXT NOT NULL,
+      option_2 TEXT NOT NULL,
+      option_3 TEXT NOT NULL,
+      option_4 TEXT NOT NULL,
+      correct_option INTEGER NOT NULL CHECK(correct_option BETWEEN 1 AND 4),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // เผื่อฐานข้อมูลเก่าที่สร้างตารางนี้ไว้ก่อนมีคอลัมน์ stage
+  const breedQuizColumns = (await client.execute("PRAGMA table_info(breed_quiz_questions)")).rows.map((c) => c.name);
+  if (!breedQuizColumns.includes("stage")) {
+    await client.execute("ALTER TABLE breed_quiz_questions ADD COLUMN stage INTEGER NOT NULL DEFAULT 2");
+  }
+
+  // ---- ตาราง quiz_answer_log (log ทุกครั้งที่ผู้เล่นตอบคำถามในมินิเกม ใช้คิด % คะแนนแยกตามหมวดที่หน้า "จัดการคะแนน") ----
+  // category: 'subject' = ด่าน 1,3,5 (คำถามวิชา) | 'dog' = ด่าน 2,4 (คำถามพันธุ์สุนัข)
+  // % คะแนนของผู้ใช้แต่ละคนคิดสะสมจากทุกครั้งที่เคยตอบ (ไม่ใช่แค่รอบล่าสุด) ยิ่งเล่นซ้ำยิ่งนับสะสมเพิ่ม
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS quiz_answer_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category TEXT NOT NULL CHECK(category IN ('subject', 'dog')),
+      correct INTEGER NOT NULL CHECK(correct IN (0, 1)),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (
@@ -327,6 +395,17 @@ async function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // ---- ตาราง chat_history ----
+await client.execute(`
+  CREATE TABLE IF NOT EXISTS chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
 
   // ---- ตาราง site_meta ----
   await client.execute(`

@@ -976,6 +976,16 @@ body.dark-mode .time-add-btn:hover {
     transform: translateY(-5px);
 }
 
+/* ไอคอนบทเรียนถูก render สลับได้ทั้งอิโมจิกับรูป .png (ดู renderChapters ใน script.js)
+   บังคับให้รูป .png ไม่ล้นการ์ด และ scale ตาม card */
+.chapter-card .card-icon img {
+    max-width: 100%;
+    max-height: 160px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
 .chapter-scroll-wrapper::-webkit-scrollbar {
     height: 6px; 
 }
@@ -1500,6 +1510,293 @@ body {
   font-size: 16px;
   padding: 8px 24px;
   border-radius: 999px;
+}
+
+/* ================== Coupon banner (bottom) + coupon-style cards ================== */
+
+/* Banner ด้านล่างของ tab "คูปอง" — คลิกทั้งรูปแล้วไป tab "สัตว์เลี้ยง"
+   ถ้ามีรูป img/banner-pet-shop.png จะโชว์รูปเต็ม
+   ถ้าโหลดรูปไม่ขึ้น → onerror ใส่ class .no-img แล้ว fallback (emoji + ข้อความ) จะโผล่แทน */
+.coupon-hero-banner {
+  display: block;
+  margin: 32px 50px 24px;
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #ffe8a3 0%, #f7c56b 100%);
+  border: 3px solid #ffb84f;
+  position: relative;
+}
+
+.coupon-hero-banner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(217, 113, 78, 0.3);
+}
+
+.coupon-hero-img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+/* fallback: โชว์เฉพาะตอนรูปโหลดไม่ขึ้น (parent มี class .no-img) */
+.coupon-hero-fallback {
+  display: none;
+  align-items: center;
+  gap: 24px;
+  padding: 32px 40px;
+  color: #6b3f1a;
+}
+
+.coupon-hero-banner.no-img .coupon-hero-fallback {
+  display: flex;
+}
+
+.coupon-hero-fallback-emoji {
+  font-size: 72px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.coupon-hero-fallback-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.coupon-hero-fallback-sub {
+  font-size: 16px;
+  color: #8b5a2a;
+}
+
+/* wrapper รอบ banner + เงื่อนไข — ให้ทั้งสองส่วนไป/หายด้วยกัน (toggle เดียวใน shop.js) */
+.coupon-banner-wrap {
+  margin: 0;
+}
+
+/* หัวข้อ "ร้านที่ร่วมรายการ" ก่อน banner (มีหลายร้าน) */
+.coupon-partners-title {
+  margin: 32px 50px 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #6b3f1a;
+}
+
+/* หลาย .coupon-hero-banner ในหน้าเดียว — เพิ่ม gap ระหว่างอันเพื่อไม่ให้ติดกัน */
+.coupon-banner-wrap .coupon-hero-banner + .coupon-hero-banner {
+  margin-top: 16px;
+}
+
+html.dark-mode body .coupon-partners-title {
+  color: #f5e8c8;
+}
+
+/* กล่องเงื่อนไขการใช้คูปอง — วางใต้ banner รูปร้าน */
+.coupon-terms {
+  margin: 12px 50px 24px;
+  background: #fff8e6;
+  border: 2px solid #f0b23d;
+  border-radius: 16px;
+  padding: 20px 28px;
+  color: #5a3a15;
+}
+
+.coupon-terms-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #6b3f1a;
+  margin-bottom: 12px;
+}
+
+.coupon-terms-list {
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.coupon-terms-list li {
+  margin-bottom: 4px;
+}
+
+.coupon-terms-list strong {
+  color: #b8540b;
+}
+
+/* dark mode */
+html.dark-mode body .coupon-terms {
+  background: #3a2f18;
+  border-color: #8b6529;
+  color: #e5d4a8;
+}
+
+html.dark-mode body .coupon-terms-title {
+  color: #f5e8c8;
+}
+
+html.dark-mode body .coupon-terms-list strong {
+  color: #f7b26b;
+}
+
+/* Coupon banner — สินค้าหมวด "คูปอง" render เป็น banner เต็มความกว้าง 1 แถวต่อชิ้น
+   คลิกได้ทั้งแบนเนอร์ → เปิด modal แสดง description = การใช้งานและเงื่อนไข */
+.coupon-banner {
+  grid-column: 1 / -1; /* กินเต็มความกว้างของ grid ไม่แบ่งคอลัมน์ */
+  display: block;
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #fffdf5;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.coupon-banner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+  border-color: #f0b23d;
+}
+
+.coupon-banner-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+/* fallback: โชว์เฉพาะตอนรูปโหลดไม่ขึ้น (parent มี .no-img) */
+.coupon-banner-fallback {
+  display: none;
+  padding: 40px 32px;
+  text-align: center;
+  background: linear-gradient(135deg, #ffe8a3 0%, #f7c56b 100%);
+  color: #6b3f1a;
+}
+
+.coupon-banner.no-img .coupon-banner-fallback {
+  display: block;
+}
+
+.coupon-banner-fallback-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.coupon-banner-fallback-hint {
+  font-size: 14px;
+  color: #8b5a2a;
+}
+
+/* modal description ของคูปอง — preserve line breaks จาก \n ใน description */
+.product-desc {
+  white-space: pre-wrap;
+}
+
+/* Lock overlay ครอบคูปองที่ยังปลดล็อคไม่ได้ + progress bar */
+.coupon-banner {
+  position: relative;
+}
+
+.coupon-banner.locked {
+  cursor: pointer;
+}
+
+.coupon-banner.locked .coupon-banner-img {
+  filter: grayscale(60%) brightness(0.85);
+}
+
+.coupon-lock {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+}
+
+.coupon-lock-inner {
+  max-width: 500px;
+  font-size: 16px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.coupon-progress {
+  margin: 10px auto 6px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 300px;
+}
+
+.coupon-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #b7d67d 0%, #f0b23d 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.coupon-progress-text {
+  font-size: 13px;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+/* dark mode */
+html.dark-mode body .coupon-hero {
+  background: linear-gradient(135deg, #6b4a20 0%, #4a3010 100%);
+  border-color: #8b6529;
+}
+
+html.dark-mode body .coupon-hero-title,
+html.dark-mode body .coupon-hero-sub {
+  color: #f5e8c8;
+}
+
+html.dark-mode body .product-card.coupon-card {
+  background: linear-gradient(180deg, #3d3520 0%, #2a2413 100%);
+  border-color: #8b6529;
+}
+
+html.dark-mode body .product-card.coupon-card::before,
+html.dark-mode body .product-card.coupon-card::after {
+  background: #1a1a1a; /* ต้องตรงกับสีพื้น shop ใน dark mode */
+}
+
+/* ป้าย "มีอยู่แล้ว" สำหรับพันธุ์สุนัขที่ user มีอยู่แล้ว — แทนที่ปุ่มราคาสีเขียว */
+.owned-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #c0c0c0;
+  color: #fff;
+  font-weight: bold;
+  font-size: 15px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  cursor: default;
+}
+
+/* การ์ดสินค้าที่ user มีอยู่แล้ว — ทำให้ดูจางลงเพื่อบอกว่าคลิกไม่ได้ */
+.product-card.owned {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.product-card.owned:hover {
+  transform: none;
 }
 
 .product-tag {
@@ -2876,6 +3173,92 @@ html.dark-mode body .noti-badge {
     100%{ transform:translateY(0) scale(1); }
 }
 
+/* ---- Overlay เสื้อผ้าที่ใส่อยู่บนตัวน้อง (persist ใน localStorage) ---- */
+/* pet-character เดิมเป็น text/img ธรรมดา — ต้องทำเป็น relative เพื่อให้ overlay
+   position: absolute อ้างอิงจากมัน (ถ้ามี relative อยู่แล้วจะไม่กระทบ) */
+.pet-character {
+    position: relative;
+}
+
+.pet-equip {
+    position: absolute;
+    pointer-events: none; /* ไม่ให้บัง event ลูบหัวน้อง */
+    z-index: 3;
+    object-fit: contain;
+    transition: transform .2s ease;
+}
+
+/* หมวก: อยู่บนหัว (บนสุดของ pet-character) */
+.pet-equip-hat {
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    max-height: 80px;
+}
+
+/* เสื้อ: อยู่กลางลำตัว */
+.pet-equip-body {
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -30%);
+    width: 120px;
+    max-height: 110px;
+    opacity: 0.92; /* ไม่ทึบ 100% จะเห็นสีตัวน้องซ้อนนิดๆ ดูเป็นธรรมชาติกว่า */
+}
+
+/* ตอนน้องเด้ง (bounce) → เสื้อผ้าเด้งตามไปด้วยพอดี เพราะเป็น child ของ pet-character
+   ไม่ต้องใส่ keyframe แยก */
+
+/* การ์ดที่กำลังใส่อยู่ตอนนี้ — highlight ขอบเขียว + label */
+.item-card.equipped {
+    border: 2px solid #8db754;
+    background: #f4f9e8;
+    box-shadow: 0 2px 6px rgba(141, 183, 84, 0.2);
+}
+
+.item-card .use-btn.unwear {
+    background: #cc7a5a; /* ปุ่ม "ถอด" เป็นสีแดง-ส้ม แยกจากปุ่ม "ใส่" สีเขียว/เดิม */
+}
+
+/* ---- Clothing "ใส่" animation: บิน sprite ไปหาน้อง + sparkle รอบตัว ---- */
+.clothing-flyer{
+    position: fixed;
+    z-index: 100002;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(1);
+    transition: left .7s cubic-bezier(.4,.1,.4,1),
+                top .7s cubic-bezier(.4,.1,.4,1),
+                transform .7s cubic-bezier(.4,.1,.4,1),
+                opacity .3s ease .5s;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.25));
+}
+
+.clothing-sparkle{
+    position: fixed;
+    z-index: 100002;
+    pointer-events: none;
+    font-size: 24px;
+    transform: translate(-50%, -50%);
+    animation: sparkleFly .8s ease-out forwards;
+}
+
+@keyframes sparkleFly{
+    0%{
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(.4);
+    }
+    30%{
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100%{
+        opacity: 0;
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.8);
+    }
+}
+
 /* ---- Inventory (item bag) drawer ----
    Positioned relative to .main-content (not the whole viewport) so it
    centers under the visible stage instead of the full window behind
@@ -3065,4 +3448,12 @@ html.dark-mode body .modal-qty-control {
 }
 html.dark-mode body .modal-qty-control input {
     color: #e8e8e8;
+}
+
+.card-icon img.chapter-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
 }

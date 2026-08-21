@@ -15,7 +15,8 @@
     <aside class="sidebar">
         <div class="profile-area">
             <div class="avatar-circle">
-                <img src="img/NEW_LOGO.png" alt="puppy" width="200" height="150"> </div>
+                <img src="img/NEW_LOGO.png" alt="puppy" width="200" height="150"> 
+            </div>
         </div>
 
         <nav class="menu">
@@ -86,6 +87,9 @@
         <div class="pet-character" id="petCharacter">
             <span id="petEmoji" class="pet-emoji-fallback"></span>
             <img id="petImg" alt="สัตว์เลี้ยง" style="display:none;">
+            <!-- overlay ของเสื้อผ้าที่ใส่อยู่ (persist ใน localStorage per user) -->
+            <img id="equipBody" class="pet-equip pet-equip-body" alt="" style="display:none;">
+            <img id="equipHat" class="pet-equip pet-equip-hat" alt="" style="display:none;">
             <h3 id="petName">กำลังโหลด...</h3>
             <p class="pet-pet-hint">กดค้างที่ตัวน้องเพื่อลูบหัว 🖐️</p>
         </div>
@@ -102,6 +106,9 @@
             </div>
             <div class="inventory-trigger" style="cursor: pointer;" onclick="window.location.href='game.html'">
                 <img src="img/joygame.png" alt="เข้าเกม" width="50">
+            </div>
+            <div class="inventory-trigger" style="cursor: pointer; margin-top: 10px;" onclick="openBag('clothing')" title="กระเป๋าเสื้อผ้า">
+                <img src="img/bag.png" alt="กระเป๋าเสื้อผ้า" width="50" onerror="this.replaceWith(Object.assign(document.createElement('span'), { textContent: '👜', style: 'font-size:36px;' }))">
             </div>
         </div>
     </div>

@@ -86,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDialogueControls();
   setupBattleControls();
   initWorldMap();
+  loadAllQuizData(); // โหลดคำถามทั้งหมดล่วงหน้า (ไม่บล็อกการเปิดฉากอื่น)
 
   document.getElementById("exploreBackBtn").addEventListener("click", backToWorldMap);
 });
@@ -534,11 +535,51 @@ let battleActive = false;
 let enemyEncountered = false; // เจอตัวร้ายไปแล้วในรอบนี้ (กันลูปเดินสั่งเข้าต่อสู้ซ้ำทันทีหลังจบการต่อสู้)
 let battleQuiz = [];
 let battleTopic = "";
+let battleCategory = "subject"; // 'subject' (ด่าน 1,3,5) หรือ 'dog' (ด่าน 2,4) — ใช้ตอนบันทึกคะแนน
 let battleQuizIndex = 0;
 let enemyHp = ENEMY_MAX_HP;
 let playerHearts = PLAYER_MAX_HEARTS;
 let battleTimeLeft = BATTLE_SECONDS;
 let battleTimerId = null;
+
+// ================== คำถามควิซ (ดึงจากฐานข้อมูลผ่าน /api/game/quiz/...) ==================
+// แอดมินแก้ไขคำถามได้ที่ admingame-edit.html (รายบท) / admingame-dogs.html (รายพันธุ์สุนัข)
+// โหลดทั้งหมดไว้ล่วงหน้าตอนเปิดหน้าเกม (ข้อมูลมีไม่เยอะ) เพื่อให้ pickQuizForStage ยังเป็น sync ได้เหมือนเดิม
+const QUIZ_CHAPTER_NUMBERS = [1, 2, 3, 4, 5, 6];
+const QUIZ_BREED_KEYS = ["golden", "shiba", "siberian", "thairidgeback"];
+let quizByChapter = {};
+let quizByBreed = {};
+
+function mapQuizRows(rows) {
+  return (rows || []).map((r) => ({
+    q: r.question,
+    opts: [r.option_1, r.option_2, r.option_3, r.option_4],
+    a: r.correct_option - 1,
+  }));
+}
+
+async function fetchQuizList(path) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`โหลดคำถามไม่สำเร็จ: ${path}`);
+  const data = await res.json();
+  return mapQuizRows(data.questions);
+}
+
+async function loadAllQuizData() {
+  try {
+    const [chapterLists, breedLists] = await Promise.all([
+      Promise.all(QUIZ_CHAPTER_NUMBERS.map((n) => fetchQuizList(`/game/quiz/chapter/${n}`))),
+      Promise.all(QUIZ_BREED_KEYS.map((b) => fetchQuizList(`/game/quiz/breed/${b}`))),
+    ]);
+    QUIZ_CHAPTER_NUMBERS.forEach((n, i) => (quizByChapter[n] = chapterLists[i]));
+    QUIZ_BREED_KEYS.forEach((b, i) => (quizByBreed[b] = breedLists[i]));
+  } catch (err) {
+    console.error("โหลดชุดคำถามจากฐานข้อมูลไม่สำเร็จ:", err);
+  }
+}
 
 // เลือกชุดคำถามตามด่าน: ด่าน 1,3,5 = คำถามจากบทเรียนของโลกนั้น | ด่าน 2,4 = คำถามพันธุ์สุนัขที่เลือก
 // stageNo นับเริ่มที่ 1
@@ -546,15 +587,28 @@ function pickQuizForStage(worldI, stageNo) {
   const useBreedQuiz = stageNo % 2 === 0;
   if (useBreedQuiz) {
     return {
-      list: (GAME_QUIZ_BY_BREED && GAME_QUIZ_BY_BREED[selectedPlayerBreed]) || [],
+      list: quizByBreed[selectedPlayerBreed] || [],
       topic: `พันธุ์${BREED_NAME_TH[selectedPlayerBreed] || "สุนัข"}`,
+      category: "dog",
     };
   }
   const chapterNo = worldI + 1;
   return {
-    list: (GAME_QUIZ_BY_CHAPTER && GAME_QUIZ_BY_CHAPTER[chapterNo]) || [],
+    list: quizByChapter[chapterNo] || [],
     topic: WORLD_CHAPTER_TITLE[worldI] || `บทที่ ${chapterNo}`,
+    category: "subject",
   };
+}
+
+// บันทึกผลตอบคำถาม (ถูก/ผิด) ไปเก็บสถิติที่หน้าแอดมิน "จัดการคะแนน" — ไม่บล็อกเกม ถ้าพลาดก็แค่ log ไว้เฉยๆ
+function reportAnswer(category, correct) {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  fetch(`${API_BASE_URL}/game/answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ category, correct }),
+  }).catch((err) => console.error("บันทึกคะแนนไม่สำเร็จ:", err));
 }
 
 // สลับลำดับคำถามแบบสุ่ม เล่นซ้ำจะได้ไม่เจอลำดับเดิม
@@ -584,16 +638,18 @@ function startBattle(e) {
   if (battleActive) return;
 
   const stageNo = currentStageNo();
-  const { list, topic } = pickQuizForStage(worldIdx, stageNo);
+  const { list, topic, category } = pickQuizForStage(worldIdx, stageNo);
 
   if (!list.length) {
-    alert(`ด่านนี้ยังไม่มีคำถาม (${topic})\nเพิ่มคำถามได้ที่ไฟล์ FRONTEND/game-content.js`);
+    alert(`ด่านนี้ยังไม่มีคำถาม (${topic})\nเพิ่มคำถามได้ที่หน้าแอดมิน (จัดการมินิเกม)`);
     return;
   }
 
   battleActive = true;
   enemyEncountered = true;
-  battleQuiz = shuffled(list);
+  battleCategory = category;
+  // สุ่มคำถามจากคลังทั้งหมดมาแค่ 10 ข้อต่อการต่อสู้ 1 ครั้ง (ถ้าคลังมีน้อยกว่า 10 ก็ใช้เท่าที่มี)
+  battleQuiz = shuffled(list).slice(0, ENEMY_MAX_HP);
   battleQuizIndex = 0;
   // เลือดตัวร้ายไม่เกินจำนวนคำถามที่มี ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
   enemyHp = Math.min(ENEMY_MAX_HP, battleQuiz.length);
@@ -659,6 +715,8 @@ function answerQuiz(picked, correct, wrap) {
   const buttons = [...wrap.querySelectorAll(".quiz-opt")];
   buttons.forEach((b) => (b.disabled = true));
   buttons[correct].classList.add("correct");
+
+  reportAnswer(battleCategory, picked === correct);
 
   if (picked === correct) {
     enemyHp -= 1;

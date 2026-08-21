@@ -70,4 +70,55 @@ router.post("/progress/complete", requireAuth, async (req, res, next) => {
   }
 });
 
+// ================== log คำตอบ (ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน") ==================
+router.post("/answer", requireAuth, async (req, res, next) => {
+  try {
+    const { category, correct } = req.body;
+    if (category !== "subject" && category !== "dog") {
+      return res.status(400).json({ message: "category ต้องเป็น subject หรือ dog" });
+    }
+    await db
+      .prepare("INSERT INTO quiz_answer_log (user_id, category, correct) VALUES (?, ?, ?)")
+      .run(req.user.id, category, correct ? 1 : 0);
+    return res.status(201).json({ message: "บันทึกแล้ว" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== คำถามควิซที่ใช้เล่นจริง (ดึงจากที่แอดมินตั้งไว้) ==================
+// ด่าน 1,3,5 ของแต่ละโลก = คำถามของบทเรียนนั้น (quiz_questions)
+router.get("/quiz/chapter/:chapterNumber", requireAuth, async (req, res, next) => {
+  try {
+    const chapterNumber = Number(req.params.chapterNumber);
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(chapterNumber);
+    if (!chapter) return res.json({ questions: [] });
+
+    const questions = await db
+      .prepare(
+        `SELECT question, option_1, option_2, option_3, option_4, correct_option
+         FROM quiz_questions WHERE chapter_id = ? AND enabled = 1 ORDER BY id ASC`
+      )
+      .all(chapter.id);
+    return res.json({ questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ด่าน 2,4 ของทุกโลก = คำถามพันธุ์สุนัขที่ผู้เล่นเลือก (breed_quiz_questions)
+router.get("/quiz/breed/:breed", requireAuth, async (req, res, next) => {
+  try {
+    const questions = await db
+      .prepare(
+        `SELECT question, option_1, option_2, option_3, option_4, correct_option
+         FROM breed_quiz_questions WHERE breed = ? AND enabled = 1 ORDER BY id ASC`
+      )
+      .all(req.params.breed);
+    return res.json({ questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

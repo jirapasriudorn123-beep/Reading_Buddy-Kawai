@@ -53,10 +53,21 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true, // login ผ่านแล้วไม่นับ (นับแค่ที่ 4xx/5xx เท่านั้น) ให้ user login ถูกไม่โดน block
 });
 
+// แชทเรียก Gemini API ที่มีโควต้าจำกัด (free tier ~15 req/นาที ทั้ง key)
+// จำกัด per-IP 20/นาที กันคนเดียว spam จนโควต้าหมดทั้งเว็บ
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "พิมพ์คุยกับน้องหมาถี่เกินไป พักสักครู่แล้วลองใหม่นะครับ 🐾" },
+});
+
 app.use("/api", generalLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/chat/message", chatLimiter);
 app.use("/api/auth/reset-password", authLimiter);
 
 // ---- เปิดให้เข้าถึงไฟล์ที่อัปโหลดได้ (เช่น รูปโปรไฟล์) ----

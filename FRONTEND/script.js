@@ -147,11 +147,21 @@ function renderChapters(chapters) {
     card.className = `chapter-card ${colorClass}`;
     card.dataset.chapterId = chapter.id;
     card.dataset.chapterTitle = chapter.title;
+    // ไอคอนบทเรียนอยู่ที่ img/chapters/{เลขบท}.png (มีเฉพาะบท 1-6 ตอนนี้)
+    // ถ้ามีบทเพิ่มในอนาคตแล้วรูปไม่มี ให้ fallback เป็นอิโมจิสลับ
+    const iconHtml = `
+    <img src ="img/chapters/${chapter.chapter_number}.png" 
+    alt="Chapter ${chapter.chapter_number}" 
+    class="chapter-icon"
+    onerror="this.onerror=null;this.src='img/chapters/default.png';"
+    >
+    `; 
+      
     card.innerHTML = `
       <div class="card-inner">
         <div class="chapter-label">CHAPTER ${chapter.chapter_number}</div>
-        <p class="chapter-desc">${chapter.title}</p>
-        <div class="card-icon">${index % 2 === 0 ? "💻" : "⚙️"}</div>
+        <p class="chapter-desc">${escapeHtml(chapter.title)}</p>
+        <div class="card-icon">${iconHtml}</div>
       </div>
     `;
     card.addEventListener("click", () => openChapterTimeModal(chapter));
@@ -317,32 +327,30 @@ async function extendReadingTime() {
   }
 }
 
-// ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (โทนนุ่มๆ สร้างด้วย Web Audio ไม่ใช้ไฟล์เสียงภายนอก) ==================
+// ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (ไฟล์ buzzer 5 วิ จาก sound/timer-end.mp3) ==================
 
-let audioCtx = null;
+// ใช้ <Audio> element หลายอันเล่นซ้อนกัน = ดังขึ้นทวีคูณ (Web Audio GainNode boost
+// เคยลอง แต่ createMediaElementSource ตัด default output แล้วบาง browser เสียงหายเลย
+// เลยกลับมาใช้วิธีนี้ที่รองรับทุก browser 100%)
+const SOUND_URL = "sound/timer-end.mp3";
+const SOUND_COPIES = 3; // จำนวน audio element ที่เล่นพร้อมกัน (ยิ่งเยอะ = ดังยิ่งขึ้น)
+const timerEndSounds = Array.from({ length: SOUND_COPIES }, () => {
+  const a = new Audio(SOUND_URL);
+  a.preload = "auto";
+  a.volume = 1.0;
+  return a;
+});
 
 function playSoftBeep() {
-  try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const now = audioCtx.currentTime;
-
-    const oscillator = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(660, now);
-
-    // fade in/out นุ่มๆ กันเสียงแสบหู แทนการเปิด-ปิดเสียงห้วนๆ
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.04);
-    gain.gain.linearRampToValueAtTime(0, now + 0.4);
-
-    oscillator.connect(gain);
-    gain.connect(audioCtx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.45);
-  } catch (err) {
-    console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
-  }
+  timerEndSounds.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.play().catch((err) => console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err));
+    } catch (err) {
+      console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
+    }
+  });
 }
 
 // ================== นับถอยหลังระหว่างอ่าน (แสดงผลในช่องเวลาอ่านโดยตรง) ==================
@@ -436,7 +444,7 @@ function resumeBreakCountdown() {
   breakCountdownInterval = setInterval(() => {
     remainingSeconds -= 1;
     updateBreakClockDisplay(Math.max(0, remainingSeconds));
-    if (remainingSeconds === 5) playSoftBeep();
+    // ไม่เล่นเสียงเตือนตอนพักใกล้หมด (เฉพาะเวลาอ่านใกล้หมดเท่านั้น — user ตั้งใจให้เตือนแค่ตอนอ่าน)
 
     if (remainingSeconds <= 0) {
       finishBreak(true);
@@ -463,6 +471,13 @@ function finishBreak(completedNaturally) {
 function resetReaderTimerState() {
   clearInterval(countdownInterval);
   clearInterval(breakCountdownInterval);
+  // ปิดเสียงเตือนถ้ายังเล่นค้างอยู่ (เช่น user กดยกเลิกช่วง 5 วิสุดท้าย)
+  timerEndSounds.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (_) {}
+  });
   activeSession = null;
   remainingSeconds = 0;
   onBreak = false;

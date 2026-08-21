@@ -25,15 +25,23 @@ router.post("/upload", requireAdmin, upload.single("file"), (req, res) => {
 // ================== แดชบอร์ด ==================
 router.get("/stats", requireAdmin, async (req, res, next) => {
   try {
-    const [totalUsersRow, onlineUsersRow, totalReadingRow, totalCoinsSpentRow, gamePlayersRow, chartRows] = await Promise.all([
+    const [totalUsersRow, usersEndOfLastMonthRow, onlineUsersRow, totalReadingRow, totalCoinsSpentRow, gamePlayersRow, chartRows] = await Promise.all([
       db.prepare("SELECT COUNT(*) c FROM users WHERE is_admin = 0").get(),
+      // จำนวน user ณ สิ้นเดือนที่แล้ว = users ที่สมัครก่อนวันที่ 1 เดือนนี้ (เวลาไทย)
+      // ใช้เปรียบเทียบว่าเดือนนี้ user เพิ่มขึ้นกี่ % จากสิ้นเดือนที่แล้ว
+      db
+        .prepare(
+          `SELECT COUNT(*) c FROM users
+           WHERE is_admin = 0
+             AND datetime(created_at, '+7 hours') < datetime('now', '+7 hours', 'start of month')`
+        )
+        .get(),
       db.prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')").get(),
       db.prepare("SELECT COALESCE(SUM(planned_read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
       db.prepare(`SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`).get(),
       db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
       db
         .prepare(
-          // เทียบวันด้วยเวลาไทย (UTC+7) ไม่งั้นเซสชันที่จบช่วง 00:00-07:00 ไทยจะไปโผล่วันเมื่อวานในกราฟ
           `SELECT date(started_at, '+7 hours') as day,
                   COALESCE(SUM(planned_read_seconds), 0) as seconds,
                   COALESCE(SUM(coins_earned), 0) as coins
@@ -45,8 +53,20 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
         .all(),
     ]);
 
+    // คำนวณ % เปลี่ยนแปลงเทียบกับสิ้นเดือนที่แล้ว
+    // - ถ้าเดือนที่แล้ว 0 คน → ส่ง newSinceLastMonth เป็นตัวเลขเพิ่ม (frontend จะโชว์ "+N คนใหม่")
+    // - ถ้ามีอยู่แล้ว → คำนวณเป็น %
+    const currentTotal = totalUsersRow.c;
+    const lastMonthTotal = usersEndOfLastMonthRow.c;
+    const newSinceLastMonth = currentTotal - lastMonthTotal;
+    const usersChangePercent = lastMonthTotal > 0
+      ? Math.round(((currentTotal - lastMonthTotal) / lastMonthTotal) * 100)
+      : null; // null = ไม่มี baseline (เดือนที่แล้ว 0 คน)
+
     return res.json({
-      totalUsers: totalUsersRow.c,
+      totalUsers: currentTotal,
+      usersChangePercent,       // % เทียบกับสิ้นเดือนที่แล้ว (null ถ้าไม่มี baseline)
+      newSinceLastMonth,        // จำนวน user ใหม่ (absolute) — ใช้ตอน % คำนวณไม่ได้
       onlineUsers: onlineUsersRow.c,
       totalReadingHours: Math.round((totalReadingRow.s / 3600) * 10) / 10,
       totalCoinsSpent: totalCoinsSpentRow.s,
@@ -342,6 +362,47 @@ router.get("/scores", requireAdmin, async (req, res, next) => {
   }
 });
 
+// GET คะแนนควิซแยกหมวด (subject/dog) สะสมทุกครั้งที่เคยตอบ ต่อผู้ใช้ 1 คน — ใช้หน้า "จัดการคะแนน"
+router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT u.id, u.username, u.email,
+                COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN qa.correct ELSE 0 END), 0) AS subjectCorrect,
+                COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN 1 ELSE 0 END), 0) AS subjectTotal,
+                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN qa.correct ELSE 0 END), 0) AS dogCorrect,
+                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN 1 ELSE 0 END), 0) AS dogTotal
+         FROM users u
+         LEFT JOIN quiz_answer_log qa ON qa.user_id = u.id
+         WHERE u.is_admin = 0
+         GROUP BY u.id
+         ORDER BY u.username ASC`
+      )
+      .all();
+
+    const pct = (correct, total) => (total > 0 ? Math.round((correct / total) * 100) : 0);
+    const users = rows.map((r) => {
+      const overallCorrect = r.subjectCorrect + r.dogCorrect;
+      const overallTotal = r.subjectTotal + r.dogTotal;
+      return {
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        subjectPercent: pct(r.subjectCorrect, r.subjectTotal),
+        subjectTotal: r.subjectTotal,
+        dogPercent: pct(r.dogCorrect, r.dogTotal),
+        dogTotal: r.dogTotal,
+        overallPercent: pct(overallCorrect, overallTotal),
+        overallTotal,
+      };
+    });
+
+    return res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== คลังคำตอบแชทบอท (chat_answers) ==================
 
 function normalizeKeywords(raw) {
@@ -473,7 +534,313 @@ router.post("/chat-answers/test", requireAdmin, async (req, res, next) => {
   }
 });
 
-// ================== มินิเกม (Phayao Adventure) ==================
+// ================== จัดการมินิเกม (game config ต่อบทเรียน) ==================
+// GET รายการบท + ค่ามินิเกมที่แอดมินตั้งไว้ (required_minutes, question_count, enabled)
+router.get("/game-config", requireAdmin, async (req, res, next) => {
+  try {
+    const chapters = await db
+      .prepare(
+        `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
+         FROM chapters ORDER BY chapter_number ASC`
+      )
+      .all();
+    return res.json({ chapters });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT อัปเดตค่ามินิเกมของบทหนึ่งๆ (ไม่แตะฟิลด์อื่นของบท เช่น title/pdf_url)
+router.put("/game-config/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chapter = await db
+      .prepare("SELECT id, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?")
+      .get(id);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+
+    const { requiredMinutes, questionCount, enabled } = req.body;
+
+    // validate เฉพาะฟิลด์ที่ส่งมา (ไม่บังคับส่งครบทุกฟิลด์)
+    let newRequiredMinutes = chapter.game_required_minutes;
+    if (requiredMinutes !== undefined) {
+      const n = Number(requiredMinutes);
+      if (!Number.isInteger(n) || n < 0 || n > 240) {
+        return res.status(400).json({ message: "เวลาอ่านต้องเป็นจำนวนเต็ม 0-240 นาที" });
+      }
+      newRequiredMinutes = n;
+    }
+
+    let newQuestionCount = chapter.game_question_count;
+    if (questionCount !== undefined) {
+      const n = Number(questionCount);
+      if (!Number.isInteger(n) || n < 1 || n > 50) {
+        return res.status(400).json({ message: "จำนวนคำถามต้องเป็น 1-50 ข้อ" });
+      }
+      newQuestionCount = n;
+    }
+
+    let newEnabled = chapter.game_enabled;
+    if (enabled !== undefined) {
+      newEnabled = enabled ? 1 : 0;
+    }
+
+    await db
+      .prepare(
+        "UPDATE chapters SET game_required_minutes = ?, game_question_count = ?, game_enabled = ? WHERE id = ?"
+      )
+      .run(newRequiredMinutes, newQuestionCount, newEnabled, id);
+
+    const updated = await db
+      .prepare(
+        "SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?"
+      )
+      .get(id);
+    return res.json({ message: "บันทึกสำเร็จ", chapter: updated });
+  } catch (err) {
+    console.error("Update game config error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ================== จัดการคำถามในมินิเกม (quiz_questions) ==================
+// list ตามบท — แอดมินเปิดหน้า "แก้ไข" ของบทไหนก็ดึงเฉพาะบทนั้น
+router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, next) => {
+  try {
+    const chapterId = Number(req.params.chapterId);
+    const [chapter, questions] = await Promise.all([
+      db
+        .prepare(
+          `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
+           FROM chapters WHERE id = ?`
+        )
+        .get(chapterId),
+      db
+        .prepare(
+          `SELECT id, chapter_id, level, question, option_1, option_2, option_3, option_4,
+                  correct_option, enabled, created_at
+           FROM quiz_questions WHERE chapter_id = ? ORDER BY level ASC, id ASC`
+        )
+        .all(chapterId),
+    ]);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+    return res.json({ chapter, questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// validate payload คำถามให้ครบและถูกช่วง — ใช้ทั้งตอน POST และ PUT
+function validateQuestionPayload(body) {
+  const q = String(body.question || "").trim();
+  const options = [1, 2, 3, 4].map((i) => String(body["option_" + i] || "").trim());
+  const level = Number(body.level);
+  const correct = Number(body.correctOption);
+
+  if (!q) return { error: "กรุณากรอกคำถาม" };
+  if (options.some((o) => !o)) return { error: "กรุณากรอกตัวเลือกให้ครบทั้ง 4 ข้อ" };
+  if (!Number.isInteger(level) || level < 1 || level > 20) {
+    return { error: "ระดับต้องเป็นจำนวนเต็ม 1-20" };
+  }
+  if (!Number.isInteger(correct) || correct < 1 || correct > 4) {
+    return { error: "ต้องเลือกคำตอบที่ถูก (1-4)" };
+  }
+  return { question: q, options, level, correct };
+}
+
+router.post("/game-questions", requireAdmin, async (req, res) => {
+  try {
+    const chapterId = Number(req.body.chapterId);
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(chapterId);
+    if (!chapter) return res.status(400).json({ message: "ไม่พบบทเรียนที่ระบุ" });
+
+    const v = validateQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    const result = await db
+      .prepare(
+        `INSERT INTO quiz_questions
+         (chapter_id, level, question, option_1, option_2, option_3, option_4, correct_option)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(chapterId, v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct);
+
+    const created = await db
+      .prepare("SELECT * FROM quiz_questions WHERE id = ?")
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "เพิ่มคำถามสำเร็จ", question: created });
+  } catch (err) {
+    console.error("Create quiz question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.put("/game-questions/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+
+    const v = validateQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    await db
+      .prepare(
+        `UPDATE quiz_questions
+         SET level = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?
+         WHERE id = ?`
+      )
+      .run(v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, id);
+
+    const updated = await db.prepare("SELECT * FROM quiz_questions WHERE id = ?").get(id);
+    return res.json({ message: "อัปเดตคำถามสำเร็จ", question: updated });
+  } catch (err) {
+    console.error("Update quiz question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.patch("/game-questions/:id/toggle", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const q = await db.prepare("SELECT id, enabled FROM quiz_questions WHERE id = ?").get(id);
+    if (!q) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    const nextVal = q.enabled ? 0 : 1;
+    await db.prepare("UPDATE quiz_questions SET enabled = ? WHERE id = ?").run(nextVal, id);
+    return res.json({ id: q.id, enabled: nextVal });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/game-questions/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    await db.prepare("DELETE FROM quiz_questions WHERE id = ?").run(id);
+    return res.json({ message: "ลบคำถามสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== คำถามเกี่ยวกับพันธุ์สุนัข (breed_quiz_questions) ==================
+// ใช้ในด่าน 2,4 ของทุกโลกในเกม แยกจาก quiz_questions ที่ผูกกับบทเรียน
+const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
+
+router.get("/breed-questions", requireAdmin, async (req, res, next) => {
+  try {
+    const breed = req.query.breed;
+    if (!breed || !VALID_BREEDS.includes(breed)) {
+      return res.status(400).json({ message: "ระบุพันธุ์สุนัขให้ถูกต้อง (golden/shiba/siberian/thairidgeback)" });
+    }
+    const questions = await db
+      .prepare(
+        `SELECT id, breed, stage, question, option_1, option_2, option_3, option_4, correct_option, enabled, created_at
+         FROM breed_quiz_questions WHERE breed = ? ORDER BY id ASC`
+      )
+      .all(breed);
+    return res.json({ breed, questions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ใช้ validate เหมือน quiz_questions — แต่รับ breed + stage (2 หรือ 4) แทน level
+const VALID_BREED_STAGES = [2, 4];
+
+function validateBreedQuestionPayload(body) {
+  const breed = body.breed;
+  const stage = Number(body.stage);
+  const q = String(body.question || "").trim();
+  const options = [1, 2, 3, 4].map((i) => String(body["option_" + i] || "").trim());
+  const correct = Number(body.correctOption);
+
+  if (!VALID_BREEDS.includes(breed)) return { error: "พันธุ์สุนัขไม่ถูกต้อง" };
+  if (!VALID_BREED_STAGES.includes(stage)) return { error: "ด่านต้องเป็น 2 หรือ 4 เท่านั้น" };
+  if (!q) return { error: "กรุณากรอกคำถาม" };
+  if (options.some((o) => !o)) return { error: "กรุณากรอกตัวเลือกให้ครบทั้ง 4 ข้อ" };
+  if (!Number.isInteger(correct) || correct < 1 || correct > 4) {
+    return { error: "ต้องเลือกคำตอบที่ถูก (1-4)" };
+  }
+  return { breed, stage, question: q, options, correct };
+}
+
+router.post("/breed-questions", requireAdmin, async (req, res) => {
+  try {
+    const v = validateBreedQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    const result = await db
+      .prepare(
+        `INSERT INTO breed_quiz_questions
+         (breed, stage, question, option_1, option_2, option_3, option_4, correct_option)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(v.breed, v.stage, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct);
+
+    const created = await db
+      .prepare("SELECT * FROM breed_quiz_questions WHERE id = ?")
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "เพิ่มคำถามสำเร็จ", question: created });
+  } catch (err) {
+    console.error("Create breed question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.put("/breed-questions/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+
+    const v = validateBreedQuestionPayload(req.body);
+    if (v.error) return res.status(400).json({ message: v.error });
+
+    await db
+      .prepare(
+        `UPDATE breed_quiz_questions
+         SET breed = ?, stage = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?
+         WHERE id = ?`
+      )
+      .run(v.breed, v.stage, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, id);
+
+    const updated = await db.prepare("SELECT * FROM breed_quiz_questions WHERE id = ?").get(id);
+    return res.json({ message: "อัปเดตคำถามสำเร็จ", question: updated });
+  } catch (err) {
+    console.error("Update breed question error:", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+router.patch("/breed-questions/:id/toggle", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const q = await db.prepare("SELECT id, enabled FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!q) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    const nextVal = q.enabled ? 0 : 1;
+    await db.prepare("UPDATE breed_quiz_questions SET enabled = ? WHERE id = ?").run(nextVal, id);
+    return res.json({ id: q.id, enabled: nextVal });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/breed-questions/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.prepare("SELECT id FROM breed_quiz_questions WHERE id = ?").get(id);
+    if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    await db.prepare("DELETE FROM breed_quiz_questions WHERE id = ?").run(id);
+    return res.json({ message: "ลบคำถามสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== มินิเกม (Phayao Adventure) — ความคืบหน้าผู้เล่น ==================
 router.get("/game-progress", requireAdmin, async (req, res, next) => {
   try {
     const players = await db

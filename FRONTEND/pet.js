@@ -129,7 +129,9 @@ async function saveAndStart() {
       method: "POST",
       body: JSON.stringify({ breed: selectedBreed, name: nameInput }),
     });
-    window.location.href = "Pet.html";
+    // สมัครใหม่เลือก pet เสร็จ → เข้าหน้าหลักเริ่มใช้งาน (ไม่ใช่ Pet.html)
+    // ตาม flow: register → login → select-pet → index (หน้าแรก)
+    window.location.href = "index.html";
   } catch (err) {
     alert(err.message);
   }
@@ -170,6 +172,7 @@ function renderPetPage(pet) {
 
   setPetImage(pet.breed);
   updatePetUI(pet);
+  applyEquippedOverlays(); // วางเสื้อผ้าที่ user เคยใส่ไว้ (persist ใน localStorage)
   showSpeech("เจ้านาย มาเล่นด้วยกันเถอะ");
 }
 
@@ -314,10 +317,13 @@ const bags = {
   bath: { key: "bath", title: "กระเป๋าอาบน้ำ", tag: "🛁" },
   happiness: { key: "happiness", title: "กระเป๋าของเล่น", tag: "😊" },
   sleep: { key: "sleep", title: "กระเป๋าอุปกรณ์นอน", tag: "😴" },
+  // เพิ่ม 'clothing' เป็นกระเป๋าพิเศษ กรองจาก category === "เสื้อผ้า" ไม่ใช่ pet_action
+  // ใช้สำหรับปุ่มกระเป๋าเสื้อผ้าที่แยกออกมาบนหน้า Pet.html
+  clothing: { key: "clothing", title: "กระเป๋าเสื้อผ้า", tag: "👗" },
 };
 
 // ไอคอนสำรองต่อกระเป๋า ใช้เมื่อไอเทมนั้นโหลดรูปจากร้านไม่ขึ้น
-const BAG_FALLBACK_ICON = { feed: "🍖", bath: "🧼", happiness: "🎾", sleep: "🛏️" };
+const BAG_FALLBACK_ICON = { feed: "🍖", bath: "🧼", happiness: "🎾", sleep: "🛏️", clothing: "👕" };
 
 const speeches = {
   feed: "ง่ำๆ อร่อยจังเลยเจ้านาย!",
@@ -350,6 +356,11 @@ async function loadInventory() {
 }
 
 function getBagItems(bagKey) {
+  // กระเป๋าเสื้อผ้ากรองด้วย category ไม่ใช่ pet_action
+  // (เสื้อผ้าบางชิ้นมี pet_action="happiness" อยู่แล้ว จะได้ไม่หายเข้ากระเป๋าของเล่น)
+  if (bagKey === "clothing") {
+    return inventoryItems.filter((item) => item.category === "เสื้อผ้า" && item.count > 0);
+  }
   return inventoryItems.filter((item) => item.pet_action === bagKey && item.count > 0);
 }
 
@@ -366,11 +377,15 @@ function renderInventoryGrid(bagKey) {
     return;
   }
 
+  const isClothing = bagKey === "clothing";
   items.forEach((item) => {
     const imgSrc = resolveItemImg(item.img);
     const safeName = escapeHtml(item.name);
+    const equipped = isClothing && isItemEquipped(item.id);
     const card = document.createElement("div");
-    card.className = "item-card";
+    card.className = "item-card" + (equipped ? " equipped" : "");
+    // ปุ่ม "ใส่" / "ถอด" สลับตาม state; stat_gain ไม่แสดงในกระเป๋าเสื้อผ้าเพราะเสื้อผ้าไม่เติมสถานะแล้ว
+    const buttonLabel = isClothing ? (equipped ? "ถอด" : "ใส่") : "ใช้";
     card.innerHTML = `
       <span class="qty">x${item.count}</span>
       <div class="icon">${
@@ -379,10 +394,19 @@ function renderInventoryGrid(bagKey) {
           : BAG_FALLBACK_ICON[bagKey]
       }</div>
       <div class="name">${safeName}</div>
-      <div class="stat-gain">+${item.stat_gain}%</div>
-      <button class="use-btn">ใช้</button>
+      ${isClothing ? "" : `<div class="stat-gain">+${item.stat_gain}%</div>`}
+      <button class="use-btn ${equipped ? "unwear" : ""}">${buttonLabel}</button>
     `;
-    card.querySelector(".use-btn").addEventListener("click", () => useItem(item.id));
+    const btn = card.querySelector(".use-btn");
+    if (isClothing) {
+      if (equipped) {
+        btn.addEventListener("click", () => unwearClothing(item.id));
+      } else {
+        btn.addEventListener("click", () => wearClothing(item, card));
+      }
+    } else {
+      btn.addEventListener("click", () => useItem(item.id));
+    }
     grid.appendChild(card);
   });
 }
@@ -436,6 +460,141 @@ function showFloater(text, isHeart) {
   f.textContent = text;
   wrap.appendChild(f);
   setTimeout(() => f.remove(), 1100);
+}
+
+// ---- ระบบเสื้อผ้าที่ใส่อยู่ (persist per user ใน localStorage) ----
+// เก็บแบบ 2 slot: hat (บนหัว) + body (ลำตัว) — ต่อ 1 slot ได้ 1 ชิ้น
+// ไม่หัก inventory เวลาใส่ (เพราะไม่ใช่ของกิน) แค่ user ต้องมี count >= 1 ถึงจะใส่ได้
+function getEquipStorageKey() {
+  const username = localStorage.getItem("currentUser") || "guest";
+  return `petEquip_${username}`;
+}
+
+function loadEquipped() {
+  try {
+    return JSON.parse(localStorage.getItem(getEquipStorageKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveEquipped(equipped) {
+  localStorage.setItem(getEquipStorageKey(), JSON.stringify(equipped));
+}
+
+// เดา slot ของไอเทมจากชื่อ (หมวก → hat, ที่เหลือในหมวดเสื้อผ้า → body)
+function detectSlot(item) {
+  const name = (item.name || "").toLowerCase();
+  if (name.includes("หมวก") || name.includes("hat") || name.includes("cap")) return "hat";
+  return "body";
+}
+
+// อ่าน equipped จาก storage แล้ววาง src ให้ img overlay บนตัวน้อง
+function applyEquippedOverlays() {
+  const equipped = loadEquipped();
+  const hatEl = document.getElementById("equipHat");
+  const bodyEl = document.getElementById("equipBody");
+  ["hat", "body"].forEach((slot) => {
+    const el = slot === "hat" ? hatEl : bodyEl;
+    if (!el) return;
+    const item = equipped[slot];
+    if (item && item.img) {
+      el.src = resolveItemImg(item.img);
+      el.style.display = "";
+      el.alt = item.name;
+    } else {
+      el.style.display = "none";
+      el.removeAttribute("src");
+    }
+  });
+}
+
+// ปุ่ม "ใส่" ในกระเป๋าเสื้อผ้า:
+// 1) บิน sprite ของเสื้อจากการ์ดไปหาน้อง (fly animation ~700ms)
+// 2) น้องเด้ง + sparkle รอบตัว
+// 3) วางรูปทับบนตัวน้องเลย + save localStorage (ไม่หัก inventory)
+async function wearClothing(item, cardEl) {
+  if (!item || item.count <= 0) return;
+
+  const slot = detectSlot(item);
+  const iconEl = cardEl.querySelector(".icon img") || cardEl.querySelector(".icon");
+  const petEl = document.querySelector(".pet-character");
+  if (iconEl && petEl) {
+    const from = iconEl.getBoundingClientRect();
+    const to = petEl.getBoundingClientRect();
+
+    const flyer = iconEl.cloneNode(true);
+    flyer.className = "clothing-flyer";
+    flyer.style.left = from.left + from.width / 2 + "px";
+    flyer.style.top = from.top + from.height / 2 + "px";
+    flyer.style.width = from.width + "px";
+    flyer.style.height = from.height + "px";
+    document.body.appendChild(flyer);
+
+    void flyer.offsetWidth;
+    flyer.style.left = to.left + to.width / 2 + "px";
+    flyer.style.top = to.top + to.height / 2 + "px";
+    flyer.style.transform = "translate(-50%, -50%) scale(0.5) rotate(360deg)";
+    flyer.style.opacity = "0";
+
+    setTimeout(() => {
+      bounceCharacter();
+      spawnSparkles(to.left + to.width / 2, to.top + to.height / 2);
+      showFloater("✨");
+      // วางรูปจริงบนน้องตอน flyer มาถึง (พร้อมกับ bounce → รู้สึกเหมือน "ติด" ตัวจริง)
+      const equipped = loadEquipped();
+      equipped[slot] = { id: item.id, name: item.name, img: item.img };
+      saveEquipped(equipped);
+      applyEquippedOverlays();
+    }, 600);
+
+    setTimeout(() => flyer.remove(), 900);
+  } else {
+    // fallback ถ้าหา DOM ไม่เจอ (edge case) — ใส่เลยไม่มี animation
+    const equipped = loadEquipped();
+    equipped[slot] = { id: item.id, name: item.name, img: item.img };
+    saveEquipped(equipped);
+    applyEquippedOverlays();
+  }
+
+  showSpeech(`ผมใส่${item.name}แล้วครับ เท่ไหม?`);
+  renderInventoryGrid("clothing"); // re-render เพื่อสลับปุ่ม "ใส่" → "ถอด"
+}
+
+// ปุ่ม "ถอด" ในกระเป๋าเสื้อผ้า — ลบ overlay + clear localStorage ของ slot นั้น
+function unwearClothing(itemId) {
+  const equipped = loadEquipped();
+  ["hat", "body"].forEach((slot) => {
+    if (equipped[slot] && equipped[slot].id === itemId) delete equipped[slot];
+  });
+  saveEquipped(equipped);
+  applyEquippedOverlays();
+  showSpeech("ถอดออกแล้วครับ 🐶");
+  renderInventoryGrid("clothing");
+}
+
+// เช็คว่า itemId นี้กำลังใส่อยู่ (ใช้ตอน render ปุ่ม)
+function isItemEquipped(itemId) {
+  const equipped = loadEquipped();
+  return ["hat", "body"].some((slot) => equipped[slot] && equipped[slot].id === itemId);
+}
+
+// สร้าง sparkle 6 อันวางเป็นวงรอบจุด (x, y) ค่อยๆ ลอยออกแล้วจางหายภายใน ~800ms
+function spawnSparkles(x, y) {
+  const symbols = ["✨", "⭐", "💫", "✨", "⭐", "💖"];
+  symbols.forEach((sym, i) => {
+    const s = document.createElement("div");
+    s.className = "clothing-sparkle";
+    s.textContent = sym;
+    s.style.left = x + "px";
+    s.style.top = y + "px";
+    const angle = (i / symbols.length) * Math.PI * 2;
+    const dist = 60 + Math.random() * 30;
+    s.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+    s.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 900);
+  });
 }
 
 async function useItem(productId) {
