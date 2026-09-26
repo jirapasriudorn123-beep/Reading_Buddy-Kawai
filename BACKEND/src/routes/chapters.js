@@ -41,16 +41,6 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบ Chapter นี้" });
     }
 
-    // ---- กันเปิดหลายเซสชันพร้อมกัน ----
-    const existingSession = await db
-      .prepare("SELECT id FROM reading_sessions WHERE user_id = ? AND status = 'in_progress'")
-      .get(req.user.id);
-    if (existingSession) {
-      return res.status(409).json({
-        message: "คุณมีเซสชันการอ่านที่ยังไม่จบอยู่แล้ว (อาจเปิดค้างไว้ในแท็บหรือหน้าต่างอื่น) กรุณาจบหรือยกเลิกก่อนเริ่มใหม่",
-      });
-    }
-
     // ---- validate เวลา ----
     for (const [label, m, s] of [
       ["เวลาอ่าน", readMinutes, readSeconds],
@@ -70,12 +60,18 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
     }
     const plannedBreakSeconds = toSeconds(breakMinutes, breakSeconds);
 
-    const result = await db
-      .prepare(
+    // ---- เซสชันเก่าที่ค้าง in_progress (รีเฟรช/ปิดหน้าระหว่างอ่าน หน้าเว็บเลยไม่รู้จักแล้ว จบหรือยกเลิกเองไม่ได้) ----
+    // ยกเลิกทิ้งแล้วเริ่มอันใหม่แทน (ไม่ให้เหรียญของอันเก่า กันเปิดค้างไว้เฉยๆ แล้วมาเก็บเหรียญทีหลัง)
+    const result = await db.tx(async (t) => {
+      await t.prepare(
+        `UPDATE reading_sessions SET status = 'cancelled', ended_at = datetime('now')
+         WHERE user_id = ? AND status = 'in_progress'`
+      ).run(req.user.id);
+      return t.prepare(
         `INSERT INTO reading_sessions (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status)
          VALUES (?, ?, ?, ?, 'in_progress')`
-      )
-      .run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds);
+      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds);
+    });
 
     return res.status(201).json({
       message: "เริ่มจับเวลาอ่านแล้ว",
