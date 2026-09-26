@@ -20,7 +20,12 @@ body.custom-cursor-active label {
     /* ต้องอยู่บนสุดของทุก overlay (chat bubble = 100001, chat panel = 100000)
        ไม่งั้นเมาส์น้องหมาโดนบัง เวลาเลื่อนไปทับปุ่มแชท */
     z-index: 2147483647;
-    transform: translate(-50%, -50%);
+    /* จุดคลิกจริง (hotspot) = ปลายสามเหลี่ยมมุมซ้ายบนของรูปอุ้งเท้า ไม่ใช่กลางรูป
+       ไม่งั้นคลิกไปโดนตรงกลางอุ้งเท้า ซึ่งห่างจากจุดที่ตาเล็งไว้ */
+    --hotspot-x: -12%;
+    --hotspot-y: -10%;
+    transform: translate(var(--hotspot-x), var(--hotspot-y));
+    transform-origin: 12% 10%;
     transition: width 0.2s, height 0.2s, filter 0.2s, opacity 0.2s, background-image 0.1s;
     background-image: url('img/mouse_doglight1.png');
     background-size: contain;
@@ -38,6 +43,10 @@ body.custom-cursor-active label {
     height: 44px;
     background-image: url('img/mouse_doglight2.png');
     filter: drop-shadow(0 0 10px rgba(137, 176, 93, 0.75));
+    /* รูปน้องหมานั่งไม่มีสามเหลี่ยม ใช้มุมซ้ายบนของหัวเป็นจุดคลิกแทน */
+    --hotspot-x: -17%;
+    --hotspot-y: -11%;
+    transform-origin: 17% 11%;
 }
 
 .custom-cursor.click {
@@ -45,6 +54,9 @@ body.custom-cursor-active label {
     height: 44px;
     background-image: url('img/mouse_doglight2.png');
     animation: customCursorClick 0.3s ease;
+    --hotspot-x: -17%;
+    --hotspot-y: -11%;
+    transform-origin: 17% 11%;
     filter: drop-shadow(0 0 10px rgba(137, 176, 93, 0.75));
 }
 
@@ -58,9 +70,9 @@ html.dark-mode .custom-cursor.click {
 }
 
 @keyframes customCursorClick {
-    0% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(0.7); }
-    100% { transform: translate(-50%, -50%) scale(1); }
+    0% { transform: translate(var(--hotspot-x), var(--hotspot-y)) scale(1); }
+    50% { transform: translate(var(--hotspot-x), var(--hotspot-y)) scale(0.7); }
+    100% { transform: translate(var(--hotspot-x), var(--hotspot-y)) scale(1); }
 }
 
 /* มือถือ/แตะหน้าจอ ใช้เมาส์คัสตอมไม่ได้ผล เลยคืนค่าเคอร์เซอร์ปกติ */
