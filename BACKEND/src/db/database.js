@@ -170,9 +170,21 @@ async function initDatabase() {
       status TEXT NOT NULL DEFAULT 'in_progress',
       coins_earned INTEGER NOT NULL DEFAULT 0,
       started_at TEXT NOT NULL DEFAULT (datetime('now')),
-      ended_at TEXT
+      ended_at TEXT,
+      away_seconds INTEGER NOT NULL DEFAULT 0,
+      away_started_at TEXT
     )
   `);
+
+  // away_seconds = เวลารวมที่ออกจากหน้าอ่าน (ไม่นับเป็นเวลาอ่าน), away_started_at = กำลังออกอยู่ตั้งแต่เมื่อไหร่ (NULL = อยู่ที่หน้าอ่าน)
+  const sessionColumns = (await client.execute("PRAGMA table_info(reading_sessions)")).rows.map((c) => c.name);
+  const sessionColumnMigrations = [
+    ["away_seconds", "ALTER TABLE reading_sessions ADD COLUMN away_seconds INTEGER NOT NULL DEFAULT 0"],
+    ["away_started_at", "ALTER TABLE reading_sessions ADD COLUMN away_started_at TEXT"],
+  ];
+  for (const [col, sql] of sessionColumnMigrations) {
+    if (!sessionColumns.includes(col)) await client.execute(sql);
+  }
 
   // ---- ตาราง pets ----
   await client.execute(`

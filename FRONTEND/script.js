@@ -380,6 +380,16 @@ function pauseCountdown() {
   clearInterval(countdownInterval);
 }
 
+// ออกจากหน้าอ่านสั้นกว่านี้ (เช่น สลับแท็บแวบเดียว) ไม่ต้องเด้งเตือน แต่ server ก็ยังหักเวลาให้ตามจริง
+const AWAY_NOTICE_MIN_SECONDS = 5;
+
+function formatAwayDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s} วินาที`;
+  return s === 0 ? `${m} นาที` : `${m} นาที ${s} วินาที`;
+}
+
 function updateReaderClockDisplay(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = Math.floor(seconds % 60).toString().padStart(2, "0");
@@ -406,8 +416,11 @@ async function completeReadingSession(enterBreakAfter) {
   try {
     const result = await apiFetch(`/sessions/${sessionId}/complete`, { method: "POST" });
     updateCoinBadge(result.totalCoins);
+    const awayNote = result.awaySeconds >= AWAY_NOTICE_MIN_SECONDS
+      ? `\n(ไม่นับเวลาที่ออกจากหน้าอ่าน ${formatAwayDuration(result.awaySeconds)})`
+      : "";
     alert(
-      `${result.message}\nได้รับ ${result.coinsEarned} เหรียญ 🎉\nเหรียญรวม: ${result.totalCoins}`
+      `${result.message}\nได้รับ ${result.coinsEarned} เหรียญ 🎉\nเหรียญรวม: ${result.totalCoins}${awayNote}`
     );
   } catch (err) {
     console.error("Complete session error:", err);
@@ -541,12 +554,27 @@ function bindStaticEventListeners() {
   });
 
   // สลับแท็บ/ย่อหน้าต่างระหว่างจับเวลา: หยุดนับถอยหลังไว้ก่อน แล้วนับต่อจากเดิมตอนกลับมาที่แท็บนี้
+  // ระหว่างอ่าน แจ้ง server ด้วย เพื่อไม่ให้ช่วงที่ออกไปถูกนับเป็นเวลาอ่านตอนคิดเหรียญ
+  let awayStartedAt = null;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      if (activeSession) pauseCountdown();
+      if (activeSession) {
+        pauseCountdown();
+        awayStartedAt = Date.now();
+        // keepalive ให้ request ส่งออกไปได้แม้เบราว์เซอร์กำลังพักแท็บ/ปิดหน้า
+        apiFetch(`/sessions/${activeSession.id}/away`, { method: "POST", keepalive: true }).catch(() => {});
+      }
       if (onBreak) pauseBreakCountdown();
     } else {
-      if (activeSession) resumeCountdown();
+      if (activeSession) {
+        const awaySeconds = awayStartedAt ? Math.round((Date.now() - awayStartedAt) / 1000) : 0;
+        awayStartedAt = null;
+        apiFetch(`/sessions/${activeSession.id}/back`, { method: "POST" }).catch(() => {});
+        if (awaySeconds >= AWAY_NOTICE_MIN_SECONDS) {
+          alert(`คุณออกจากหน้าอ่านไป ${formatAwayDuration(awaySeconds)}\nช่วงเวลานี้จะไม่ถูกนับเป็นเวลาอ่านนะ 📖`);
+        }
+        resumeCountdown();
+      }
       if (onBreak) resumeBreakCountdown();
     }
   });
