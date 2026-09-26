@@ -1,5 +1,6 @@
+// เปิดไฟล์ HTML ตรงๆ (file://) ก็ใช้ backend ในเครื่องด้วย เพราะ backend บน Render รับเฉพาะ origin ของ GitHub Pages
 const API_BASE_URL =
-  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.protocol === "file:"
     ? "http://localhost:3000/api"
     : location.hostname.includes("app.github.dev")
     ? location.origin.replace(/-5500./, "-3000.") + "/api"
