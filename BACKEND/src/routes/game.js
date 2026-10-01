@@ -70,17 +70,38 @@ router.post("/progress/complete", requireAuth, async (req, res, next) => {
   }
 });
 
-// ================== log คำตอบ (ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน") ==================
+// ================== ตรวจคำตอบ + log (ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน") ==================
+// server เป็นคนตรวจเอง (หน้าเว็บไม่ได้รับเฉลยล่วงหน้า) กันเปิด DevTools ดูเฉลย/ปลอมคะแนน
+// source: 'chapter' (quiz_questions → หมวด subject) | 'breed' (breed_quiz_questions → หมวด dog)
+const ANSWER_SOURCES = {
+  chapter: { table: "quiz_questions", category: "subject" },
+  breed: { table: "breed_quiz_questions", category: "dog" },
+};
+
 router.post("/answer", requireAuth, async (req, res, next) => {
   try {
-    const { category, correct } = req.body;
-    if (category !== "subject" && category !== "dog") {
-      return res.status(400).json({ message: "category ต้องเป็น subject หรือ dog" });
+    const { source, questionId, picked } = req.body;
+    const src = ANSWER_SOURCES[source];
+    if (!src) {
+      return res.status(400).json({ message: "source ต้องเป็น chapter หรือ breed" });
     }
+    if (!Number.isInteger(questionId) || !Number.isInteger(picked) || picked < 1 || picked > 4) {
+      return res.status(400).json({ message: "questionId/picked ไม่ถูกต้อง" });
+    }
+
+    const question = await db
+      .prepare(`SELECT correct_option FROM ${src.table} WHERE id = ? AND enabled = 1`)
+      .get(questionId);
+    if (!question) {
+      return res.status(404).json({ message: "ไม่พบคำถามนี้" });
+    }
+
+    const correct = picked === question.correct_option;
     await db
       .prepare("INSERT INTO quiz_answer_log (user_id, category, correct) VALUES (?, ?, ?)")
-      .run(req.user.id, category, correct ? 1 : 0);
-    return res.status(201).json({ message: "บันทึกแล้ว" });
+      .run(req.user.id, src.category, correct ? 1 : 0);
+    // เฉลยส่งกลับไปหลังตอบแล้วเท่านั้น (ไว้ไฮไลต์ข้อที่ถูกบนหน้าจอ)
+    return res.json({ correct, correctOption: question.correct_option });
   } catch (err) {
     next(err);
   }
@@ -96,7 +117,7 @@ router.get("/quiz/chapter/:chapterNumber", requireAuth, async (req, res, next) =
 
     const questions = await db
       .prepare(
-        `SELECT question, option_1, option_2, option_3, option_4, correct_option
+        `SELECT id, question, option_1, option_2, option_3, option_4
          FROM quiz_questions WHERE chapter_id = ? AND enabled = 1 ORDER BY id ASC`
       )
       .all(chapter.id);
@@ -111,7 +132,7 @@ router.get("/quiz/breed/:breed", requireAuth, async (req, res, next) => {
   try {
     const questions = await db
       .prepare(
-        `SELECT question, option_1, option_2, option_3, option_4, correct_option
+        `SELECT id, question, option_1, option_2, option_3, option_4
          FROM breed_quiz_questions WHERE breed = ? AND enabled = 1 ORDER BY id ASC`
       )
       .all(req.params.breed);

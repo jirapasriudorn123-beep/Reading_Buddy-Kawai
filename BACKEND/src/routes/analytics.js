@@ -4,7 +4,8 @@ const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-const ELAPSED_SECONDS_SQL = `CAST((julianday(ended_at) - julianday(started_at)) * 86400 AS INTEGER)`;
+// เวลาที่อ่านจริงของเซสชัน (บันทึกตอนจบเซสชัน หักเวลาที่ออกจากหน้าอ่านแล้ว) — ชุดเดียวกับที่ร้านค้า/แอดมินใช้
+const ELAPSED_SECONDS_SQL = `COALESCE(read_seconds, 0)`;
 
 // Backend timestamp เป็น UTC (datetime('now') ของ SQLite) แต่ user เป็นคนไทย (UTC+7)
 // ถ้าเทียบวันด้วย date('now') ตรงๆ user ที่อ่านช่วง 00:00-07:00 ไทยจะโดนนับเป็นเมื่อวาน

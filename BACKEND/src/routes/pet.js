@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { grantLevelUpAiBonus } = require("../services/aiQuota");
 
 const router = express.Router();
 
@@ -157,19 +158,23 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+function levelUpMessage(petName, level, aiBonusGained) {
+  const bonus = aiBonusGained > 0 ? `\n🤖 ได้คำถาม AI ฟรีเพิ่ม +${aiBonusGained} ข้อ` : "";
+  return `🎉 ${petName} เลเวลอัพเป็นเลเวล ${level} แล้ว!${bonus}`;
+}
+
 // ---------- POST /api/pet/action ----------
 router.post("/action", requireAuth, async (req, res) => {
   try {
     const { type } = req.body;
-    const stat = ACTION_STAT[type];
-    if (!stat) {
+    // กิจกรรมฟรีมีแค่ลูบหัว/เล่น (happiness) — ให้อาหาร/อาบน้ำ/นอน ต้องใช้ไอเท็มที่ซื้อผ่าน /use-item เท่านั้น
+    // (เดิมรับทุก type + ให้กำหนด amount เองได้ ยิง API ตรงๆ ก็เติมค่า/ปั๊มเลเวลฟรีได้ไม่จำกัด)
+    if (type !== "happiness") {
       return res.status(400).json({ message: "ประเภทกิจกรรมไม่ถูกต้อง" });
     }
+    const stat = ACTION_STAT[type];
 
     const petCount = Math.max(1, Math.min(10, Number(req.body.petCount) || 1));
-
-    const requestedAmount = Number(req.body.amount);
-    const amount = Number.isFinite(requestedAmount) ? Math.max(1, Math.min(30, Math.round(requestedAmount))) : null;
 
     let pet = await db.prepare("SELECT * FROM pets WHERE user_id = ?").get(req.user.id);
     if (!pet) {
@@ -179,8 +184,7 @@ router.post("/action", requireAuth, async (req, res) => {
     pet = await applyDecay(pet);
 
     const before = pet[stat];
-    const gainPerUnit = amount ?? ACTION_GAIN[type];
-    const totalGain = type === "happiness" ? gainPerUnit * petCount : gainPerUnit;
+    const totalGain = ACTION_GAIN[type] * petCount;
     const after = Math.min(100, before + totalGain);
     const actualGain = after - before;
 
@@ -199,17 +203,23 @@ router.post("/action", requireAuth, async (req, res) => {
     }
     const leveledUp = carePoints !== pet.care_points;
 
-    await db.prepare(
+    // guard ด้วยค่าเลเวลเดิม: ยิงพร้อมกันหลาย request ตอนใกล้เลเวลอัพ จะได้ไม่เลเวลอัพ (และได้โบนัส AI) ซ้ำ
+    const update = await db.prepare(
       `UPDATE pets SET ${stat} = ?, ${STAT_TIMESTAMP_COLUMN[stat]} = datetime('now'), care_points = ?, level_progress = ?
-       WHERE user_id = ?`
-    ).run(after, carePoints, levelProgress, req.user.id);
+       WHERE user_id = ? AND care_points = ? AND level_progress = ?`
+    ).run(after, carePoints, levelProgress, req.user.id, pet.care_points, pet.level_progress);
+    if (update.changes === 0) {
+      return res.status(409).json({ message: "น้องหมากำลังยุ่งอยู่ ลองใหม่อีกครั้งนะ" });
+    }
 
+    const aiBonusGained = await grantLevelUpAiBonus(req.user.id, carePoints - pet.care_points);
     const updatedPet = { ...pet, [stat]: after, care_points: carePoints, level_progress: levelProgress };
 
     return res.json({
-      message: leveledUp ? `🎉 ${pet.name} เลเวลอัพเป็นเลเวล ${carePoints} แล้ว!` : "ทำกิจกรรมสำเร็จ",
+      message: leveledUp ? levelUpMessage(pet.name, carePoints, aiBonusGained) : "ทำกิจกรรมสำเร็จ",
       pet: serializePet(updatedPet),
       leveledUp,
+      aiBonusGained,
       statGained: stat,
       amountGained: actualGain,
     });
@@ -286,11 +296,17 @@ router.post("/use-item", requireAuth, async (req, res) => {
         req.user.id,
         productId
       );
-      await t.prepare(
+      const update = await t.prepare(
         `UPDATE pets SET ${stat} = ?, ${STAT_TIMESTAMP_COLUMN[stat]} = datetime('now'), care_points = ?, level_progress = ?
-         WHERE user_id = ?`
-      ).run(after, carePoints, levelProgress, req.user.id);
+         WHERE user_id = ? AND care_points = ? AND level_progress = ?`
+      ).run(after, carePoints, levelProgress, req.user.id, pet.care_points, pet.level_progress);
+      if (update.changes === 0) {
+        const err = new Error("PET_BUSY");
+        err.code = "PET_BUSY";
+        throw err; // rollback ทั้งก้อน ไอเท็มไม่หาย
+      }
     });
+    const aiBonusGained = await grantLevelUpAiBonus(req.user.id, carePoints - pet.care_points);
 
     const remaining = await db
       .prepare("SELECT count FROM inventory WHERE user_id = ? AND product_id = ?")
@@ -299,15 +315,19 @@ router.post("/use-item", requireAuth, async (req, res) => {
     const updatedPet = { ...pet, [stat]: after, care_points: carePoints, level_progress: levelProgress };
 
     return res.json({
-      message: leveledUp ? `🎉 ${pet.name} เลเวลอัพเป็นเลเวล ${carePoints} แล้ว!` : `ใช้${product.name}กับ${pet.name}แล้ว`,
+      message: leveledUp ? levelUpMessage(pet.name, carePoints, aiBonusGained) : `ใช้${product.name}กับ${pet.name}แล้ว`,
       pet: serializePet(updatedPet),
       leveledUp,
+      aiBonusGained,
       statGained: stat,
       amountGained: actualGain,
       itemUsed: { id: product.id, name: product.name },
       remainingCount: remaining ? remaining.count : 0,
     });
   } catch (err) {
+    if (err.code === "PET_BUSY") {
+      return res.status(409).json({ message: "น้องหมากำลังยุ่งอยู่ ลองใหม่อีกครั้งนะ" });
+    }
     console.error("Use pet item error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
   }

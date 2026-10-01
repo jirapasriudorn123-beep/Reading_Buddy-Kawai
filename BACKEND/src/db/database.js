@@ -98,10 +98,22 @@ async function initDatabase() {
     ["is_admin", "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"],
     ["last_active_at", "ALTER TABLE users ADD COLUMN last_active_at TEXT"],
     ["last_seen_update_at", "ALTER TABLE users ADD COLUMN last_seen_update_at TEXT"],
+    // เครดิตถาม AI ฟรีที่สะสมจากน้องหมาเลเวลอัพ (ไม่หมดอายุ ใช้หลังโควต้ารายวันหมด)
+    ["ai_bonus_credits", "ALTER TABLE users ADD COLUMN ai_bonus_credits INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [col, sql] of userColumnMigrations) {
     if (!userColumns.includes(col)) await client.execute(sql);
   }
+
+  // ---- จำนวนคำถามที่ส่งให้ AI (Gemini) ตอบ ต่อผู้ใช้ต่อวัน (day = วันที่ตามเวลาไทย) ----
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS ai_daily_usage (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, day)
+    )
+  `);
 
   // ---- ตารางเป้าหมายเวลาอ่าน (1 แถวต่อผู้ใช้ 1 คน) ----
   await client.execute(`
@@ -181,10 +193,19 @@ async function initDatabase() {
   const sessionColumnMigrations = [
     ["away_seconds", "ALTER TABLE reading_sessions ADD COLUMN away_seconds INTEGER NOT NULL DEFAULT 0"],
     ["away_started_at", "ALTER TABLE reading_sessions ADD COLUMN away_started_at TEXT"],
+    // เวลาที่อ่านจริง (หักเวลาที่ออกจากหน้าอ่าน, ไม่เกินเวลาที่ตั้งไว้) = ค่าเดียวกับที่ใช้คิดเหรียญ ใช้ทำสถิติทุกหน้า
+    ["read_seconds", "ALTER TABLE reading_sessions ADD COLUMN read_seconds INTEGER"],
   ];
   for (const [col, sql] of sessionColumnMigrations) {
     if (!sessionColumns.includes(col)) await client.execute(sql);
   }
+  // เซสชันเก่าที่จบก่อนมีคอลัมน์ read_seconds: ประมาณจากเวลาเริ่ม-จบ (ไม่เกินเวลาที่ตั้งไว้)
+  await client.execute(`
+    UPDATE reading_sessions
+    SET read_seconds = MIN(planned_read_seconds,
+                           MAX(0, CAST(ROUND((julianday(ended_at) - julianday(started_at)) * 86400) AS INTEGER)))
+    WHERE status = 'completed' AND read_seconds IS NULL AND ended_at IS NOT NULL
+  `);
 
   // ---- ตาราง pets ----
   await client.execute(`

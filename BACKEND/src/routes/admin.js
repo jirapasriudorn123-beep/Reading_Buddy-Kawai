@@ -37,13 +37,13 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
         )
         .get(),
       db.prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')").get(),
-      db.prepare("SELECT COALESCE(SUM(planned_read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
+      db.prepare("SELECT COALESCE(SUM(read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
       db.prepare(`SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`).get(),
       db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
       db
         .prepare(
           `SELECT date(started_at, '+7 hours') as day,
-                  COALESCE(SUM(planned_read_seconds), 0) as seconds,
+                  COALESCE(SUM(read_seconds), 0) as seconds,
                   COALESCE(SUM(coins_earned), 0) as coins
            FROM reading_sessions
            WHERE status = 'completed' AND started_at >= datetime('now', '-6 days')
@@ -345,7 +345,7 @@ router.get("/scores", requireAdmin, async (req, res, next) => {
       db.prepare("SELECT username, coins FROM users WHERE is_admin = 0 ORDER BY coins DESC LIMIT 20").all(),
       db
         .prepare(
-          `SELECT u.username, COALESCE(SUM(rs.planned_read_seconds), 0) as totalSeconds
+          `SELECT u.username, COALESCE(SUM(rs.read_seconds), 0) as totalSeconds
            FROM users u
            LEFT JOIN reading_sessions rs ON rs.user_id = u.id AND rs.status = 'completed'
            WHERE u.is_admin = 0

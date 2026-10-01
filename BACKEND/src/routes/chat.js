@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { askGemini } = require("../services/gemini");
+const { DAILY_AI_LIMIT, LEVEL_UP_AI_BONUS, consumeAiQuota, refundAiQuota, getAiQuotaStatus } = require("../services/aiQuota");
 
 const router = express.Router();
 
@@ -188,7 +189,7 @@ ${message}`;
   return await askGemini(prompt);
 }
 
-async function buildReply(message, context) {
+async function buildReply(message, context, userId) {
   const lower = message.toLowerCase();
 
   // 1) กฎทักทาย/ขอบคุณ (ตอบสั้นๆ ไม่ต้องเปลือง Gemini)
@@ -213,10 +214,19 @@ async function buildReply(message, context) {
 
   // 4) Fallback → Gemini (Gemini prompt เป็นคนตัดสินเองว่านอกสโคปหรือไม่
   //    ดีกว่า keyword filter ที่ block คำเกี่ยวกับหมาเพราะไม่มีคำตรงเป๊ะ เช่น "ชิบะนิสัยยังไง")
+  //    เฉพาะขั้นนี้ที่นับโควต้าถาม AI (ขั้น 1-3 ตอบเองได้ ไม่เปลือง Gemini)
+  const quotaSource = await consumeAiQuota(userId);
+  if (!quotaSource) {
+    return (
+      `วันนี้ถามน้อง AI ครบ ${DAILY_AI_LIMIT} ข้อแล้วครับ 🐶💤 พรุ่งนี้มาถามใหม่ได้นะครับ\n\n` +
+      `💡 ดูแลน้องหมาจนเลเวลอัพ จะได้คำถาม AI ฟรีเพิ่ม +${LEVEL_UP_AI_BONUS} ข้อต่อเลเวล`
+    );
+  }
   try {
     return await buildGeminiReply(message, context);
   } catch (err) {
     console.error("Gemini fallback error:", err);
+    await refundAiQuota(userId, quotaSource);
     return "ขอโทษครับ ตอนนี้น้อง AI ไม่สามารถตอบได้ชั่วคราว 🐶 กรุณาลองใหม่อีกครั้งนะครับ";
   }
 }
@@ -238,11 +248,22 @@ router.post("/message", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    const reply = await buildReply(message.trim(), context);
-    return res.json({ reply });
+    const reply = await buildReply(message.trim(), context, req.user.id);
+    const aiQuota = await getAiQuotaStatus(req.user.id);
+    return res.json({ reply, aiQuota });
   } catch (err) {
     console.error("Chat message error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ---------- GET /api/chat/quota ----------
+// โควต้าถาม AI ที่เหลือวันนี้ + เครดิตโบนัส (โชว์ในหัวแชท)
+router.get("/quota", requireAuth, async (req, res, next) => {
+  try {
+    return res.json(await getAiQuotaStatus(req.user.id));
+  } catch (err) {
+    next(err);
   }
 });
 

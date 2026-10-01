@@ -173,6 +173,10 @@ function renderProducts(items) {
                  <div class="coupon-progress-text">${formatMinsHours(userReadingMinutes)} / ${formatMinsHours(requiredMins)}</div>
                </div>
              </div>`;
+        // ราคาเป็นคอยน์ (แลกด้วยเหรียญ) — โชว์มุมขวาล่างของ banner
+        const priceTag = p.price > 0
+          ? `<div class="coupon-price-tag"><img src="img/coin_ja.png" alt="เหรียญ">${p.price} คอยน์</div>`
+          : "";
         return `
           <div class="coupon-banner ${unlocked ? "" : "locked"}" onclick="showDetail('${safeId}')" title="คลิกเพื่อดูรายละเอียด">
             <img class="coupon-banner-img" src="${escapeHtml(resolveProductImg(p.img))}"
@@ -181,6 +185,7 @@ function renderProducts(items) {
               <div class="coupon-banner-fallback-name">🎫 ${safeName}</div>
               <div class="coupon-banner-fallback-hint">คลิกเพื่อดูรายละเอียด</div>
             </div>
+            ${priceTag}
             ${lockOverlay}
           </div>
         `;
@@ -294,13 +299,14 @@ function showDetail(id) {
   if (isCoupon) {
     const reqMins = product.required_reading_minutes || 0;
     const unlocked = userReadingMinutes >= reqMins;
+    const priceLine = product.price > 0 ? `🪙 ใช้ ${product.price} คอยน์ แลกคูปองนี้\n\n` : "";
     const header = reqMins
       ? `⏱️ ต้องอ่านสะสม ${formatMinsHours(reqMins)}\n` +
         `📖 คุณอ่านไปแล้ว ${formatMinsHours(userReadingMinutes)}` +
         (unlocked ? " ✅ ปลดล็อคแล้ว!" : ` (ขาดอีก ${formatMinsHours(reqMins - userReadingMinutes)})`) +
         `\n\n`
       : "";
-    document.getElementById("modalDesc").innerText = header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`;
+    document.getElementById("modalDesc").innerText = priceLine + header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`;
   } else {
     document.getElementById("modalDesc").innerText = desc;
   }
@@ -313,7 +319,9 @@ function showDetail(id) {
       const reqMins = product.required_reading_minutes || 0;
       const unlocked = userReadingMinutes >= reqMins;
       buyBtn.disabled = !unlocked;
-      buyBtn.dataset.couponLabel = unlocked ? "แลกคูปอง" : "🔒 ยังปลดล็อคไม่ได้";
+      // คูปองที่มีราคา: ปุ่มโชว์ราคาเหมือนสินค้าทั่วไป (ข้อความ "ใช้ X คอยน์ แลกคูปองนี้" อยู่ในรายละเอียดแล้ว)
+      const redeemLabel = product.price > 0 ? String(product.price) : "แลกคูปอง";
+      buyBtn.dataset.couponLabel = unlocked ? redeemLabel : "🔒 ยังปลดล็อคไม่ได้";
     } else {
       buyBtn.disabled = false;
       delete buyBtn.dataset.couponLabel;

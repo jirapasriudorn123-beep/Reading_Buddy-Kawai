@@ -60,9 +60,9 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
     // (กันกดจบซ้ำพร้อมกัน เช่น ดับเบิลคลิก/เปิดหลายแท็บ แล้วได้เหรียญซ้ำ)
     const closed = await db.tx(async (t) => {
       const result = await t.prepare(
-        `UPDATE reading_sessions SET status = 'completed', ended_at = datetime('now'), coins_earned = ?
+        `UPDATE reading_sessions SET status = 'completed', ended_at = datetime('now'), coins_earned = ?, read_seconds = ?
          WHERE id = ? AND status = 'in_progress'`
-      ).run(coinsEarned, sessionId);
+      ).run(coinsEarned, effectiveElapsedSeconds, sessionId);
       if (result.changes === 0) return false;
       await t.prepare("UPDATE users SET coins = coins + ? WHERE id = ?").run(coinsEarned, req.user.id);
       return true;

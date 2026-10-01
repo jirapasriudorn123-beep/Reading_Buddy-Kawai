@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-dev",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["FRONTEND/nocache_server.py"],
+      "port": 5500
+    },
+    {
+      "name": "backend-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "BACKEND", "start"],
+      "port": 3000
+    },
+    {
+      "name": "backend-scratch",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd BACKEND && TURSO_DATABASE_URL=file:/private/tmp/claude-501/-Users-pichawee-Downloads-webapp-for-reading/73946b4d-05ee-46f4-94ea-046343a6c648/scratchpad/dev.db TURSO_AUTH_TOKEN= JWT_SECRET=local-scratch-only node src/server.js"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "backend-scratch-3001",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd BACKEND && PORT=3001 TURSO_DATABASE_URL=file:/private/tmp/claude-501/-Users-pichawee-Downloads-webapp-for-reading/73946b4d-05ee-46f4-94ea-046343a6c648/scratchpad/dev.db TURSO_AUTH_TOKEN= JWT_SECRET=local-scratch-only node src/server.js"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "frontend-scratch-5501",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-pichawee-Downloads-webapp-for-reading/73946b4d-05ee-46f4-94ea-046343a6c648/scratchpad/fe/nocache_server.py"],
+      "port": 5501
+    }
+  ]
+}

@@ -37,7 +37,32 @@
       throw new Error(data.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     }
 
+    if (data.aiQuota) renderAiQuota(data.aiQuota);
     return data.reply;
+  }
+
+  // ================== โควต้าถาม AI (โชว์ใต้หัวแชท) ==================
+  // นับเฉพาะคำถามที่ต้องให้ AI คิดคำตอบ — ทักทาย/คำตอบที่แอดมินกรอกไว้ ไม่นับ
+
+  async function loadAiQuota() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/quota`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) renderAiQuota(await response.json());
+    } catch (err) {
+      console.error("โหลดโควต้าถาม AI ไม่สำเร็จ:", err);
+    }
+  }
+
+  function renderAiQuota(q) {
+    const el = document.getElementById("chatQuota");
+    if (!el) return;
+    const bonus = q.bonusCredits > 0 ? ` · 🎁 โบนัส ${q.bonusCredits} ข้อ` : "";
+    el.textContent = `🤖 ถาม AI ได้อีก ${q.remainingToday}/${q.dailyLimit} ข้อวันนี้${bonus}`;
+    el.classList.toggle("empty", q.remainingToday === 0 && q.bonusCredits === 0);
   }
 
   async function loadChatHistory() {
@@ -115,7 +140,7 @@
     bubble.id = "chatBubbleBtn";
     bubble.type = "button";
     bubble.setAttribute("aria-label", "เปิดแชทกับน้องหมา");
-    bubble.textContent = "🐶";
+    bubble.innerHTML = '<img src="img/chatbot-robot.png" alt="">';
     bubble.addEventListener("click", toggleChat);
     document.body.appendChild(bubble);
 
@@ -126,6 +151,7 @@
         <span>🐶 แชทกับน้องหมา</span>
         <button type="button" id="chatCloseBtn" aria-label="ปิดแชท">×</button>
       </div>
+      <div class="chat-panel-quota" id="chatQuota"></div>
       <div class="chat-panel-messages" id="chatMessages"></div>
       <form class="chat-panel-input-row" id="chatForm">
         <input type="text" id="chatInput" placeholder="พิมพ์คำถามที่นี่..." autocomplete="off">
@@ -138,12 +164,16 @@
     document.getElementById("chatForm").addEventListener("submit", onSubmit);
 
     loadChatHistory();
+    loadAiQuota();
   }
 
   function toggleChat() {
     isOpen = !isOpen;
     document.getElementById("chatPanel").classList.toggle("open", isOpen);
-    if (isOpen) document.getElementById("chatInput").focus();
+    if (isOpen) {
+      document.getElementById("chatInput").focus();
+      loadAiQuota(); // เผื่อเพิ่งได้โบนัสจากเลเวลอัพ หรือข้ามวันแล้ว
+    }
   }
 
   // ================== ข้อความในแชท ==================

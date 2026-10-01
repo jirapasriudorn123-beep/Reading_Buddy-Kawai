@@ -160,6 +160,34 @@ const PET_POSES = {
     holdPet: ["img/pets/thairidgeback-baby-holdpet.gif"],
     sleep: ["img/pets/thairidgeback-baby-sleep.png"],
   },
+  // 3 พันธุ์นี้ยังไม่มีท่าเศร้า (low) → ใช้ท่า idle แทนอัตโนมัติ
+  golden: {
+    idle: ["img/pets/golden/09_golden_happy_normal_wag.gif"],
+    feed: ["img/pets/golden/golden_eating.gif"],
+    happiness: ["img/pets/golden/golden_happy.gif", "img/pets/golden/08_golden_happy_fast_wag.gif"],
+    levelUp: ["img/pets/golden/golden_jump.gif"],
+    bath: ["img/pets/golden/golden_bath.gif", "img/pets/golden/golden_bath_shaking fur.gif"],
+    holdPet: ["img/pets/golden/08_golden_happy_fast_wag.gif"],
+    sleep: ["img/pets/golden/golden_sleeping.gif"],
+  },
+  shiba: {
+    idle: ["img/pets/shiba/shiba_stand.gif"],
+    feed: ["img/pets/shiba/shiba_eating.gif"],
+    happiness: ["img/pets/shiba/shiba_happy.gif"],
+    levelUp: ["img/pets/shiba/shiba_happy.gif"], // ยังไม่มีท่ากระโดด ใช้ท่าดีใจแทน
+    bath: ["img/pets/shiba/shiba_bath.gif"],
+    holdPet: ["img/pets/shiba/shiba_tail_blink_ear_120f.gif"],
+    sleep: ["img/pets/shiba/shiba_sleeping.gif"],
+  },
+  siberian: {
+    idle: ["img/pets/siberian/husky_sit_tail_tongue_blink.gif"],
+    feed: ["img/pets/siberian/husky_eating_tail.gif"],
+    happiness: ["img/pets/siberian/husky_happy_wag_blink.gif"],
+    levelUp: ["img/pets/siberian/husky_howling.gif"],
+    bath: ["img/pets/siberian/husky_bath.gif"],
+    holdPet: ["img/pets/siberian/husky_tail_blink_ear.gif"],
+    sleep: ["img/pets/siberian/husky_puppy_sleeping_zzz.gif", "img/pets/siberian/husky_adult_sleeping_zzz.gif"],
+  },
 };
 
 function getPoseFrames(breed, poseKey) {

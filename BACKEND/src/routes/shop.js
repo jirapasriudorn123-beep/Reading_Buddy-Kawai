@@ -12,7 +12,7 @@ router.get("/products", requireAuth, async (req, res, next) => {
       db.prepare("SELECT * FROM products ORDER BY category, name").all(),
       db
         .prepare(
-          "SELECT COALESCE(SUM(planned_read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
+          "SELECT COALESCE(SUM(read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
         )
         .get(req.user.id),
     ]);
@@ -60,12 +60,12 @@ router.post("/buy", requireAuth, async (req, res) => {
     }
 
     // สินค้าที่ต้องอ่านสะสมก่อน (คูปอง) เช็ค reading total ก่อนขาย
-    // ใช้ planned_read_seconds จาก reading_sessions ที่ status='completed' เท่านั้น (ตรงกับ admin dashboard)
+    // ใช้ read_seconds (เวลาที่อ่านจริง) จาก reading_sessions ที่ status='completed' เท่านั้น (ตรงกับ admin dashboard)
     if (product.required_reading_minutes > 0) {
       const requiredSeconds = product.required_reading_minutes * 60;
       const row = await db
         .prepare(
-          "SELECT COALESCE(SUM(planned_read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
+          "SELECT COALESCE(SUM(read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
         )
         .get(req.user.id);
       const totalSeconds = row.s || 0;

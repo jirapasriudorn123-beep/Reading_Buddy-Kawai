@@ -76,10 +76,16 @@ body {
 }
 
 .soft-field input {
+    /* ให้ช่อง input เต็มกรอบ .field-container พอดี คลิกตรงไหนในกรอบก็พิมพ์ได้
+       (เดิมโดน input { margin: 8px 0 } + inline-block ดันลง เหลือขอบบน/ล่างที่คลิกไม่ติด) */
+    display: block;
+    box-sizing: border-box;
     width: 100%;
+    margin: 0;
     background: transparent;
     border: none;
-    padding: 14px 12px;
+    /* บนเยอะกว่าล่าง: เว้นที่ให้ label ที่ลอยขึ้นไปอยู่ด้านบน ไม่ทับข้อความที่พิมพ์ */
+    padding: 28px 16px 16px;
     color: #8b6655;
     font-size: 15px;
     font-weight: 400;
@@ -1374,22 +1380,27 @@ body {
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
+/* แถวเดียว: ปุ่มหมวดหมู่เรียงเต็มฝั่งซ้าย (กว้างเท่ากัน ห่างเท่ากัน) | ช่องค้นหา + ตะกร้า มุมขวา */
 .filter-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 32px;
     padding: 20px;
 }
 
 .category-tabs {
     display: flex;
+    flex: 1 1 auto;
     gap: 10px;
 }
 
 .tab-btn {
+    flex: 1 1 0; /* ทุกปุ่มกว้างเท่ากัน ยืดเต็มพื้นที่ที่เหลือ */
+    min-width: 0;
     background-color: #eee9d9; 
     border: 1px solid #000;
-    padding: 4px 35px;
+    padding: 4px 12px; /* เดิม 35px ทำให้ปุ่มหมวดหมู่เบียดช่องค้นหา/ตะกร้าจนล้นจอ */
     border-radius: 20px;
     cursor: pointer;
     font-family: 'Kanit', sans-serif;
@@ -1404,11 +1415,17 @@ body {
 
 .search-section {
     display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
     align-items: center;
     gap: 15px;
 }
 
 #searchInput {
+    /* ความกว้างตายตัว ไม่ให้โดนปุ่มหมวดหมู่เบียดจนเหลือวงกลมเล็กๆ */
+    width: 140px;
+    min-width: 90px; /* จอแคบ: หดได้บ้าง ไม่ให้ดันตะกร้าล้นขอบจอ */
+    flex-shrink: 1;
     padding: 8px 15px;
     border-radius: 20px;
     border: 1px solid #ccc;
@@ -1451,7 +1468,17 @@ body {
 }
 
 .category-tabs {
-    gap: 20px;         
+    gap: 14px;
+}
+
+/* จอแคบ (โน้ตบุ๊กเล็ก/แท็บเล็ตแนวนอน): ลดช่องไฟ ให้ทุกอย่างยังอยู่แถวเดียวไม่ล้นจอ */
+@media (max-width: 1200px) {
+    .filter-container {
+        gap: 16px;
+    }
+    .category-tabs {
+        gap: 8px;
+    }
 }
 
 .product-grid {
@@ -1706,6 +1733,29 @@ html.dark-mode body .coupon-terms-list strong {
 
 .coupon-banner.locked {
   cursor: pointer;
+}
+
+/* ราคาคูปองเป็นคอยน์ — ป้ายมุมขวาล่างของ banner */
+.coupon-price-tag {
+  position: absolute;
+  right: 10%; /* หลบแถบบาร์โค้ดสีแดงด้านขวาของรูปคูปอง */
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #8db754;
+  color: #fff;
+  font-family: 'Kanit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.coupon-price-tag img {
+  width: 20px;
+  height: 20px;
 }
 
 .coupon-banner.locked .coupon-banner-img {
@@ -2723,6 +2773,13 @@ body.dark-mode .reader-pdf-placeholder {
   transform: scale(1.08);
 }
 
+/* ไอคอนหุ่นยนต์น้องหมา (แทนอิโมจิ 🐶 เดิม ขนาดใกล้เคียงกัน) */
+#chatBubbleBtn img {
+  width: 38px;
+  height: 38px;
+  pointer-events: none;
+}
+
 #chatPanel {
   position: fixed;
   bottom: 96px;
@@ -2771,6 +2828,31 @@ body.dark-mode .reader-pdf-placeholder {
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
+}
+
+/* แถบโควต้าถาม AI ใต้หัวแชท */
+.chat-panel-quota {
+  padding: 6px 16px;
+  background: #eef5e2;
+  color: #5f6b52;
+  font-family: 'Kanit', sans-serif;
+  font-size: 13px;
+  border-bottom: 1px solid #dfe9cf;
+}
+
+.chat-panel-quota:empty {
+  display: none;
+}
+
+.chat-panel-quota.empty {
+  background: #fff1e6;
+  color: #b0561e;
+}
+
+html.dark-mode body .chat-panel-quota {
+  background: #2f3a26;
+  color: #cfd8c4;
+  border-bottom-color: #3d4a31;
 }
 
 .chat-panel-messages {

@@ -550,11 +550,12 @@ const QUIZ_BREED_KEYS = ["golden", "shiba", "siberian", "thairidgeback"];
 let quizByChapter = {};
 let quizByBreed = {};
 
+// server ไม่ส่งเฉลยมาด้วย (ตรวจคำตอบที่ POST /api/game/answer แทน) เลยเก็บแค่ id ไว้ส่งกลับไปตรวจ
 function mapQuizRows(rows) {
   return (rows || []).map((r) => ({
+    id: r.id,
     q: r.question,
     opts: [r.option_1, r.option_2, r.option_3, r.option_4],
-    a: r.correct_option - 1,
   }));
 }
 
@@ -600,15 +601,21 @@ function pickQuizForStage(worldI, stageNo) {
   };
 }
 
-// บันทึกผลตอบคำถาม (ถูก/ผิด) ไปเก็บสถิติที่หน้าแอดมิน "จัดการคะแนน" — ไม่บล็อกเกม ถ้าพลาดก็แค่ log ไว้เฉยๆ
-function reportAnswer(category, correct) {
+// ส่งคำตอบให้ server ตรวจ (server บันทึกสถิติที่หน้าแอดมิน "จัดการคะแนน" ให้ด้วย)
+// คืนค่า { correct, correctOption } — correctOption นับเริ่มที่ 1
+async function checkAnswer(category, questionId, pickedIdx) {
   const token = localStorage.getItem("token");
-  if (!token) return;
-  fetch(`${API_BASE_URL}/game/answer`, {
+  const res = await fetch(`${API_BASE_URL}/game/answer`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ category, correct }),
-  }).catch((err) => console.error("บันทึกคะแนนไม่สำเร็จ:", err));
+    body: JSON.stringify({
+      source: category === "dog" ? "breed" : "chapter",
+      questionId,
+      picked: pickedIdx + 1,
+    }),
+  });
+  if (!res.ok) throw new Error(`ตรวจคำตอบไม่สำเร็จ (${res.status})`);
+  return res.json();
 }
 
 // สลับลำดับคำถามแบบสุ่ม เล่นซ้ำจะได้ไม่เจอลำดับเดิม
@@ -706,19 +713,29 @@ function renderQuizQuestion() {
     btn.type = "button";
     btn.className = "quiz-opt";
     btn.textContent = text;
-    btn.addEventListener("click", () => answerQuiz(i, item.a, wrap));
+    btn.addEventListener("click", () => answerQuiz(i, item.id, wrap));
     wrap.appendChild(btn);
   });
 }
 
-function answerQuiz(picked, correct, wrap) {
+async function answerQuiz(picked, questionId, wrap) {
   const buttons = [...wrap.querySelectorAll(".quiz-opt")];
   buttons.forEach((b) => (b.disabled = true));
-  buttons[correct].classList.add("correct");
 
-  reportAnswer(battleCategory, picked === correct);
+  let result;
+  try {
+    result = await checkAnswer(battleCategory, questionId, picked);
+  } catch (err) {
+    console.error(err);
+    alert("เชื่อมต่อ server ไม่ได้ ตรวจคำตอบไม่สำเร็จ ลองกดตอบใหม่อีกครั้งนะ");
+    buttons.forEach((b) => (b.disabled = false));
+    return;
+  }
+  if (!battleActive) return; // หมดเวลาไปแล้วระหว่างรอ server ตอบ
 
-  if (picked === correct) {
+  buttons[result.correctOption - 1]?.classList.add("correct");
+
+  if (result.correct) {
     enemyHp -= 1;
     renderEnemyHp();
     flashHit("battleEnemy");
