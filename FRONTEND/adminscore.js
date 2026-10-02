@@ -129,12 +129,13 @@ async function loadStageRewards(userId) {
     if (!box.isConnected) return; // ปิด/เปิดหน้าต่างของคนอื่นไปแล้วระหว่างรอ
     box.innerHTML = stages.length
       ? `<table class="lesson-table qs-stage-table">
-          <thead><tr><th>โลก</th><th>ด่าน</th><th>คะแนน</th><th>คอยน์</th><th>วันที่ได้</th></tr></thead>
+          <thead><tr><th>โลก</th><th>ด่าน</th><th>ดาว</th><th>คะแนน</th><th>คอยน์</th><th>วันที่ได้</th></tr></thead>
           <tbody>${stages
             .map(
               (s) => `<tr>
                 <td>${s.world}</td>
                 <td>${s.stage}</td>
+                <td class="qs-stars">${"★".repeat(s.stars)}<span class="qs-stars-off">${"★".repeat(3 - s.stars)}</span></td>
                 <td>${s.scorePercent}%</td>
                 <td>🪙 +${s.coins}</td>
                 <td>${escapeHtml(formatThaiDate(s.rewardedAt))}</td>

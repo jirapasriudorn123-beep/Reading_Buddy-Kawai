@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Phayao Adventure</title>
-    <link rel="stylesheet" href="game.css?v=2">
+    <link rel="stylesheet" href="game.css?v=3">
     <link rel="stylesheet" href="cursor.css?v=20260926">
 </head>
 <body>
@@ -124,6 +124,10 @@
 
             <div id="battleResult" class="battle-result">
                 <h2 id="battleResultTitle"></h2>
+                <div id="battleResultStars" class="battle-stars" aria-hidden="true">
+                    <span class="battle-star">★</span><span class="battle-star">★</span><span class="battle-star">★</span>
+                </div>
+                <p id="battleResultScore" class="battle-result-score"></p>
                 <p id="battleResultText"></p>
                 <button id="battleResultBtn" class="battle-result-btn" type="button"></button>
             </div>
@@ -132,7 +136,7 @@
 
     <script src="config.js?v=2"></script>
     <script src="game-content.js?v=2"></script>
-    <script src="game.js?v=20260926"></script>
+    <script src="game.js?v=20261002"></script>
     <script src="cursor.js?v=2"></script>
 </body>
 </html>

@@ -445,10 +445,16 @@ async function initDatabase() {
       stage INTEGER NOT NULL,
       coins INTEGER NOT NULL,
       score_percent INTEGER NOT NULL,
+      stars INTEGER NOT NULL DEFAULT 0,
       rewarded_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, world, stage)
     )
   `);
+  // stars = ดาวที่ดีที่สุดของด่านนั้น (เล่นซ้ำได้ดาวมากกว่าเดิมจะอัปเดต แต่คอยน์ได้ครั้งเดียว)
+  const stageRewardColumns = (await client.execute("PRAGMA table_info(game_stage_rewards)")).rows.map((c) => c.name);
+  if (!stageRewardColumns.includes("stars")) {
+    await client.execute("ALTER TABLE game_stage_rewards ADD COLUMN stars INTEGER NOT NULL DEFAULT 0");
+  }
 
   // ---- ตาราง chat_answers ----
   await client.execute(`

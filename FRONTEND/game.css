@@ -955,6 +955,47 @@ html, body {
   text-align: center;
 }
 
+/* ดาว 3 ดวง: ได้ = ทอง, ไม่ได้ = เทา เด้งขึ้นทีละดวง (หน่วงเวลาตั้งใน game.js) */
+.battle-stars {
+  display: flex;
+  gap: clamp(6px, 1.2vw, 14px);
+}
+
+.battle-star {
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1;
+  color: #5b6270;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+  transform: scale(0);
+}
+
+.battle-star:nth-child(2) {
+  transform: scale(0) translateY(-12px);
+  font-size: clamp(48px, 7.2vw, 88px);
+}
+
+.battle-star.earned { color: var(--gold); }
+
+.battle-star.pop { animation: star-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.battle-star:nth-child(2).pop { animation-name: star-pop-mid; }
+
+@keyframes star-pop {
+  to { transform: scale(1); }
+}
+
+@keyframes star-pop-mid {
+  to { transform: scale(1) translateY(-12px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-star.pop { animation-duration: 0.01s; }
+}
+
+.battle-result-score {
+  font-weight: bold;
+  color: var(--gold) !important;
+}
+
 .battle-result-btn {
   margin-top: 8px;
   padding: 12px 40px;

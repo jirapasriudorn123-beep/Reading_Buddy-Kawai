@@ -757,12 +757,22 @@ function updateBattleTimerLabel() {
   document.querySelector(".battle-timer").classList.toggle("urgent", battleTimeLeft <= 60);
 }
 
-// ข้อความผลคะแนน/โบนัสเหรียญบนหน้าผลการต่อสู้
+// ข้อความโบนัสเหรียญบนหน้าผลการต่อสู้ (ผู้เล่นเห็นเป็นดาว + จำนวนข้อ ส่วน % ดูได้ที่หน้าแอดมิน)
 function rewardMessage(r) {
-  const score = `คะแนน ${r.scorePercent}%`;
-  if (r.coinsEarned > 0) return `${score} — ได้โบนัส +${r.coinsEarned} คอยน์! 🪙`;
-  if (r.alreadyRewarded) return `${score} — ด่านนี้เคยได้โบนัสไปแล้ว`;
-  return `${score} — ได้ 80% ขึ้นไปจะได้โบนัสคอยน์นะ`;
+  if (r.coinsEarned > 0) return `ได้โบนัส +${r.coinsEarned} คอยน์! 🪙`;
+  if (r.alreadyRewarded) return "ด่านนี้เคยได้โบนัสคอยน์ไปแล้ว";
+  return "ตอบผิดให้น้อยลง จะได้โบนัสคอยน์นะ";
+}
+
+// ดาวเด้งขึ้นทีละดวง (ได้ = สีทอง, ไม่ได้ = สีเทา) — ชนะได้ 1-3 ดาวตามหัวใจที่เหลือ แพ้ได้ 0 ดาว
+function renderResultStars(stars) {
+  document.querySelectorAll("#battleResultStars .battle-star").forEach((el, i) => {
+    el.classList.remove("earned", "pop");
+    void el.offsetWidth; // เริ่มอนิเมชันใหม่ทุกครั้งที่เปิดหน้าผล
+    el.style.animationDelay = `${0.25 + i * 0.3}s`;
+    el.classList.add("pop");
+    if (i < stars) el.classList.add("earned");
+  });
 }
 
 function endBattle(won, message) {
@@ -773,6 +783,11 @@ function endBattle(won, message) {
   document.getElementById("battleResultTitle").textContent = won ? "ผ่านด่าน!" : "แพ้แล้ว";
   document.getElementById("battleResultText").textContent =
     won && battleReward ? `${message}\n${rewardMessage(battleReward)}` : message;
+  // หมดเวลาจะไม่มีผลจาก server (ไม่ได้ตอบข้อสุดท้าย) เลยใช้ตัวนับฝั่งหน้าเว็บแทน
+  const correctCount = battleReward ? battleReward.correctCount : battleQuiz.length - enemyHp;
+  const totalAnswered = battleReward ? battleReward.totalAnswered : correctCount + (PLAYER_MAX_HEARTS - playerHearts);
+  document.getElementById("battleResultScore").textContent = `ตอบถูก ${correctCount} จาก ${totalAnswered} ข้อ`;
+  renderResultStars(won && battleReward ? battleReward.stars : 0);
   document.getElementById("battleResultBtn").textContent = won ? "ไปด่านถัดไป" : "ลองใหม่";
   box.classList.add("show");
 

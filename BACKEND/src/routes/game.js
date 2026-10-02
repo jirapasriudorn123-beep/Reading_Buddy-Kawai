@@ -122,6 +122,11 @@ const REWARD_MIN_PERCENT = 80;
 const REWARD_COINS = 10; // เท่ากับอ่าน 5 นาที
 const REWARD_COINS_PERFECT = 15; // ตอบถูกหมดไม่ผิดเลย
 
+// ดาวตอนชนะ = หัวใจที่เหลือ: ไม่ผิดเลย 3 ดาว | ผิด 1 ข้อ 2 ดาว | ผิด 2 ข้อ 1 ดาว (แพ้ = 0 ดาว)
+function starsFor(status, wrongCount) {
+  return status === "won" ? Math.max(1, BATTLE_MAX_WRONG - wrongCount) : 0;
+}
+
 function shuffle(list) {
   const out = list.slice();
   for (let i = out.length - 1; i > 0; i--) {
@@ -250,6 +255,7 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
     else if (wrongCount >= BATTLE_MAX_WRONG) status = "lost";
 
     const scorePercent = Math.round((correctCount / totalAnswered) * 100);
+    const stars = starsFor(status, wrongCount);
     let coinsEarned = 0;
     if (status === "won" && scorePercent >= REWARD_MIN_PERCENT) {
       coinsEarned = wrongCount === 0 ? REWARD_COINS_PERFECT : REWARD_COINS;
@@ -270,13 +276,20 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
         correct ? 1 : 0
       );
 
+      // ชนะด่านที่เคยได้โบนัสไปแล้ว: เก็บดาวที่ดีที่สุดไว้ (คอยน์ไม่ได้เพิ่ม)
+      if (stars > 0) {
+        await t.prepare(
+          "UPDATE game_stage_rewards SET stars = MAX(stars, ?) WHERE user_id = ? AND world = ? AND stage = ?"
+        ).run(stars, req.user.id, battle.world, battle.stage);
+      }
+
       if (coinsEarned === 0) return { coinsAwarded: 0, alreadyRewarded: false };
 
       // โบนัสได้ครั้งเดียวต่อด่าน — ด่านที่เคยได้ไปแล้ว INSERT จะไม่เกิดอะไรขึ้น
       const reward = await t.prepare(
-        `INSERT INTO game_stage_rewards (user_id, world, stage, coins, score_percent) VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO game_stage_rewards (user_id, world, stage, coins, score_percent, stars) VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(user_id, world, stage) DO NOTHING`
-      ).run(req.user.id, battle.world, battle.stage, coinsEarned, scorePercent);
+      ).run(req.user.id, battle.world, battle.stage, coinsEarned, scorePercent, stars);
       if (reward.changes === 0) return { coinsAwarded: 0, alreadyRewarded: true };
 
       await t.prepare("UPDATE game_battles SET coins_earned = ? WHERE id = ?").run(coinsEarned, battleId);
@@ -292,6 +305,9 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
       correctOption: question.correct_option,
       status,
       scorePercent,
+      stars,
+      correctCount,
+      totalAnswered,
       coinsEarned: outcome.coinsAwarded,
       alreadyRewarded: outcome.alreadyRewarded,
     };

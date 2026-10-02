@@ -415,7 +415,7 @@ router.get("/scores/quiz/:userId/stages", requireAdmin, async (req, res, next) =
   try {
     const stages = await db
       .prepare(
-        `SELECT world, stage, coins, score_percent AS scorePercent, rewarded_at AS rewardedAt
+        `SELECT world, stage, coins, score_percent AS scorePercent, stars, rewarded_at AS rewardedAt
          FROM game_stage_rewards WHERE user_id = ? ORDER BY world ASC, stage ASC`
       )
       .all(Number(req.params.userId));
