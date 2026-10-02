@@ -127,9 +127,38 @@ let worldCards = [];
 // ส่วนล็อกที่มองเห็นบนสะพานจริงๆ คือไอคอน KeyLock.png ที่วางทับด้วยโค้ดตรงนี้เอง ตาม unlockedWorldCount
 const WORLD_STRIP_SRC = "img/game/world1-6/unlock5.png";
 
+// ซ่อนแผนที่จนกว่าภาพแถบโลกจะโหลดเสร็จ (ภาพใหญ่ 3840x720 เน็ตช้าจะค่อยๆ วาดจากบนลงล่าง ดูเหมือนด่านขาดครึ่ง)
+let worldStripReady = null;
+
+function waitForWorldStrip(track) {
+  if (!worldStripReady) {
+    worldStripReady = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = img.onerror = () => resolve();
+      img.src = WORLD_STRIP_SRC;
+      setTimeout(resolve, 8000); // เน็ตช้ามากก็โชว์ไปเลย ไม่ค้างหน้าว่าง
+    });
+  }
+  const map = document.getElementById("screenMap");
+  track.classList.add("loading");
+  let loadingText = null;
+  const showTextTimer = setTimeout(() => {
+    loadingText = document.createElement("div");
+    loadingText.className = "map-loading-text";
+    loadingText.textContent = "กำลังโหลดแผนที่...";
+    map.appendChild(loadingText);
+  }, 300);
+  worldStripReady.then(() => {
+    clearTimeout(showTextTimer);
+    if (loadingText) loadingText.remove();
+    track.classList.remove("loading");
+  });
+}
+
 function initWorldMap() {
   const track = document.getElementById("worldCardTrack");
   if (!track) return;
+  waitForWorldStrip(track);
 
   for (let i = 0; i < TOTAL_WORLDS; i++) {
     const card = document.createElement("div");

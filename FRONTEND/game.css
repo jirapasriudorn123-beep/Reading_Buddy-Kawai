@@ -210,23 +210,53 @@ html, body {
   -webkit-clip-path: circle(0% at 50% 50%);
 }
 
+#screenMap {
+  /* พื้นที่ด้านล่างที่ปุ่ม Play ใช้ (bottom 6vh + ความสูงปุ่ม + ระยะห่าง) — การ์ดโลกต้องอยู่เหนือพื้นที่นี้ */
+  --map-btn-width: min(70vw, 420px, 50vh); /* จอเตี้ยปุ่มก็เล็กลงด้วย ไม่กินพื้นที่แผนที่ */
+  --map-btn-space: calc(6vh + var(--map-btn-width) * 190 / 540 + 12px);
+  --map-top-space: 56px; /* ปุ่มรีเซ็ต/ย้อนกลับมุมบน */
+}
+
 #worldCardTrack {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
+  box-sizing: border-box;
+  /* จัดการ์ดให้อยู่กึ่งกลางของพื้นที่ระหว่างปุ่มมุมบนกับปุ่ม Play (ไม่ใช่กึ่งกลางจอ) */
+  padding-top: var(--map-top-space);
+  padding-bottom: var(--map-btn-space);
   display: flex;
   align-items: center;
+  transition: opacity 0.25s ease;
   /* ไม่มี gap ระหว่างการ์ด เพราะสะพานในภาพถูกวาดให้ต่อเนื่องกันพอดีเมื่อการ์ดชิดกันสนิท (ถ้ามี gap สะพานจะขาดเป็นช่องว่าง) */
   will-change: transform;
   touch-action: pan-y;
 }
 
+/* ระหว่างรอภาพแผนที่โหลดเสร็จ ซ่อนการ์ดไว้ก่อน (ไม่งั้นภาพจะค่อยๆ ขึ้นจากบนลงล่าง ดูเหมือนด่านขาดครึ่ง) */
+#worldCardTrack.loading {
+  opacity: 0;
+}
+
+.map-loading-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 18px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
 .world-card {
   position: relative;
   flex-shrink: 0;
-  width: 78vw;
-  max-width: 620px;
+  /* กว้างตามจอ แต่ไม่ให้สูงเกินพื้นที่ระหว่างปุ่มบน-ล่าง (จอกว้างแต่เตี้ย เช่นโน้ตบุ๊ก/มือถือแนวนอน)
+     ภาพโลกมีขอบฟ้าว่างด้านล่าง ~25% เลยยอมให้การ์ดสูงกว่าพื้นที่ได้นิดหน่อย (หาร 0.8) */
+  width: min(78vw, 620px, calc((100vh - var(--map-top-space) - var(--map-btn-space)) * 640 / 720 / 0.8));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -389,7 +419,7 @@ html, body {
   bottom: 6vh;
   transform: translateX(-50%);
   z-index: 20;
-  width: min(70vw, 420px);
+  width: var(--map-btn-width);
   aspect-ratio: 540 / 190;
   appearance: none;
   -webkit-appearance: none;
