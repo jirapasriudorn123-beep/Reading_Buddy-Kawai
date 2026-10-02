@@ -517,7 +517,7 @@ async function initDatabase() {
   const shopCountRes = await client.execute("SELECT COUNT(*) AS count FROM partner_shops");
   if (Number(shopCountRes.rows[0].count) === 0) {
     await client.batch(
-      ["Polsom Petshop สาขาขอนแก่น", "KKC Pet Shop ขอนแก่น", "Soso PetShop", "Chern9 Petshop"].map((name) => ({
+      ["Polsom Petshop สาขาขอนแก่น", "KKC Pet Shop ขอนแก่น", "Soso PetShop พะเยา", "Chern9 Petshop พะเยา"].map((name) => ({
         sql: "INSERT INTO partner_shops (name) VALUES (?)",
         args: [name],
       })),
