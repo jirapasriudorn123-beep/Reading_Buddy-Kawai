@@ -18,6 +18,12 @@ const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
 const UNIV_EMAIL_REGEX = /^[a-z0-9._%+-]+@up\.ac\.th$/;
 const UNIV_VERIFY_TTL_MINUTES = 30;
 
+// URL หน้าเว็บสำหรับลิงก์ในอีเมล (รวม path ของ GitHub Pages เช่น https://<user>.github.io/<repo>)
+// แยกจาก FRONTEND_ORIGIN เพราะค่านั้นใช้กับ CORS ซึ่งต้องเป็น origin ล้วนๆ ไม่มี path
+function frontendUrl() {
+  return (process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || "http://localhost:5500").replace(/\/+$/, "");
+}
+
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -244,8 +250,7 @@ router.post("/forgot-password", async (req, res) => {
       "UPDATE users SET reset_token_hash = ?, reset_token_expires = ? WHERE id = ?"
     ).run(tokenHash, expiresAt, user.id);
 
-    const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
-    const resetUrl = `${frontendOrigin}/newpassword.html?token=${rawToken}`;
+    const resetUrl = `${frontendUrl()}/newpassword.html?token=${rawToken}`;
 
     try {
       await sendPasswordResetEmail(email, resetUrl);
@@ -308,8 +313,7 @@ router.post("/univ-email/request", requireAuth, async (req, res, next) => {
       )
       .run(req.user.id, emailHash, hashToken(rawToken), expiresAt);
 
-    const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
-    const verifyUrl = `${frontendOrigin}/verify-email.html?token=${rawToken}`;
+    const verifyUrl = `${frontendUrl()}/verify-email.html?token=${rawToken}`;
     const message = `ส่งลิงก์ยืนยันไปที่ ${email} แล้ว กรุณาเปิดอีเมลแล้วกดลิงก์ภายใน ${UNIV_VERIFY_TTL_MINUTES} นาที (ถ้าไม่เจอให้ดูในโฟลเดอร์สแปม)`;
 
     try {
