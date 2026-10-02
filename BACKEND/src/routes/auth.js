@@ -12,6 +12,7 @@ const SALT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MINUTES = 15;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -246,7 +247,13 @@ router.post("/forgot-password", async (req, res) => {
       if (mailErr.code === "EMAIL_NOT_CONFIGURED") {
         console.log(`[DEV] ยังไม่ได้ตั้งค่าอีเมล — ลิงก์รีเซ็ตรหัสผ่านสำหรับ ${email}:`);
         console.log(resetUrl);
-        return res.json({ message: genericMessage, devResetUrl: resetUrl });
+        // ส่งลิงก์กลับไปให้หน้าเว็บเฉพาะตอนเรียกจากเครื่องตัวเอง (dev) เท่านั้น
+        // ถ้าเซิร์ฟเวอร์จริงลืมตั้งค่าอีเมล ห้ามส่งลิงก์กลับ ไม่งั้นใครพิมพ์อีเมลคนอื่นก็ยึดบัญชีได้
+        // ใช้ IP ของ socket ตรงๆ (ปลอมผ่าน header ไม่ได้ ต่างจาก req.ip ที่เชื่อ X-Forwarded-For)
+        if (LOOPBACK_ADDRESSES.includes(req.socket.remoteAddress)) {
+          return res.json({ message: genericMessage, devResetUrl: resetUrl });
+        }
+        return res.json({ message: genericMessage });
       }
 
       console.error("Send reset email failed:", mailErr);
