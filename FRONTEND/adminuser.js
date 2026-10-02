@@ -24,8 +24,10 @@ function renderUserTable() {
         ${
           u.is_admin
             ? `<span style="color:#999;">-</span>`
-            : `<button class="coin-adjust-btn" onclick="openCoinModal(${u.id})">🪙 ปรับคอยน์</button>
-               <button class="delete-item-btn" style="width:auto;padding:6px 14px;" onclick="deleteUser(${u.id})">ลบ</button>`
+            : `<div class="user-actions">
+                 <button class="coin-adjust-btn" onclick="openCoinModal(${u.id})">🪙 ปรับคอยน์</button>
+                 <button class="delete-item-btn user-delete-btn" onclick="deleteUser(${u.id})">ลบ</button>
+               </div>`
         }
       </td>
     </tr>`

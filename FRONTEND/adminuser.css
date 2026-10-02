@@ -1,9 +1,30 @@
 /* ================== หน้า "จัดการผู้ใช้": ปุ่ม/หน้าต่างปรับคอยน์ ================== */
 
+/* ปุ่มในช่อง "จัดการ" เรียงแถวเดียวกัน ไม่ตัดขึ้นบรรทัดใหม่จนเหลื่อมกัน */
+.user-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.user-actions button {
+  flex: 0 0 auto; /* ปุ่มลบมี flex: 1 จาก adminstyle.css กันไม่ให้ยืดเต็มช่อง */
+  height: 36px;
+  margin: 0;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.user-delete-btn {
+  width: auto;
+  padding: 0 16px;
+}
+
 .coin-adjust-btn {
   width: auto;
-  padding: 6px 14px;
-  margin: 2px;
+  padding: 0 14px;
   border: none;
   border-radius: 8px;
   background: #f9e79f;
@@ -72,4 +93,9 @@
 .coin-history-empty {
   color: #999;
   font-size: 14px;
+}
+
+/* จอแคบ: เลื่อนตารางซ้าย-ขวาได้ แทนที่ปุ่มในช่อง "จัดการ" จะล้นออกนอกกรอบ */
+.table-container {
+  overflow-x: auto;
 }
