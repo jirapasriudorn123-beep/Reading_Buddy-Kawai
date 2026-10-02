@@ -14,6 +14,7 @@ const router = express.Router();
 // 5) เข้าเรื่องสุนัข/บทเรียนแต่ไม่มีคำตอบ → ยิงเข้า Gemini พร้อม context
 
 const MAX_MESSAGE_LENGTH = 500;
+const HISTORY_LIMIT = 50; // โหลดประวัติย้อนหลังกี่คู่คำถาม-คำตอบตอนเปิดแชท
 
 function formatMinutes(seconds) {
   const m = Math.floor(seconds / 60);
@@ -248,12 +249,34 @@ router.post("/message", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    const reply = await buildReply(message.trim(), context, req.user.id);
+    const question = message.trim();
+    const reply = await buildReply(question, context, req.user.id);
+    // เก็บประวัติไว้ให้เปิดแชทครั้งหน้า/หน้าอื่นแล้วเห็นบทสนทนาเดิม (บันทึกไม่สำเร็จก็ยังตอบผู้ใช้ตามปกติ)
+    await db
+      .prepare("INSERT INTO chat_history (user_id, question, answer) VALUES (?, ?, ?)")
+      .run(req.user.id, question, reply)
+      .catch((err) => console.error("Save chat history error:", err));
     const aiQuota = await getAiQuotaStatus(req.user.id);
     return res.json({ reply, aiQuota });
   } catch (err) {
     console.error("Chat message error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ---------- GET /api/chat/history ----------
+// ประวัติแชทล่าสุดของผู้ใช้ เรียงเก่า → ใหม่ (หน้าแชทเอาไปแสดงต่อกันตามลำดับ)
+router.get("/history", requireAuth, async (req, res, next) => {
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT question, answer, created_at AS createdAt FROM chat_history
+         WHERE user_id = ? ORDER BY id DESC LIMIT ?`
+      )
+      .all(req.user.id, HISTORY_LIMIT);
+    return res.json({ history: rows.reverse() });
+  } catch (err) {
+    next(err);
   }
 });
 
