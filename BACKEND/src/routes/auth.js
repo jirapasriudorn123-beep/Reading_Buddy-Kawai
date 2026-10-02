@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
-const { sendPasswordResetEmail } = require("../utils/mailer");
+const { sendPasswordResetEmail, sendUnivVerificationEmail } = require("../utils/mailer");
 const { avatarUpload } = require("../utils/cloudinary");
 
 const router = express.Router();
@@ -13,6 +13,10 @@ const RESET_TOKEN_TTL_MINUTES = 15;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOOPBACK_ADDRESSES = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
+
+// อีเมลนิสิต ม.พะเยา — ต้องยืนยันก่อนแลกคูปองส่วนลด (กันสมัครหลายบัญชีมาแลกซ้ำ)
+const UNIV_EMAIL_REGEX = /^[a-z0-9._%+-]+@up\.ac\.th$/;
+const UNIV_VERIFY_TTL_MINUTES = 30;
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -117,14 +121,17 @@ router.post("/login", async (req, res) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const user = await db
-      .prepare("SELECT id, email, username, coins, is_admin, avatar_url, created_at FROM users WHERE id = ?")
+      .prepare(
+        "SELECT id, email, username, coins, is_admin, avatar_url, created_at, univ_verified_at FROM users WHERE id = ?"
+      )
       .get(req.user.id);
 
     if (!user) {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    return res.json({ user: { ...user, avatarUrl: user.avatar_url } });
+    const { univ_verified_at, ...rest } = user;
+    return res.json({ user: { ...rest, avatarUrl: user.avatar_url, univVerified: !!univ_verified_at } });
   } catch (err) {
     next(err);
   }
@@ -264,6 +271,104 @@ router.post("/forgot-password", async (req, res) => {
   } catch (err) {
     console.error("Forgot password error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ---------- POST /api/auth/univ-email/request ----------
+// ส่งลิงก์ยืนยันไปที่อีเมลมหาวิทยาลัย (@up.ac.th) — ยืนยันแล้วถึงจะแลกคูปองได้
+// เก็บแค่ SHA-256 ของอีเมล (ไม่เก็บอีเมลจริง) พอสำหรับเช็คว่าอีเมลนี้เคยใช้ยืนยันบัญชีอื่นแล้วหรือยัง
+router.post("/univ-email/request", requireAuth, async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    if (!UNIV_EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ message: "กรุณากรอกอีเมลมหาวิทยาลัยที่ลงท้ายด้วย @up.ac.th" });
+    }
+
+    const user = await db.prepare("SELECT univ_verified_at FROM users WHERE id = ?").get(req.user.id);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+    if (user.univ_verified_at) {
+      return res.status(400).json({ message: "บัญชีนี้ยืนยันอีเมลมหาวิทยาลัยแล้ว" });
+    }
+
+    const emailHash = hashToken(email);
+    const taken = await db
+      .prepare("SELECT id FROM users WHERE univ_email_hash = ? AND id != ?")
+      .get(emailHash, req.user.id);
+    if (taken) {
+      return res.status(409).json({ message: "อีเมลนี้ถูกใช้ยืนยันกับบัญชีอื่นแล้ว (1 อีเมลยืนยันได้ 1 บัญชี)" });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + UNIV_VERIFY_TTL_MINUTES * 60 * 1000).toISOString();
+    await db
+      .prepare(
+        `INSERT INTO univ_email_verifications (user_id, email_hash, token_hash, expires_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET email_hash = excluded.email_hash, token_hash = excluded.token_hash,
+           expires_at = excluded.expires_at, created_at = datetime('now')`
+      )
+      .run(req.user.id, emailHash, hashToken(rawToken), expiresAt);
+
+    const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
+    const verifyUrl = `${frontendOrigin}/verify-email.html?token=${rawToken}`;
+    const message = `ส่งลิงก์ยืนยันไปที่ ${email} แล้ว กรุณาเปิดอีเมลแล้วกดลิงก์ภายใน ${UNIV_VERIFY_TTL_MINUTES} นาที (ถ้าไม่เจอให้ดูในโฟลเดอร์สแปม)`;
+
+    try {
+      await sendUnivVerificationEmail(email, verifyUrl);
+      return res.json({ message });
+    } catch (mailErr) {
+      if (mailErr.code === "EMAIL_NOT_CONFIGURED") {
+        console.log(`[DEV] ยังไม่ได้ตั้งค่าอีเมล — ลิงก์ยืนยันอีเมลมหาวิทยาลัย: ${verifyUrl}`);
+        // เหมือนลืมรหัสผ่าน: ส่งลิงก์กลับมาให้หน้าเว็บเฉพาะตอนเรียกจากเครื่องตัวเองเท่านั้น
+        if (LOOPBACK_ADDRESSES.includes(req.socket.remoteAddress)) {
+          return res.json({ message, devVerifyUrl: verifyUrl });
+        }
+      } else {
+        console.error("Send univ verification email failed:", mailErr);
+      }
+      return res.status(500).json({ message: "ไม่สามารถส่งอีเมลได้ในขณะนี้ กรุณาลองใหม่ภายหลัง" });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- POST /api/auth/univ-email/verify ----------
+// เปิดจากลิงก์ในอีเมล (ไม่ต้อง login — token ในลิงก์บอกอยู่แล้วว่าเป็นบัญชีไหน)
+router.post("/univ-email/verify", async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ message: "ลิงก์ยืนยันไม่ถูกต้อง" });
+    }
+
+    const pending = await db
+      .prepare("SELECT user_id, email_hash, expires_at FROM univ_email_verifications WHERE token_hash = ?")
+      .get(hashToken(token));
+    if (!pending) {
+      return res.status(400).json({ message: "ลิงก์ยืนยันไม่ถูกต้อง หรือถูกใช้ไปแล้ว" });
+    }
+    if (new Date(pending.expires_at) < new Date()) {
+      return res.status(400).json({ message: "ลิงก์ยืนยันหมดอายุแล้ว กรุณาขอลิงก์ใหม่ที่หน้าร้านค้า" });
+    }
+
+    try {
+      await db.tx(async (t) => {
+        await t.prepare(
+          "UPDATE users SET univ_email_hash = ?, univ_verified_at = datetime('now') WHERE id = ?"
+        ).run(pending.email_hash, pending.user_id);
+        await t.prepare("DELETE FROM univ_email_verifications WHERE user_id = ?").run(pending.user_id);
+      });
+    } catch (txErr) {
+      // unique index: อีเมลนี้ไปยืนยันกับบัญชีอื่นก่อนแล้ว (กดลิงก์จากสองบัญชีพร้อมกัน)
+      if (String(txErr.message).includes("UNIQUE")) {
+        return res.status(409).json({ message: "อีเมลนี้ถูกใช้ยืนยันกับบัญชีอื่นแล้ว (1 อีเมลยืนยันได้ 1 บัญชี)" });
+      }
+      throw txErr;
+    }
+
+    return res.json({ message: "ยืนยันอีเมลมหาวิทยาลัยสำเร็จ แลกคูปองได้แล้ว" });
+  } catch (err) {
+    next(err);
   }
 });
 

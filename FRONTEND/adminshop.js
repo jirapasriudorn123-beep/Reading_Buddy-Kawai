@@ -102,6 +102,11 @@ function togglePetGainField() {
   if (gainGroup) gainGroup.style.display = petAction ? "" : "none";
 }
 
+function toggleCouponFields() {
+  const isCoupon = document.getElementById("editItemCategory").value === "คูปอง";
+  document.getElementById("couponFieldsRow").style.display = isCoupon ? "" : "none";
+}
+
 function resetModalFields() {
   document.getElementById("editItemId").value = "";
   document.getElementById("editItemName").value = "";
@@ -110,7 +115,10 @@ function resetModalFields() {
   document.getElementById("editItemCategory").value = "อาหาร";
   document.getElementById("editItemPetAction").value = "";
   document.getElementById("editItemStatGain").value = "";
+  document.getElementById("editItemDiscount").value = "";
+  document.getElementById("editItemReqMinutes").value = "";
   togglePetGainField();
+  toggleCouponFields();
 
   const preview = document.getElementById("editImgPreview");
   preview.src = "";
@@ -142,7 +150,10 @@ function openEditModal(id) {
   document.getElementById("editItemCategory").value = product.category;
   document.getElementById("editItemPetAction").value = product.pet_action || "";
   document.getElementById("editItemStatGain").value = product.stat_gain || "";
+  document.getElementById("editItemDiscount").value = product.discount_baht || "";
+  document.getElementById("editItemReqMinutes").value = product.required_reading_minutes || "";
   togglePetGainField();
+  toggleCouponFields();
 
   const preview = document.getElementById("editImgPreview");
   preview.src = resolveProductImg(product.img);
@@ -206,6 +217,10 @@ async function saveItemEdit() {
       petAction: petAction || null,
       statGain: petAction ? Number(statGain) : 0,
     };
+    if (category === "คูปอง") {
+      payload.discountBaht = Number(document.getElementById("editItemDiscount").value) || 0;
+      payload.requiredReadingMinutes = Number(document.getElementById("editItemReqMinutes").value) || 0;
+    }
 
     if (selectedProductFile) {
       const formData = new FormData();

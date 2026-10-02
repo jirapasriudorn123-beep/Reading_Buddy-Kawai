@@ -28,6 +28,10 @@
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a6 6 0 0 1 12 0v2"/><rect x="3" y="8" width="18" height="13" rx="2"/></svg></span>
                 <span class="menu-label">จัดการร้านค้า</span>
             </a>
+            <a href="admincoupon.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><line x1="10" y1="7" x2="10" y2="17" stroke-dasharray="2 2"/></svg></span>
+                <span class="menu-label">จัดการคูปอง</span>
+            </a>
             <a href="admingame.html" class="menu-item">
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg></span>
                 <span class="menu-label">จัดการมินิเกม</span>
@@ -102,7 +106,7 @@
 
                 <div class="edit-form-group">
                     <label class="edit-form-label" for="editItemCategory">หมวดหมู่ :</label>
-                    <select class="edit-form-input" id="editItemCategory">
+                    <select class="edit-form-input" id="editItemCategory" onchange="toggleCouponFields()">
                         <option value="อาหาร">อาหาร</option>
                         <option value="ของเล่น">ของเล่น</option>
                         <option value="อาบน้ำ">อาบน้ำ</option>
@@ -128,6 +132,20 @@
                         <label class="edit-form-label" for="editItemStatGain">เติมให้กี่ % :</label>
                         <input class="edit-form-input" id="editItemStatGain" type="number" min="1" max="100" placeholder="10"/>
                         <p class="edit-form-hint">ไอเทมนี้จะไปอยู่ในกระเป๋าที่เลือก และเติมสถานะให้ตามค่านี้</p>
+                    </div>
+                </div>
+
+                <!-- เฉพาะหมวดคูปอง: มูลค่าส่วนลดที่ร้านจริง + เวลาอ่านสะสมขั้นต่ำก่อนแลก -->
+                <div class="edit-form-row" id="couponFieldsRow" style="display:none;">
+                    <div class="edit-form-group">
+                        <label class="edit-form-label" for="editItemDiscount">มูลค่าส่วนลด (บาท) :</label>
+                        <input class="edit-form-input" id="editItemDiscount" type="number" min="0" placeholder="20"/>
+                        <p class="edit-form-hint">ใส่มากกว่า 0 = คูปองใช้ที่ร้านจริง (ได้รหัส + QR หมดอายุ 30 วัน แต่ละบัญชีแลกได้ 1 ครั้ง)</p>
+                    </div>
+                    <div class="edit-form-group">
+                        <label class="edit-form-label" for="editItemReqMinutes">ต้องอ่านสะสม (นาที) :</label>
+                        <input class="edit-form-input" id="editItemReqMinutes" type="number" min="0" placeholder="60"/>
+                        <p class="edit-form-hint">0 = ไม่ต้องอ่านสะสมก่อนแลก</p>
                     </div>
                 </div>
 
@@ -162,6 +180,6 @@
 
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminshop.js"></script>
+<script src="adminshop.js?v=2"></script>
 </body>
 </html>

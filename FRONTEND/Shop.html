@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css">
+    <link rel="stylesheet" href="coupon.css?v=1">
 </head>
 <body>
     <div class="container">
@@ -89,6 +90,11 @@
 </div>
 
 <div class="shop-container">
+    <!-- แถบบนสุดของ tab "คูปอง": สถานะยืนยันอีเมลมหาวิทยาลัย + ปุ่มคูปองของฉัน (ควบคุมโดย shop.js) -->
+    <div id="couponToolbar" class="coupon-toolbar" style="display:none;">
+        <div id="couponVerifyStatus" class="coupon-verify-status"></div>
+        <button type="button" class="my-coupons-btn" onclick="openMyCoupons()">🎫 คูปองของฉัน <span id="myCouponCount"></span></button>
+    </div>
     <div id="productGrid" class="product-grid">
         </div>
 
@@ -137,8 +143,10 @@
             <ul class="coupon-terms-list">
                 <li>ใช้ได้เฉพาะร้านที่ร่วมรายการ (Polsom Petshop / KKC Pet Shop) สาขาขอนแก่นเท่านั้น</li>
                 <li>ใช้ได้กับสินค้าประเภท <strong>อาหารสุนัข ยา ของใช้น้องหมา ของเล่น เสื้อผ้า</strong> ที่ร้านระบุไว้</li>
-                <li>คูปองมีอายุ <strong>30 วัน</strong> นับจากวันที่แลก ห้ามใช้เกินอายุ</li>
-                <li>ใช้ได้ครั้งเดียวต่อ 1 คูปอง แสดงคูปองในแอปให้พนักงานที่หน้าร้านเพื่อรับส่วนลด</li>
+                <li>ต้อง<strong>ยืนยันอีเมลมหาวิทยาลัย (@up.ac.th)</strong> ก่อนแลก อีเมล 1 อีเมลใช้ได้ 1 บัญชี</li>
+                <li>คูปองแต่ละแบบแลกได้ <strong>1 ครั้งต่อบัญชี</strong> (สูงสุด 5 ใบ)</li>
+                <li>คูปองมีอายุ <strong>30 วัน</strong> นับจากวันที่แลก หมดอายุแล้วใช้ไม่ได้และไม่คืนคอยน์</li>
+                <li>ใช้ได้ครั้งเดียวต่อ 1 คูปอง เปิด QR ใน "คูปองของฉัน" ให้พนักงานสแกนเพื่อรับส่วนลด</li>
                 <li>ไม่สามารถแลกเป็นเงินสด หรือใช้ร่วมกับโปรโมชั่นอื่นได้</li>
             </ul>
         </div>
@@ -161,7 +169,7 @@
         </div>
 
         <div class="modal-footer">
-            <div class="modal-qty-row">
+            <div class="modal-qty-row" id="modalQtyRow">
                 <span class="modal-qty-label">จำนวน :</span>
                 <div class="modal-qty-control">
                     <button type="button" class="qty-btn" onclick="changeModalQty(-1)" aria-label="ลดจำนวน">-</button>
@@ -174,7 +182,7 @@
                     <img src="img/coin_ja.png" width="18">
                     <span id="modalBuyPrice"></span>
                 </button>
-                <button class="add-to-cart-btn" onclick="addToCart()">
+                <button class="add-to-cart-btn" id="modalAddToCartBtn" onclick="addToCart()">
                     <img src="img/cart-basket2.png" width="20"> เพิ่มลงตะกร้า
                 </button>
             </div>
@@ -208,9 +216,46 @@
         <button class="checkout-btn" onclick="checkout()">ซื้อ</button>
     </div>
 </div>
+<!-- ยืนยันอีเมลมหาวิทยาลัย (ต้องทำก่อนแลกคูปอง) -->
+<div id="univEmailModal" class="modal-overlay" onclick="if (event.target === this) closeModal('univEmailModal')">
+    <div class="product-detail-content coupon-modal" onclick="event.stopPropagation()">
+        <button class="close-x" onclick="closeModal('univEmailModal')">x</button>
+        <h3 class="product-title">ยืนยันอีเมลมหาวิทยาลัย</h3>
+        <p class="coupon-modal-text">ก่อนแลกคูปองส่วนลด ต้องยืนยันว่าเป็นนิสิต ม.พะเยา ด้วยอีเมล <strong>@up.ac.th</strong> ระบบจะส่งลิงก์ยืนยันไปที่อีเมลนี้</p>
+        <input type="email" id="univEmailInput" class="coupon-input" placeholder="รหัสนิสิต@up.ac.th" autocomplete="email">
+        <label class="coupon-consent">
+            <input type="checkbox" id="univEmailConsent">
+            <span>ยินยอมให้ใช้อีเมลนี้เพื่อยืนยันตัวตนและจำกัดการแลกคูปอง (ระบบเก็บเฉพาะค่าเข้ารหัสของอีเมล ไม่เก็บอีเมลจริง และไม่ใช้ส่งโฆษณา)</span>
+        </label>
+        <button type="button" id="univEmailSendBtn" class="coupon-primary-btn" onclick="requestUnivEmail()">ส่งลิงก์ยืนยัน</button>
+        <p id="univEmailResult" class="coupon-modal-result"></p>
+    </div>
+</div>
+
+<!-- คูปองของฉัน -->
+<div id="myCouponsModal" class="modal-overlay" onclick="if (event.target === this) closeModal('myCouponsModal')">
+    <div class="product-detail-content coupon-modal coupon-modal-wide" onclick="event.stopPropagation()">
+        <button class="close-x" onclick="closeModal('myCouponsModal')">x</button>
+        <h3 class="product-title">คูปองของฉัน</h3>
+        <div id="myCouponsList" class="my-coupons-list"></div>
+    </div>
+</div>
+
+<!-- QR ของคูปอง 1 ใบ ให้พนักงานสแกน -->
+<div id="couponQrModal" class="modal-overlay" onclick="if (event.target === this) closeCouponQr()">
+    <div class="product-detail-content coupon-modal" onclick="event.stopPropagation()">
+        <button class="close-x" onclick="closeCouponQr()">x</button>
+        <h3 id="couponQrTitle" class="product-title"></h3>
+        <div id="couponQrBox" class="coupon-qr-box"></div>
+        <div id="couponQrCode" class="coupon-qr-code"></div>
+        <p id="couponQrInfo" class="coupon-modal-text coupon-qr-info"></p>
+    </div>
+</div>
+
 <script src="config.js"></script>
 <script src="notifications.js"></script>
-<script src="shop.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="shop.js?v=2"></script>
 <script src="theme.js"></script>
 <script src="chat.js"></script>
 <script src="cursor.js"></script>

@@ -64,4 +64,44 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
   });
 }
 
-module.exports = { sendPasswordResetEmail };
+// ส่งอีเมลลิงก์ยืนยันอีเมลมหาวิทยาลัย (ต้องยืนยันก่อนแลกคูปองส่วนลด)
+// throw error ชื่อ "EMAIL_NOT_CONFIGURED" ถ้ายังไม่ได้ตั้งค่า .env
+async function sendUnivVerificationEmail(toEmail, verifyUrl) {
+  const t = getTransporter();
+
+  if (!t) {
+    const err = new Error("EMAIL_NOT_CONFIGURED");
+    err.code = "EMAIL_NOT_CONFIGURED";
+    throw err;
+  }
+
+  await t.sendMail({
+    from: `"webapp_for_reading" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: "ยืนยันอีเมลมหาวิทยาลัยเพื่อแลกคูปอง",
+    text:
+      `กดลิงก์นี้เพื่อยืนยันอีเมลมหาวิทยาลัยของคุณ (หมดอายุใน 30 นาที):\n${verifyUrl}\n\n` +
+      `ยืนยันแล้วจะแลกคูปองส่วนลดได้ อีเมล 1 อีเมลใช้ยืนยันได้ 1 บัญชีเท่านั้น\n` +
+      `หากคุณไม่ได้เป็นคนขอ สามารถละเว้นอีเมลนี้ได้`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #333;">
+        <h2 style="color:#1a1a1a;">ยืนยันอีเมลมหาวิทยาลัย</h2>
+        <p>กดปุ่มด้านล่างเพื่อยืนยันอีเมลนี้ ยืนยันแล้วจะแลกคูปองส่วนลดในร้านค้าได้</p>
+        <p style="margin: 24px 0;">
+          <a href="${verifyUrl}"
+             style="background:#4f46e5;color:#ffffff;padding:12px 24px;border-radius:8px;
+                    text-decoration:none;display:inline-block;font-weight:bold;">
+            ยืนยันอีเมล
+          </a>
+        </p>
+        <p style="font-size: 13px; color:#666;">ลิงก์นี้จะหมดอายุภายใน 30 นาที อีเมล 1 อีเมลใช้ยืนยันได้ 1 บัญชีเท่านั้น</p>
+        <p style="font-size: 13px; color:#666;">หากปุ่มด้านบนกดไม่ได้ ให้คัดลอกลิงก์นี้ไปเปิดในเบราว์เซอร์:</p>
+        <p style="word-break: break-all; font-size: 13px; color:#4f46e5;">${verifyUrl}</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="font-size: 12px; color:#999;">หากคุณไม่ได้เป็นคนขอ สามารถละเว้นอีเมลฉบับนี้ได้</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordResetEmail, sendUnivVerificationEmail };

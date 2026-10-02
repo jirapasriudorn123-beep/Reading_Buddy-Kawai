@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { redeemCoupon, isRealCoupon } = require("./coupons");
 
 const router = express.Router();
 
@@ -8,16 +9,24 @@ const router = express.Router();
 // คืน products + reading total ของ user (นาที) ให้ frontend คำนวณเปอร์เซ็นต์ปลดล็อคคูปองได้เลย
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
-    const [products, readingRow] = await Promise.all([
+    const [products, readingRow, couponRows, user] = await Promise.all([
       db.prepare("SELECT * FROM products ORDER BY category, name").all(),
       db
         .prepare(
           "SELECT COALESCE(SUM(read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
         )
         .get(req.user.id),
+      db.prepare("SELECT product_id FROM user_coupons WHERE user_id = ?").all(req.user.id),
+      db.prepare("SELECT univ_verified_at FROM users WHERE id = ?").get(req.user.id),
     ]);
     const readingMinutes = Math.floor((readingRow.s || 0) / 60);
-    return res.json({ products, readingMinutes });
+    return res.json({
+      products,
+      readingMinutes,
+      // คูปองแบบที่แลกไปแล้ว (แต่ละแบบแลกได้ครั้งเดียว) + ยืนยันอีเมลมหาวิทยาลัยแล้วหรือยัง
+      redeemedCouponIds: couponRows.map((r) => r.product_id),
+      univVerified: !!(user && user.univ_verified_at),
+    });
   } catch (err) {
     next(err);
   }
@@ -80,6 +89,11 @@ router.post("/buy", requireAuth, async (req, res) => {
             `(ตอนนี้อ่านไป ${hoursHave} ชั่วโมง ${minsHave} นาที)`,
         });
       }
+    }
+
+    // คูปองส่วนลดร้านจริง: ไม่เข้ากระเป๋า แต่ออกเป็นคูปองที่มีรหัส + วันหมดอายุ
+    if (isRealCoupon(product)) {
+      return await redeemCoupon(req, res, product, quantity);
     }
 
     const totalPrice = product.price * quantity;

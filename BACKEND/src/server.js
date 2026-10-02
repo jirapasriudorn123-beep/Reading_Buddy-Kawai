@@ -17,6 +17,7 @@ const gameRoutes = require("./routes/game");
 const adminRoutes = require("./routes/admin");
 const notificationRoutes = require("./routes/notifications");
 const chatRoutes = require("./routes/chat").router;
+const couponRoutes = require("./routes/coupons").router;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,7 +64,18 @@ const chatLimiter = rateLimit({
   message: { message: "พิมพ์คุยกับน้องหมาถี่เกินไป พักสักครู่แล้วลองใหม่นะครับ 🐾" },
 });
 
+// ส่งอีเมลยืนยัน / ใส่ PIN ยืนยันคูปอง: นับทุกครั้ง (ไม่ข้ามครั้งที่สำเร็จ) กันส่งอีเมลรัว ๆ และกันเดา PIN
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "ทำรายการบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่" },
+});
+
 app.use("/api", generalLimiter);
+app.use("/api/auth/univ-email/request", strictLimiter);
+app.use("/api/coupons/use", strictLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
@@ -86,6 +98,7 @@ app.use("/api/game", gameRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/coupons", couponRoutes);
 
 // health check เอาไว้เช็คว่า server รันอยู่ไหม
 app.get("/api/health", (req, res) => {

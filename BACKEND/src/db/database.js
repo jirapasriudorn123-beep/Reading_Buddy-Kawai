@@ -100,10 +100,17 @@ async function initDatabase() {
     ["last_seen_update_at", "ALTER TABLE users ADD COLUMN last_seen_update_at TEXT"],
     // เครดิตถาม AI ฟรีที่สะสมจากน้องหมาเลเวลอัพ (ไม่หมดอายุ ใช้หลังโควต้ารายวันหมด)
     ["ai_bonus_credits", "ALTER TABLE users ADD COLUMN ai_bonus_credits INTEGER NOT NULL DEFAULT 0"],
+    // อีเมลมหาวิทยาลัยที่ยืนยันแล้ว (ต้องมีก่อนแลกคูปอง) เก็บแค่ SHA-256 ไม่เก็บอีเมลจริง
+    ["univ_email_hash", "ALTER TABLE users ADD COLUMN univ_email_hash TEXT"],
+    ["univ_verified_at", "ALTER TABLE users ADD COLUMN univ_verified_at TEXT"],
   ];
   for (const [col, sql] of userColumnMigrations) {
     if (!userColumns.includes(col)) await client.execute(sql);
   }
+  // อีเมลมหาวิทยาลัย 1 อีเมลผูกได้บัญชีเดียว (กันสมัครหลายบัญชีมาแลกคูปองซ้ำ)
+  await client.execute(
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_univ_email ON users(univ_email_hash) WHERE univ_email_hash IS NOT NULL"
+  );
 
   // ---- จำนวนคำถามที่ส่งให้ AI (Gemini) ตอบ ต่อผู้ใช้ต่อวัน (day = วันที่ตามเวลาไทย) ----
   await client.execute(`
@@ -301,6 +308,34 @@ async function initDatabase() {
   if (!productColumns.includes("required_reading_minutes")) {
     await client.execute("ALTER TABLE products ADD COLUMN required_reading_minutes INTEGER NOT NULL DEFAULT 0");
   }
+  // ใช้กับคูปอง: มูลค่าส่วนลดที่ร้านค้าจริง (บาท)
+  if (!productColumns.includes("discount_baht")) {
+    await client.execute("ALTER TABLE products ADD COLUMN discount_baht INTEGER NOT NULL DEFAULT 0");
+  }
+
+  // คูปองส่วนลด 5 แบบตามรูปใน FRONTEND/img/cupo (20, 20, 30, 30, 50 บาท = 500 / 700 / 1,000 คอยน์)
+  // ใส่ให้เฉพาะตอนยังไม่มีคูปองจริงในร้านเลย (bone-discount เป็นของเก่าที่อยู่หมวดคูปองแต่ไม่ใช่คูปองส่วนลด)
+  const couponCountRes = await client.execute(
+    "SELECT COUNT(*) AS count FROM products WHERE category = 'คูปอง' AND id != 'bone-discount'"
+  );
+  if (Number(couponCountRes.rows[0].count) === 0) {
+    const COUPON_DESC = "ส่วนลดสำหรับอาหารสุนัข ยา ของใช้ ของเล่น เสื้อผ้า ที่ร้านที่ร่วมรายการระบุไว้";
+    const seedCoupons = [
+      ["coupon-20-a", "คูปองส่วนลด 20 บาท (ใบที่ 1)", 500, "cupo/1.png", 20],
+      ["coupon-20-b", "คูปองส่วนลด 20 บาท (ใบที่ 2)", 500, "cupo/2.png", 20],
+      ["coupon-30-a", "คูปองส่วนลด 30 บาท (ใบที่ 1)", 700, "cupo/3.png", 30],
+      ["coupon-30-b", "คูปองส่วนลด 30 บาท (ใบที่ 2)", 700, "cupo/4.png", 30],
+      ["coupon-50", "คูปองส่วนลด 50 บาท", 1000, "cupo/5.png", 50],
+    ];
+    await client.batch(
+      seedCoupons.map(([id, name, price, img, baht]) => ({
+        sql: `INSERT INTO products (id, name, price, img, category, description, required_reading_minutes, discount_baht)
+              VALUES (?, ?, ?, ?, 'คูปอง', ?, 60, ?)`,
+        args: [id, name, price, img, COUPON_DESC, baht],
+      })),
+      "write"
+    );
+  }
 
   if (isFirstProductMigration) {
     const defaults = [
@@ -455,6 +490,62 @@ async function initDatabase() {
   if (!stageRewardColumns.includes("stars")) {
     await client.execute("ALTER TABLE game_stage_rewards ADD COLUMN stars INTEGER NOT NULL DEFAULT 0");
   }
+
+  // ---- ตาราง univ_email_verifications (ลิงก์ยืนยันอีเมลมหาวิทยาลัยที่ส่งไปแล้ว รอผู้ใช้กด) ----
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS univ_email_verifications (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      email_hash TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ---- ตาราง partner_shops (ร้านค้าที่ร่วมรายการคูปอง + PIN ที่พนักงานใช้ยืนยันการใช้คูปอง) ----
+  // pin_hash เป็น bcrypt (null = แอดมินยังไม่ได้ตั้ง PIN ร้านนี้ใช้ยืนยันคูปองไม่ได้)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS partner_shops (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      pin_hash TEXT,
+      failed_pin_count INTEGER NOT NULL DEFAULT 0,
+      locked_until TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const shopCountRes = await client.execute("SELECT COUNT(*) AS count FROM partner_shops");
+  if (Number(shopCountRes.rows[0].count) === 0) {
+    await client.batch(
+      ["Polsom Petshop สาขาขอนแก่น", "KKC Pet Shop ขอนแก่น"].map((name) => ({
+        sql: "INSERT INTO partner_shops (name) VALUES (?)",
+        args: [name],
+      })),
+      "write"
+    );
+  }
+
+  // ---- ตาราง user_coupons (คูปองที่ผู้ใช้แลกแล้ว 1 แถว = 1 ใบ) ----
+  // คูปองแต่ละแบบแลกได้ครั้งเดียวต่อบัญชี (UNIQUE user_id + product_id), ใช้ได้ครั้งเดียว, หมดอายุ 30 วัน
+  // เก็บชื่อ/มูลค่า/รูปไว้ในแถวเลย แอดมินแก้หรือลบสินค้าทีหลัง คูปองที่แลกไปแล้วก็ยังเหมือนเดิม
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS user_coupons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id TEXT NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      img TEXT,
+      discount_baht INTEGER NOT NULL,
+      price_coins INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'used')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      used_shop_id INTEGER REFERENCES partner_shops(id) ON DELETE SET NULL,
+      UNIQUE (user_id, product_id)
+    )
+  `);
 
   // ---- ตาราง chat_answers ----
   await client.execute(`

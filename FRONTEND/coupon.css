@@ -1,0 +1,307 @@
+/* ================== คูปองส่วนลด: แถบสถานะ / ยืนยันอีเมล / คูปองของฉัน / QR (หน้า Shop) ================== */
+
+.coupon-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 50px 16px;
+  padding: 12px 18px;
+  background: #fff8e6;
+  border: 2px solid #f0b23d;
+  border-radius: 14px;
+  color: #5a3a15;
+  font-size: 15px;
+}
+
+.coupon-verify-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.verify-ok {
+  color: #3d7a1f;
+  font-weight: 600;
+}
+
+.verify-need {
+  font-weight: 600;
+}
+
+.coupon-link-btn,
+.my-coupons-btn,
+.coupon-primary-btn {
+  font-family: 'Kanit', sans-serif;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.coupon-link-btn,
+.my-coupons-btn {
+  width: auto; /* กันสไตล์ปุ่มทั่วไปของหน้าร้านที่ยืดเต็มความกว้าง */
+  flex: 0 0 auto;
+}
+
+.coupon-link-btn {
+  padding: 4px 14px;
+  background: #f0b23d;
+  color: #fff;
+  font-size: 14px;
+}
+
+.my-coupons-btn {
+  padding: 8px 18px;
+  background: #8db754;
+  color: #fff;
+  font-size: 15px;
+}
+
+.coupon-primary-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  margin-top: 12px;
+  background: #8db754;
+  color: #fff;
+  font-size: 15px;
+}
+
+.coupon-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.coupon-link-btn:hover,
+.my-coupons-btn:hover,
+.coupon-primary-btn:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+/* การ์ดคูปองที่แลกแล้ว */
+.coupon-banner.redeemed .coupon-banner-img {
+  filter: grayscale(70%) brightness(0.9);
+}
+
+.coupon-redeemed-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.coupon-redeemed-overlay span {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #3d7a1f;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* modal ของคูปอง (ใช้กรอบ .product-detail-content เดิม) */
+.coupon-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.coupon-modal-wide {
+  max-width: 560px;
+}
+
+.coupon-modal-text {
+  margin: 8px 0 14px;
+  line-height: 1.6;
+  font-size: 15px;
+  color: #444;
+  white-space: pre-line;
+}
+
+.coupon-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 2px solid #d9d2bf;
+  border-radius: 10px;
+  font-family: 'Kanit', sans-serif;
+  font-size: 16px;
+}
+
+.coupon-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #555;
+}
+
+.coupon-consent input {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+}
+
+.coupon-modal-result {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.coupon-dev-link {
+  color: #4f46e5;
+}
+
+/* คูปองของฉัน */
+.my-coupons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.coupon-empty {
+  text-align: center;
+  color: #888;
+}
+
+.my-coupon-card {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 12px;
+  border: 2px solid #e6dfcc;
+  border-radius: 14px;
+}
+
+.my-coupon-card img {
+  width: 120px;
+  border-radius: 8px;
+}
+
+.my-coupon-card .coupon-primary-btn {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.my-coupon-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.my-coupon-meta {
+  font-size: 13px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.my-coupon-meta code {
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.my-coupon-status {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #8db754;
+}
+
+.my-coupon-card.status-used,
+.my-coupon-card.status-expired {
+  opacity: 0.65;
+}
+
+.my-coupon-card.status-used .my-coupon-status {
+  background: #888;
+}
+
+.my-coupon-card.status-expired .my-coupon-status {
+  background: #c0533a;
+}
+
+/* QR ให้พนักงานสแกน */
+.coupon-qr-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 236px;
+  margin: 12px auto 8px;
+  padding: 8px;
+  background: #fff; /* QR ต้องอยู่บนพื้นขาวเสมอ กล้องถึงอ่านได้ (dark mode ด้วย) */
+  border-radius: 12px;
+}
+
+.coupon-qr-box img,
+.coupon-qr-box canvas {
+  display: block;
+}
+
+.coupon-qr-used {
+  font-size: 22px;
+  font-weight: 600;
+  color: #3d7a1f;
+  text-align: center;
+  line-height: 1.8;
+}
+
+.coupon-qr-code {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.coupon-qr-info {
+  text-align: center;
+}
+
+/* dark mode */
+html.dark-mode body .coupon-toolbar {
+  background: #3a2f18;
+  border-color: #8b6529;
+  color: #f5e8c8;
+}
+
+html.dark-mode body .verify-ok {
+  color: #a6d77c;
+}
+
+html.dark-mode body .coupon-modal-text,
+html.dark-mode body .coupon-consent,
+html.dark-mode body .my-coupon-meta {
+  color: #ccc;
+}
+
+html.dark-mode body .my-coupon-card {
+  border-color: #555;
+}
+
+@media (max-width: 700px) {
+  .coupon-toolbar {
+    margin: 0 16px 16px;
+  }
+
+  .my-coupon-card {
+    grid-template-columns: 1fr;
+  }
+
+  .my-coupon-card img {
+    width: 100%;
+  }
+}

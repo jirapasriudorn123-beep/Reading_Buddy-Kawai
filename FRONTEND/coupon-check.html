@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตรวจคูปอง</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* หน้าสำหรับพนักงานร้าน เปิดหลังสแกน QR ด้วยมือถือ — ออกแบบสำหรับจอมือถือเป็นหลัก */
+    :root {
+      --bg: #f2ede0;
+      --card: #ffffff;
+      --ink: #2b2b2b;
+      --muted: #666666;
+      --line: #d9d2bf;
+      --ok: #3d7a1f;
+      --ok-bg: #e7f3dc;
+      --bad: #b23a2a;
+      --bad-bg: #fbe3df;
+      --wait: #7a6a3a;
+      --wait-bg: #f3efe2;
+      --btn: #8db754;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: 'Kanit', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    main {
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 4px 0 14px;
+      text-align: center;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      margin-bottom: 14px;
+    }
+    .status {
+      border-radius: 14px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .status-icon { font-size: 44px; line-height: 1.1; }
+    .status-title { font-size: 24px; font-weight: 600; margin-top: 4px; }
+    .status-sub { font-size: 15px; margin-top: 6px; line-height: 1.5; }
+    .status.active { background: var(--ok-bg); color: var(--ok); }
+    .status.used, .status.expired, .status.error { background: var(--bad-bg); color: var(--bad); }
+    .status.loading { background: var(--wait-bg); color: var(--wait); }
+    .discount {
+      font-size: 40px;
+      font-weight: 600;
+      text-align: center;
+      margin: 4px 0;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0;
+      border-top: 1px solid var(--line);
+      font-size: 15px;
+    }
+    .row span:first-child { color: var(--muted); }
+    .row span:last-child { text-align: right; font-weight: 600; }
+    label {
+      display: block;
+      font-size: 15px;
+      margin: 10px 0 6px;
+    }
+    select, input {
+      width: 100%;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 18px;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+    }
+    input.code { text-transform: uppercase; letter-spacing: 2px; }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--btn);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .message { margin: 12px 0 0; font-size: 15px; text-align: center; min-height: 1em; }
+    .message.bad { color: var(--bad); }
+    .hint { font-size: 13px; color: var(--muted); text-align: center; margin-top: 10px; line-height: 1.5; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ตรวจคูปองส่วนลด · Reading Buddy</h1>
+
+  <!-- ไม่มีรหัสใน URL (เปิดหน้านี้ตรงๆ) → ให้พนักงานพิมพ์รหัสเอง -->
+  <section class="card" id="manualSection" hidden>
+    <label for="manualCode">รหัสคูปอง</label>
+    <input class="code" id="manualCode" placeholder="RB-XXXX-XXXX" autocomplete="off">
+    <button type="button" id="manualBtn">ตรวจคูปอง</button>
+  </section>
+
+  <section id="resultSection" hidden>
+    <div class="status loading" id="statusBox">
+      <div class="status-icon" id="statusIcon">⏳</div>
+      <div class="status-title" id="statusTitle">กำลังตรวจ...</div>
+      <div class="status-sub" id="statusSub"></div>
+    </div>
+
+    <div class="card" id="detailCard" hidden>
+      <div class="discount" id="discount"></div>
+      <div class="row"><span>คูปอง</span><span id="couponName"></span></div>
+      <div class="row"><span>รหัส</span><span id="couponCode"></span></div>
+      <div class="row"><span>ใช้ได้ถึง</span><span id="couponExpires"></span></div>
+    </div>
+
+    <!-- ยืนยันการใช้ (แสดงเฉพาะคูปองที่ยังใช้ได้) -->
+    <form class="card" id="useForm" hidden>
+      <label for="shopSelect">ร้าน</label>
+      <select id="shopSelect" required></select>
+      <label for="pinInput">PIN ร้าน</label>
+      <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="8" required placeholder="••••">
+      <button type="submit" id="useBtn">ยืนยันใช้คูปอง</button>
+      <p class="message" id="useMessage"></p>
+      <p class="hint">กดยืนยันแล้วคูปองจะถูกใช้ทันที ใช้ซ้ำไม่ได้</p>
+    </form>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+  const SHOP_STORAGE_KEY = "couponCheckShopId"; // จำร้านที่เลือกไว้บนมือถือพนักงาน ไม่ต้องเลือกใหม่ทุกครั้ง
+
+  function formatThaiDateTime(sqliteDatetime) {
+    if (!sqliteDatetime) return "-";
+    return new Date(sqliteDatetime.replace(" ", "T") + "Z").toLocaleString("th-TH", {
+      timeZone: "Asia/Bangkok",
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  async function api(path, options = {}) {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data };
+  }
+
+  function setStatus(kind, icon, title, sub = "") {
+    const box = document.getElementById("statusBox");
+    box.className = `status ${kind}`;
+    document.getElementById("statusIcon").textContent = icon;
+    document.getElementById("statusTitle").textContent = title;
+    document.getElementById("statusSub").textContent = sub;
+  }
+
+  function showCoupon(coupon) {
+    document.getElementById("detailCard").hidden = false;
+    document.getElementById("discount").textContent = `ส่วนลด ${coupon.discountBaht} บาท`;
+    document.getElementById("couponName").textContent = coupon.name;
+    document.getElementById("couponCode").textContent = coupon.code;
+    document.getElementById("couponExpires").textContent = formatThaiDateTime(coupon.expiresAt);
+
+    if (coupon.status === "active") {
+      setStatus("active", "✅", "คูปองใช้ได้", "เลือกร้าน กรอก PIN แล้วกดยืนยันเพื่อให้ส่วนลด");
+    } else if (coupon.status === "used") {
+      const where = coupon.usedShop ? ` ที่ ${coupon.usedShop}` : "";
+      setStatus("used", "❌", "คูปองนี้ใช้แล้ว", `เมื่อ ${formatThaiDateTime(coupon.usedAt)}${where} — ห้ามให้ส่วนลดซ้ำ`);
+    } else {
+      setStatus("expired", "❌", "คูปองหมดอายุแล้ว", `หมดอายุเมื่อ ${formatThaiDateTime(coupon.expiresAt)}`);
+    }
+    document.getElementById("useForm").hidden = coupon.status !== "active";
+  }
+
+  async function loadShops() {
+    const { ok, data } = await api("/coupons/shops");
+    const select = document.getElementById("shopSelect");
+    const shops = ok ? data.shops : [];
+    if (!shops.length) {
+      select.innerHTML = `<option value="">ยังไม่มีร้านที่ตั้ง PIN ไว้</option>`;
+      return;
+    }
+    select.innerHTML =
+      `<option value="">— เลือกร้าน —</option>` +
+      shops.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+    let saved = null;
+    try {
+      saved = localStorage.getItem(SHOP_STORAGE_KEY);
+    } catch {}
+    if (saved && shops.some((s) => String(s.id) === saved)) select.value = saved;
+  }
+
+  async function checkCoupon(code) {
+    document.getElementById("resultSection").hidden = false;
+    document.getElementById("detailCard").hidden = true;
+    document.getElementById("useForm").hidden = true;
+    setStatus("loading", "⏳", "กำลังตรวจ...");
+    try {
+      const { ok, data } = await api(`/coupons/check/${encodeURIComponent(code)}`);
+      if (!ok) {
+        setStatus("error", "❌", "ไม่พบคูปอง", data.message || "ตรวจสอบรหัสอีกครั้ง");
+        return;
+      }
+      showCoupon(data.coupon);
+    } catch {
+      setStatus("error", "⚠️", "เชื่อมต่อ server ไม่ได้", "ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
+    }
+  }
+
+  let currentCode = new URLSearchParams(window.location.search).get("code");
+
+  document.getElementById("useForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const shopId = Number(document.getElementById("shopSelect").value);
+    const pinInput = document.getElementById("pinInput");
+    const messageEl = document.getElementById("useMessage");
+    if (!shopId) {
+      messageEl.textContent = "กรุณาเลือกร้าน";
+      messageEl.className = "message bad";
+      return;
+    }
+    try {
+      localStorage.setItem(SHOP_STORAGE_KEY, String(shopId));
+    } catch {}
+
+    const btn = document.getElementById("useBtn");
+    btn.disabled = true;
+    messageEl.textContent = "";
+    try {
+      const { ok, data } = await api("/coupons/use", {
+        method: "POST",
+        body: JSON.stringify({ code: currentCode, shopId, pin: pinInput.value }),
+      });
+      pinInput.value = "";
+      if (ok) {
+        showCoupon(data.coupon);
+        setStatus("active", "🎉", data.message, `ใช้ที่ ${data.coupon.usedShop} เมื่อ ${formatThaiDateTime(data.coupon.usedAt)}`);
+        return;
+      }
+      if (data.coupon) showCoupon(data.coupon); // ใช้ไปแล้ว / หมดอายุระหว่างนั้น
+      messageEl.textContent = data.message || "ยืนยันไม่สำเร็จ";
+      messageEl.className = "message bad";
+    } catch {
+      messageEl.textContent = "เชื่อมต่อ server ไม่ได้ ลองใหม่อีกครั้ง";
+      messageEl.className = "message bad";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("manualBtn").addEventListener("click", () => {
+    const code = document.getElementById("manualCode").value.trim().toUpperCase();
+    if (!code) return;
+    currentCode = code;
+    checkCoupon(code);
+  });
+
+  loadShops();
+  if (currentCode) {
+    checkCoupon(currentCode);
+  } else {
+    document.getElementById("manualSection").hidden = false;
+  }
+</script>
+</body>
+</html>

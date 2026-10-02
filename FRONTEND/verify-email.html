@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>verify email</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .box {
+      width: 500px;
+      height: 500px;
+      background-image: url('img/logo_dogeyes.gif');
+      background-size: cover;
+      background-position: center 40px;
+    }
+    .verify-message {
+      margin: 24px 0;
+      font-size: 17px;
+      line-height: 1.7;
+      text-align: center;
+    }
+  </style>
+  <link rel="stylesheet" href="cursor.css?v=20260926">
+</head>
+<body>
+
+<div class="container">
+  <div class="left">
+    <div class="card">
+      <h1 class="comfort-title">ยืนยันอีเมลมหาวิทยาลัย</h1>
+      <p class="verify-message" id="verifyMessage">กำลังยืนยัน...</p>
+      <a href="Shop.html" class="comfort-link">ไปที่ร้านค้า</a>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="box"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  // เปิดจากลิงก์ในอีเมล (verify-email.html?token=...) — ไม่ต้อง login ก็ยืนยันได้
+  (async () => {
+    const messageEl = document.getElementById("verifyMessage");
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (!token) {
+      messageEl.textContent = "❌ ลิงก์ยืนยันไม่ถูกต้อง กรุณาเปิดจากลิงก์ในอีเมลอีกครั้ง";
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/univ-email/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await response.json().catch(() => ({}));
+      messageEl.textContent = (response.ok ? "✅ " : "❌ ") + (data.message || "ยืนยันไม่สำเร็จ กรุณาลองใหม่");
+    } catch {
+      messageEl.textContent = "❌ เชื่อมต่อ server ไม่ได้ กรุณาลองใหม่อีกครั้ง";
+    }
+  })();
+</script>
+<script src="cursor.js?v=2"></script>
+</body>
+</html>

@@ -117,13 +117,36 @@ function updateCoinDisplay(coins) {
 // ================== โหลด + แสดงสินค้า ==================
 
 let userReadingMinutes = 0; // เวลาอ่านสะสมรวม (นาที) ของ user — ใช้เช็คแลกคูปอง
+let redeemedCouponIds = new Set(); // คูปองแบบที่แลกไปแล้ว (แต่ละแบบแลกได้ครั้งเดียว)
+let univVerified = false; // ยืนยันอีเมลมหาวิทยาลัยแล้วหรือยัง (ต้องยืนยันก่อนแลกคูปอง)
+let currentTab = "ทั้งหมด";
 
 async function loadProducts() {
-  const { products, readingMinutes } = await apiFetch("/shop/products");
-  allProducts = products;
-  userReadingMinutes = readingMinutes || 0;
-  // เริ่มที่ tab "ทั้งหมด" (filterItems จะกรองคูปองออก + toggle banner ให้เอง)
-  filterItems("ทั้งหมด");
+  const data = await apiFetch("/shop/products");
+  allProducts = data.products;
+  userReadingMinutes = data.readingMinutes || 0;
+  redeemedCouponIds = new Set(data.redeemedCouponIds || []);
+  univVerified = !!data.univVerified;
+  updateCouponToolbar();
+  // เริ่มที่ tab "ทั้งหมด" (filterItems จะกรองคูปองออก + toggle banner ให้เอง) หรือ tab เดิมตอนโหลดใหม่หลังแลก
+  filterItems(currentTab);
+}
+
+// คูปองส่วนลดร้านจริง = หมวดคูปองที่มีมูลค่าส่วนลด (ของเก่าในหมวดคูปองที่ไม่มีมูลค่ายังซื้อเข้ากระเป๋าตามปกติ)
+function isRealCoupon(p) {
+  return p.category === "คูปอง" && p.discount_baht > 0;
+}
+
+function updateCouponToolbar() {
+  const statusEl = document.getElementById("couponVerifyStatus");
+  if (statusEl) {
+    statusEl.innerHTML = univVerified
+      ? `<span class="verify-ok">✅ ยืนยันอีเมลมหาวิทยาลัยแล้ว แลกคูปองได้</span>`
+      : `<span class="verify-need">📧 ต้องยืนยันอีเมล @up.ac.th ก่อนแลกคูปอง</span>
+         <button type="button" class="coupon-link-btn" onclick="openUnivEmailModal()">ยืนยันเลย</button>`;
+  }
+  const countEl = document.getElementById("myCouponCount");
+  if (countEl) countEl.textContent = redeemedCouponIds.size ? `(${redeemedCouponIds.size})` : "";
 }
 
 // แปลง (นาที) → "X ชม. Y นาที" (ตัด "Y นาที" ถ้า = 0)
@@ -163,6 +186,19 @@ function renderProducts(items) {
       if (isCoupon) {
         const requiredMins = p.required_reading_minutes || 0;
         const unlocked = userReadingMinutes >= requiredMins;
+        // แลกแล้ว: ทับด้วยป้าย "แลกแล้ว" คลิกแล้วเปิดคูปองของฉันแทน
+        if (isRealCoupon(p) && redeemedCouponIds.has(p.id)) {
+          return `
+            <div class="coupon-banner redeemed" onclick="openMyCoupons()" title="ดูในคูปองของฉัน">
+              <img class="coupon-banner-img" src="${escapeHtml(resolveProductImg(p.img))}"
+                   alt="${safeName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-img');">
+              <div class="coupon-banner-fallback">
+                <div class="coupon-banner-fallback-name">🎫 ${safeName}</div>
+              </div>
+              <div class="coupon-redeemed-overlay"><span>✓ แลกแล้ว — ดูใน "คูปองของฉัน"</span></div>
+            </div>
+          `;
+        }
         const progressPct = requiredMins ? Math.min(100, Math.round((userReadingMinutes / requiredMins) * 100)) : 100;
         const lockOverlay = unlocked
           ? ""
@@ -211,6 +247,10 @@ function renderProducts(items) {
 }
 
 function filterItems(categoryName) {
+  currentTab = categoryName;
+  const toolbar = document.getElementById("couponToolbar");
+  if (toolbar) toolbar.style.display = categoryName === "คูปอง" ? "flex" : "none";
+
   document.querySelectorAll(".tab-btn").forEach((tab) => {
     tab.classList.remove("active");
     if (tab.innerText === categoryName) tab.classList.add("active");
@@ -312,16 +352,27 @@ function showDetail(id) {
   }
   setModalQty(1);
 
-  // ปุ่มซื้อคูปอง = "แลกคูปอง" + disable ถ้าอ่านยังไม่ครบ
+  // คูปองส่วนลดแลกได้ทีละ 1 ใบ และไม่ผ่านตะกร้า — ซ่อนช่องจำนวนกับปุ่มเพิ่มลงตะกร้า
+  const realCoupon = isRealCoupon(product);
+  const qtyRow = document.getElementById("modalQtyRow");
+  if (qtyRow) qtyRow.style.display = realCoupon ? "none" : "";
+  const cartBtn = document.getElementById("modalAddToCartBtn");
+  if (cartBtn) cartBtn.style.display = realCoupon ? "none" : "";
+
+  // ปุ่มซื้อคูปอง = "แลกคูปอง" + disable ถ้าอ่านยังไม่ครบ / แลกไปแล้ว
   const buyBtn = document.querySelector(".buy-now-btn");
   if (buyBtn) {
     if (isCoupon) {
       const reqMins = product.required_reading_minutes || 0;
       const unlocked = userReadingMinutes >= reqMins;
-      buyBtn.disabled = !unlocked;
+      const redeemed = realCoupon && redeemedCouponIds.has(product.id);
+      buyBtn.disabled = !unlocked || redeemed;
       // คูปองที่มีราคา: ปุ่มโชว์ราคาเหมือนสินค้าทั่วไป (ข้อความ "ใช้ X คอยน์ แลกคูปองนี้" อยู่ในรายละเอียดแล้ว)
-      const redeemLabel = product.price > 0 ? String(product.price) : "แลกคูปอง";
-      buyBtn.dataset.couponLabel = unlocked ? redeemLabel : "🔒 ยังปลดล็อคไม่ได้";
+      let label = product.price > 0 ? String(product.price) : "แลกคูปอง";
+      if (redeemed) label = "✓ แลกแล้ว";
+      else if (!unlocked) label = "🔒 ยังปลดล็อคไม่ได้";
+      else if (realCoupon && !univVerified) label = "📧 ยืนยันอีเมลก่อนแลก";
+      buyBtn.dataset.couponLabel = label;
     } else {
       buyBtn.disabled = false;
       delete buyBtn.dataset.couponLabel;
@@ -345,7 +396,17 @@ function closeModalOutside(event) {
 async function buyNow() {
   if (!tempItem) return;
 
-  const quantity = getModalQty();
+  const realCoupon = isRealCoupon(tempItem);
+  if (realCoupon && !univVerified) {
+    closeModal("productModal");
+    openUnivEmailModal();
+    return;
+  }
+  if (realCoupon && !confirm(`แลก${tempItem.name} ด้วย ${tempItem.price} คอยน์?\nคูปองมีอายุ 30 วัน และแลกแบบนี้ได้ครั้งเดียว`)) {
+    return;
+  }
+
+  const quantity = realCoupon ? 1 : getModalQty();
   const buyBtn = document.querySelector(".buy-now-btn");
   if (buyBtn) buyBtn.disabled = true; // กันกดรัวจนซื้อซ้ำเกินที่ตั้งใจ
 
@@ -358,8 +419,17 @@ async function buyNow() {
     updateCoinDisplay(result.coins);
     alert(result.message);
     closeModal("productModal");
+    if (result.coupon) {
+      await loadProducts();
+      openMyCoupons();
+    }
   } catch (err) {
-    alert("❌ " + err.message);
+    if (err.data && err.data.code === "UNIV_EMAIL_REQUIRED") {
+      closeModal("productModal");
+      openUnivEmailModal();
+    } else {
+      alert("❌ " + err.message);
+    }
   } finally {
     if (buyBtn) buyBtn.disabled = false;
   }
@@ -369,6 +439,7 @@ async function buyNow() {
 
 function addToCart() {
   if (!tempItem) return;
+  if (isRealCoupon(tempItem)) return; // คูปองแลกผ่านปุ่มแลกเท่านั้น (ปุ่มนี้ถูกซ่อนไว้แล้ว)
 
   const quantity = getModalQty();
   const found = cart.find((item) => item.id === tempItem.id);
@@ -485,6 +556,158 @@ async function checkout() {
   } catch (err) {
     alert("❌ ชำระเงินไม่สำเร็จ: " + err.message);
   }
+}
+
+// ================== คูปองส่วนลด: ยืนยันอีเมลมหาวิทยาลัย / คูปองของฉัน / QR ==================
+
+// เวลาจาก backend เป็น UTC แบบ SQLite ("YYYY-MM-DD HH:MM:SS") → แสดงเป็นเวลาไทย
+function formatThaiDateTime(sqliteDatetime) {
+  if (!sqliteDatetime) return "-";
+  return new Date(sqliteDatetime.replace(" ", "T") + "Z").toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function openUnivEmailModal() {
+  document.getElementById("univEmailResult").textContent = "";
+  document.getElementById("univEmailModal").style.display = "flex";
+  document.getElementById("univEmailInput").focus();
+}
+
+async function requestUnivEmail() {
+  const email = document.getElementById("univEmailInput").value.trim().toLowerCase();
+  const resultEl = document.getElementById("univEmailResult");
+  if (!/^[a-z0-9._%+-]+@up\.ac\.th$/.test(email)) {
+    resultEl.textContent = "❌ กรุณากรอกอีเมลมหาวิทยาลัยที่ลงท้ายด้วย @up.ac.th";
+    return;
+  }
+  if (!document.getElementById("univEmailConsent").checked) {
+    resultEl.textContent = "❌ กรุณาติ๊กยินยอมก่อนส่งลิงก์ยืนยัน";
+    return;
+  }
+
+  const btn = document.getElementById("univEmailSendBtn");
+  btn.disabled = true;
+  try {
+    const data = await apiFetch("/auth/univ-email/request", { method: "POST", body: JSON.stringify({ email }) });
+    resultEl.textContent = "✅ " + data.message;
+    // ทดสอบในเครื่องที่ยังไม่ได้ตั้งค่าอีเมล: backend ส่งลิงก์กลับมาให้กดได้เลย
+    if (data.devVerifyUrl) {
+      const link = document.createElement("a");
+      link.href = data.devVerifyUrl;
+      link.textContent = "🔧 [Dev only] กดยืนยันอีเมลที่นี่";
+      link.className = "coupon-dev-link";
+      resultEl.appendChild(document.createElement("br"));
+      resultEl.appendChild(link);
+    }
+  } catch (err) {
+    resultEl.textContent = "❌ " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const COUPON_STATUS_LABEL = {
+  active: "ใช้ได้",
+  used: "ใช้แล้ว",
+  expired: "หมดอายุ",
+};
+let myCoupons = [];
+
+async function openMyCoupons() {
+  document.getElementById("myCouponsModal").style.display = "flex";
+  const listEl = document.getElementById("myCouponsList");
+  listEl.innerHTML = `<p class="coupon-empty">กำลังโหลด...</p>`;
+  try {
+    const data = await apiFetch("/coupons");
+    myCoupons = data.coupons;
+    renderMyCoupons();
+  } catch (err) {
+    listEl.innerHTML = `<p class="coupon-empty">❌ โหลดคูปองไม่สำเร็จ: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderMyCoupons() {
+  const listEl = document.getElementById("myCouponsList");
+  if (!myCoupons.length) {
+    listEl.innerHTML = `<p class="coupon-empty">ยังไม่มีคูปอง แลกได้ที่แท็บ "คูปอง" ในร้านค้า</p>`;
+    return;
+  }
+  listEl.innerHTML = myCoupons
+    .map((c) => {
+      const when =
+        c.status === "used"
+          ? `ใช้แล้วเมื่อ ${escapeHtml(formatThaiDateTime(c.usedAt))}${c.usedShop ? ` ที่ ${escapeHtml(c.usedShop)}` : ""}`
+          : `${c.status === "expired" ? "หมดอายุเมื่อ" : "ใช้ได้ถึง"} ${escapeHtml(formatThaiDateTime(c.expiresAt))}`;
+      const action =
+        c.status === "active"
+          ? `<button type="button" class="coupon-primary-btn" onclick="showCouponQr('${escapeHtml(c.code)}')">แสดง QR ให้พนักงาน</button>`
+          : "";
+      return `
+        <div class="my-coupon-card status-${c.status}">
+          <img src="${escapeHtml(resolveProductImg(c.img))}" alt="${escapeHtml(c.name)}" onerror="this.style.display='none'">
+          <div class="my-coupon-info">
+            <div class="my-coupon-name">${escapeHtml(c.name)}</div>
+            <div class="my-coupon-meta">ส่วนลด ${c.discountBaht} บาท · รหัส <code>${escapeHtml(c.code)}</code></div>
+            <div class="my-coupon-meta">${when}</div>
+            <span class="my-coupon-status">${COUPON_STATUS_LABEL[c.status] || c.status}</span>
+          </div>
+          ${action}
+        </div>`;
+    })
+    .join("");
+}
+
+// QR = ลิงก์ไปหน้า coupon-check.html ของเว็บนี้ พนักงานสแกนด้วยกล้องมือถือได้เลย ไม่ต้องลงแอป
+let couponQrPollTimer = null;
+
+function showCouponQr(code) {
+  const coupon = myCoupons.find((c) => c.code === code);
+  if (!coupon) return;
+
+  const checkUrl = new URL(`coupon-check.html?code=${encodeURIComponent(code)}`, window.location.href).href;
+  document.getElementById("couponQrTitle").textContent = coupon.name;
+  const box = document.getElementById("couponQrBox");
+  box.innerHTML = "";
+  box.classList.remove("used");
+  if (typeof QRCode === "function") {
+    new QRCode(box, { text: checkUrl, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    box.textContent = "โหลดตัวสร้าง QR ไม่สำเร็จ ให้พนักงานกรอกรหัสด้านล่างแทน";
+  }
+  document.getElementById("couponQrCode").textContent = code;
+  document.getElementById("couponQrInfo").textContent =
+    `ส่วนลด ${coupon.discountBaht} บาท · ใช้ได้ถึง ${formatThaiDateTime(coupon.expiresAt)}\nให้พนักงานสแกน QR แล้วกรอก PIN ร้านเพื่อยืนยัน`;
+  document.getElementById("couponQrModal").style.display = "flex";
+
+  // เช็คสถานะทุก 3 วิ — พนักงานกดยืนยันแล้ว จอผู้ใช้เปลี่ยนเป็น "ใช้แล้ว" ทันที (QR หายไป ใช้ซ้ำไม่ได้)
+  clearInterval(couponQrPollTimer);
+  couponQrPollTimer = setInterval(async () => {
+    try {
+      const data = await apiFetch("/coupons");
+      myCoupons = data.coupons;
+      const now = myCoupons.find((c) => c.code === code);
+      if (now && now.status !== "active") {
+        clearInterval(couponQrPollTimer);
+        box.innerHTML = `<div class="coupon-qr-used">✅<br>${now.status === "used" ? "ใช้คูปองแล้ว" : "คูปองหมดอายุ"}</div>`;
+        box.classList.add("used");
+        document.getElementById("couponQrInfo").textContent =
+          now.status === "used"
+            ? `ใช้แล้วเมื่อ ${formatThaiDateTime(now.usedAt)}${now.usedShop ? ` ที่ ${now.usedShop}` : ""}`
+            : "คูปองนี้หมดอายุแล้ว";
+        renderMyCoupons();
+      }
+    } catch (err) {
+      console.error("เช็คสถานะคูปองไม่สำเร็จ:", err);
+    }
+  }, 3000);
+}
+
+function closeCouponQr() {
+  clearInterval(couponQrPollTimer);
+  closeModal("couponQrModal");
 }
 
 // ================== Sidebar toggle + Logout ==================

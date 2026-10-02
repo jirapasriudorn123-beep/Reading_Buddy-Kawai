@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet"> 
+    <link rel="stylesheet" href="admincoupon.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
-<body> 
+<body>
 <div class="container">
     <aside class="sidebar">
         <div class="profile-area">
@@ -20,7 +21,7 @@
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1"/></svg></span>
                 <span class="menu-label">หน้าหลัก</span>
             </a>
-            <a href="adminlesson.html" class="menu-item active">
+            <a href="adminlesson.html" class="menu-item">
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.3"/><path d="M8 13a4 4 0 0 1 8 0"/><rect x="4" y="17" width="16" height="2.5" rx="1"/><path d="M6 17v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/></svg></span>
                 <span class="menu-label">จัดการบทเรียน</span>
             </a>
@@ -28,7 +29,7 @@
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a6 6 0 0 1 12 0v2"/><rect x="3" y="8" width="18" height="13" rx="2"/></svg></span>
                 <span class="menu-label">จัดการร้านค้า</span>
             </a>
-            <a href="admincoupon.html" class="menu-item">
+            <a href="admincoupon.html" class="menu-item active">
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><line x1="10" y1="7" x2="10" y2="17" stroke-dasharray="2 2"/></svg></span>
                 <span class="menu-label">จัดการคูปอง</span>
             </a>
@@ -55,71 +56,84 @@
         <button class="toggle-btn" id="toggleBtn">
         <span class="arrow-icon">◀</span>
     </button>
-
-    <nav class="menu">
-        </nav>
     </aside>
 <main class="main-content">
     <header class="header-action">
-        <h2>จัดการบทเรียน</h2>
-        <button id="openAddModal" class="add-btn">+ เพิ่มบทเรียน</button>
+        <h2>จัดการคูปอง</h2>
+        <button class="add-btn" onclick="openShopModal()">+ เพิ่มร้านค้า</button>
     </header>
 
-    <div class="table-container">
-        <table class="lesson-table">
-            <thead>
-                <tr>
-                    <th width="10%">Chapter</th>
-                    <th width="60%">ชื่อ</th>
-                    <th width="15%">แก้ไข</th>
-                    <th width="15%">ลบ</th>
-                </tr>
-            </thead>
-            <tbody id="lessonTableBody">
-                </tbody>
-        </table>
-    </div>
-
-    <div id="addLessonModal" class="modal-overlay">
-        <div class="modal-card">
-            <h3>เพิ่มบทเรียน</h3>
-            <form id="lessonForm">
-                <div class="form-row">
-                    <div class="input-item">
-                        <label>Chapter :</label>
-                        <input type="text" id="lessonChapter" required>
-                    </div>
-                    <div class="input-item">
-                        <label>ชื่อ :</label>
-                        <input type="text" id="lessonTitle" required>
-                    </div>
-                    <div class="input-item">
-                        <label>รายละเอียด :</label>
-                        <input type="text" id="lessonDetail">
-                    </div>
-                </div>
-                
-                <div class="upload-area" onclick="document.getElementById('lessonFile').click()" style="cursor: pointer;">
-    <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
-    </svg>
-    <p id="fileNameDisplay">เพิ่มรูปภาพ/ไฟล์</p>
-    <input type="file" id="lessonFile" hidden onchange="displayFileName()">
-</div>
-                
-                <div class="modal-actions">
-                    <button type="submit" class="save-btn">บันทึก</button>
-                    <button type="button" id="closeModal" class="cancel-btn">ยกเลิก</button>
-                </div>
-            </form>
+    <section class="coupon-admin-section">
+        <h3>ร้านค้าที่ร่วมรายการ</h3>
+        <p class="coupon-admin-hint">พนักงานร้านใช้ PIN ของร้านยืนยันการใช้คูปองหลังสแกน QR — ร้านที่ยังไม่ตั้ง PIN จะยืนยันคูปองไม่ได้ ตั้ง PIN ใหม่ = ปลดล็อกร้านที่โดนล็อกจากใส่ PIN ผิด</p>
+        <div class="table-container">
+            <table class="lesson-table">
+                <thead>
+                    <tr>
+                        <th>ชื่อร้าน</th>
+                        <th>PIN</th>
+                        <th>คูปองที่ใช้แล้ว</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="shopTableBody"></tbody>
+            </table>
         </div>
-    </div>
+    </section>
+
+    <section class="coupon-admin-section">
+        <div class="coupon-admin-heading">
+            <h3>คูปองที่แลกแล้ว</h3>
+            <div class="coupon-admin-filters" id="couponFilters">
+                <button class="coupon-filter active" data-status="all" onclick="setCouponFilter('all')">ทั้งหมด</button>
+                <button class="coupon-filter" data-status="active" onclick="setCouponFilter('active')">ใช้ได้</button>
+                <button class="coupon-filter" data-status="used" onclick="setCouponFilter('used')">ใช้แล้ว</button>
+                <button class="coupon-filter" data-status="expired" onclick="setCouponFilter('expired')">หมดอายุ</button>
+            </div>
+        </div>
+        <p class="coupon-admin-hint" id="couponSummary"></p>
+        <div class="table-container">
+            <table class="lesson-table">
+                <thead>
+                    <tr>
+                        <th>รหัส</th>
+                        <th>ผู้ใช้</th>
+                        <th>คูปอง</th>
+                        <th>สถานะ</th>
+                        <th>แลกเมื่อ</th>
+                        <th>หมดอายุ</th>
+                        <th>ใช้ที่ร้าน</th>
+                    </tr>
+                </thead>
+                <tbody id="couponTableBody"></tbody>
+            </table>
+        </div>
+    </section>
 </main>
 </div>
+
+<!-- Modal เพิ่ม/แก้ไขร้าน -->
+<div id="shopModal" class="edit-overlay">
+    <div class="edit-modal-box">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" onclick="closeShopModal()">&#8592;</button>
+            <span class="edit-modal-title" id="shopModalTitle">เพิ่มร้านค้า</span>
+        </div>
+        <div class="edit-form-group">
+            <label class="edit-form-label" for="shopNameInput">ชื่อร้าน :</label>
+            <input class="edit-form-input" id="shopNameInput" type="text" placeholder="ชื่อร้าน"/>
+        </div>
+        <div class="edit-form-group">
+            <label class="edit-form-label" for="shopPinInput">PIN ร้าน (ตัวเลข 4-8 หลัก) :</label>
+            <input class="edit-form-input" id="shopPinInput" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="เว้นว่าง = ไม่เปลี่ยน PIN"/>
+            <p class="edit-form-hint">ระบบเก็บ PIN แบบเข้ารหัส ดู PIN เดิมย้อนหลังไม่ได้ จดไว้ให้ร้านก่อนกดบันทึก</p>
+        </div>
+        <button class="edit-confirm-btn" id="shopSaveBtn" onclick="saveShop()">บันทึก</button>
+    </div>
+</div>
+
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminlesson.js"></script>
+<script src="admincoupon.js"></script>
 </body>
 </html>

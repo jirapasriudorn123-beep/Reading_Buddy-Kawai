@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
 const db = require("../db/database");
 const { requireAdmin } = require("../middleware/auth");
 const { findChatAnswer } = require("./chat");
@@ -200,6 +201,17 @@ function validatePetUse(petAction, statGain) {
   return [action, gain];
 }
 
+// ช่องของคูปอง: นาทีอ่านสะสมขั้นต่ำ + มูลค่าส่วนลดที่ร้านจริง (บาท) — undefined = ไม่ได้ส่งมา (ใช้ค่าเดิม)
+function validateCouponFields(requiredReadingMinutes, discountBaht) {
+  const parse = (value, label, max) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`${label}ต้องเป็นจำนวนเต็ม 0-${max}`);
+    return n;
+  };
+  return [parse(requiredReadingMinutes, "นาทีอ่านสะสมขั้นต่ำ", 100000), parse(discountBaht, "มูลค่าส่วนลด", 10000)];
+}
+
 router.post("/products", requireAdmin, async (req, res) => {
   try {
     const { name, price, img, category, description, tag, petAction, statGain } = req.body;
@@ -210,17 +222,19 @@ router.post("/products", requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "ราคาต้องไม่ติดลบ" });
     }
 
-    let petUse;
+    let petUse, couponFields;
     try {
       petUse = validatePetUse(petAction, statGain);
+      couponFields = validateCouponFields(req.body.requiredReadingMinutes, req.body.discountBaht);
     } catch (validationErr) {
       return res.status(400).json({ message: validationErr.message });
     }
 
     const id = makeProductId();
     await db.prepare(
-      `INSERT INTO products (id, name, price, img, category, description, tag, pet_action, stat_gain)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (id, name, price, img, category, description, tag, pet_action, stat_gain,
+                             required_reading_minutes, discount_baht)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       name.trim(),
@@ -230,7 +244,9 @@ router.post("/products", requireAdmin, async (req, res) => {
       description ? description.trim() : null,
       tag || null,
       petUse[0],
-      petUse[1]
+      petUse[1],
+      couponFields[0] ?? 0,
+      couponFields[1] ?? 0
     );
 
     const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
@@ -253,17 +269,19 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
     }
 
     let petUse = [product.pet_action, product.stat_gain];
-    if (petAction !== undefined) {
-      try {
+    let couponFields;
+    try {
+      if (petAction !== undefined) {
         petUse = validatePetUse(petAction, statGain !== undefined ? statGain : product.stat_gain);
-      } catch (validationErr) {
-        return res.status(400).json({ message: validationErr.message });
       }
+      couponFields = validateCouponFields(req.body.requiredReadingMinutes, req.body.discountBaht);
+    } catch (validationErr) {
+      return res.status(400).json({ message: validationErr.message });
     }
 
     await db.prepare(
       `UPDATE products SET name = ?, price = ?, img = ?, category = ?, description = ?, tag = ?,
-                           pet_action = ?, stat_gain = ?
+                           pet_action = ?, stat_gain = ?, required_reading_minutes = ?, discount_baht = ?
        WHERE id = ?`
     ).run(
       name && name.trim() ? name.trim() : product.name,
@@ -274,6 +292,8 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
       tag !== undefined ? (tag || null) : product.tag,
       petUse[0],
       petUse[1],
+      couponFields[0] ?? product.required_reading_minutes,
+      couponFields[1] ?? product.discount_baht,
       id
     );
 
@@ -292,6 +312,101 @@ router.delete("/products/:id", requireAdmin, async (req, res, next) => {
     if (!product) return res.status(404).json({ message: "ไม่พบสินค้านี้" });
     await db.prepare("DELETE FROM products WHERE id = ?").run(id);
     return res.json({ message: "ลบสินค้าสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== ร้านค้าที่ร่วมรายการคูปอง ==================
+const PIN_REGEX = /^\d{4,8}$/;
+
+router.get("/shops", requireAdmin, async (req, res, next) => {
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT ps.id, ps.name, ps.pin_hash IS NOT NULL AS hasPin, ps.locked_until AS lockedUntil,
+                (SELECT COUNT(*) FROM user_coupons uc WHERE uc.used_shop_id = ps.id) AS usedCount
+         FROM partner_shops ps ORDER BY ps.id ASC`
+      )
+      .all();
+    return res.json({ shops: rows.map((r) => ({ ...r, hasPin: !!r.hasPin })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/shops", requireAdmin, async (req, res, next) => {
+  try {
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+    const pin = typeof req.body.pin === "string" ? req.body.pin.trim() : "";
+    if (!name) return res.status(400).json({ message: "กรุณากรอกชื่อร้าน" });
+    if (pin && !PIN_REGEX.test(pin)) return res.status(400).json({ message: "PIN ต้องเป็นตัวเลข 4-8 หลัก" });
+
+    const dup = await db.prepare("SELECT id FROM partner_shops WHERE name = ?").get(name);
+    if (dup) return res.status(409).json({ message: "มีร้านชื่อนี้อยู่แล้ว" });
+
+    const pinHash = pin ? await bcrypt.hash(pin, 10) : null;
+    await db.prepare("INSERT INTO partner_shops (name, pin_hash) VALUES (?, ?)").run(name, pinHash);
+    return res.status(201).json({ message: "เพิ่มร้านสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// แก้ชื่อร้าน และ/หรือ ตั้ง PIN ใหม่ (ตั้ง PIN ใหม่ = ปลดล็อกร้านที่โดนล็อกจากใส่ PIN ผิดด้วย)
+router.put("/shops/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const shop = await db.prepare("SELECT id, name FROM partner_shops WHERE id = ?").get(req.params.id);
+    if (!shop) return res.status(404).json({ message: "ไม่พบร้านนี้" });
+
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+    const pin = typeof req.body.pin === "string" ? req.body.pin.trim() : "";
+    if (pin && !PIN_REGEX.test(pin)) return res.status(400).json({ message: "PIN ต้องเป็นตัวเลข 4-8 หลัก" });
+    if (name && name !== shop.name) {
+      const dup = await db.prepare("SELECT id FROM partner_shops WHERE name = ? AND id != ?").get(name, shop.id);
+      if (dup) return res.status(409).json({ message: "มีร้านชื่อนี้อยู่แล้ว" });
+      await db.prepare("UPDATE partner_shops SET name = ? WHERE id = ?").run(name, shop.id);
+    }
+    if (pin) {
+      await db
+        .prepare("UPDATE partner_shops SET pin_hash = ?, failed_pin_count = 0, locked_until = NULL WHERE id = ?")
+        .run(await bcrypt.hash(pin, 10), shop.id);
+    }
+    return res.json({ message: "บันทึกร้านสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/shops/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const shop = await db.prepare("SELECT id FROM partner_shops WHERE id = ?").get(req.params.id);
+    if (!shop) return res.status(404).json({ message: "ไม่พบร้านนี้" });
+    await db.prepare("DELETE FROM partner_shops WHERE id = ?").run(shop.id);
+    return res.json({ message: "ลบร้านสำเร็จ" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== รายงานคูปองที่แลกไปแล้ว ==================
+router.get("/coupons", requireAdmin, async (req, res, next) => {
+  try {
+    const coupons = await db
+      .prepare(
+        `SELECT uc.code, uc.name, uc.discount_baht AS discountBaht, uc.price_coins AS priceCoins,
+                CASE WHEN uc.status = 'used' THEN 'used'
+                     WHEN uc.expires_at <= datetime('now') THEN 'expired'
+                     ELSE 'active' END AS status,
+                uc.created_at AS createdAt, uc.expires_at AS expiresAt, uc.used_at AS usedAt,
+                u.username, ps.name AS usedShop
+         FROM user_coupons uc
+         LEFT JOIN users u ON u.id = uc.user_id
+         LEFT JOIN partner_shops ps ON ps.id = uc.used_shop_id
+         ORDER BY uc.created_at DESC`
+      )
+      .all();
+    return res.json({ coupons });
   } catch (err) {
     next(err);
   }
