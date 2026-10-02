@@ -70,42 +70,15 @@ router.post("/progress/complete", requireAuth, async (req, res, next) => {
   }
 });
 
-// ================== ตรวจคำตอบ + log (ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน") ==================
+// ================== แหล่งคำถาม + หมวดคะแนน (ใช้ตอนตรวจคำตอบใน /battle/:battleId/answer) ==================
 // server เป็นคนตรวจเอง (หน้าเว็บไม่ได้รับเฉลยล่วงหน้า) กันเปิด DevTools ดูเฉลย/ปลอมคะแนน
+// คำตอบทุกข้อถูก log ลง quiz_answer_log ใช้คิด % คะแนนที่หน้าแอดมิน "จัดการคะแนน"
+// (ตอบได้เฉพาะผ่านการต่อสู้ที่ server สุ่มคำถามให้ — ไม่มี API ตอบคำถามลอยๆ ที่ยิงซ้ำปั๊มคะแนนได้)
 // source: 'chapter' (quiz_questions → หมวด subject) | 'breed' (breed_quiz_questions → หมวด dog)
 const ANSWER_SOURCES = {
   chapter: { table: "quiz_questions", category: "subject" },
   breed: { table: "breed_quiz_questions", category: "dog" },
 };
-
-router.post("/answer", requireAuth, async (req, res, next) => {
-  try {
-    const { source, questionId, picked } = req.body;
-    const src = ANSWER_SOURCES[source];
-    if (!src) {
-      return res.status(400).json({ message: "source ต้องเป็น chapter หรือ breed" });
-    }
-    if (!Number.isInteger(questionId) || !Number.isInteger(picked) || picked < 1 || picked > 4) {
-      return res.status(400).json({ message: "questionId/picked ไม่ถูกต้อง" });
-    }
-
-    const question = await db
-      .prepare(`SELECT correct_option FROM ${src.table} WHERE id = ? AND enabled = 1`)
-      .get(questionId);
-    if (!question) {
-      return res.status(404).json({ message: "ไม่พบคำถามนี้" });
-    }
-
-    const correct = picked === question.correct_option;
-    await db
-      .prepare("INSERT INTO quiz_answer_log (user_id, category, correct) VALUES (?, ?, ?)")
-      .run(req.user.id, src.category, correct ? 1 : 0);
-    // เฉลยส่งกลับไปหลังตอบแล้วเท่านั้น (ไว้ไฮไลต์ข้อที่ถูกบนหน้าจอ)
-    return res.json({ correct, correctOption: question.correct_option });
-  } catch (err) {
-    next(err);
-  }
-});
 
 // ================== การต่อสู้ (ควิซ) + โบนัสเหรียญ ==================
 // ต้องตรงกับฝั่ง FRONTEND/game.js (ENEMY_MAX_HP, PLAYER_MAX_HEARTS, BATTLE_SECONDS, STAGES_PER_WORLD)
