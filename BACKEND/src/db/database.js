@@ -416,6 +416,40 @@ async function initDatabase() {
     )
   `);
 
+  // ---- ตาราง game_battles (การต่อสู้ในมินิเกม 1 ครั้ง) ----
+  // server เป็นคนสุ่มคำถาม (question_ids เป็น JSON array) + นับถูก/ผิดเอง หน้าเว็บส่งมาแค่ข้อที่เลือก
+  // เลยปลอมคะแนน/ตอบข้อเดิมที่รู้เฉลยซ้ำๆ เพื่อเอาเหรียญไม่ได้
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS game_battles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      world INTEGER NOT NULL,
+      stage INTEGER NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('chapter', 'breed')),
+      question_ids TEXT NOT NULL,
+      required_correct INTEGER NOT NULL,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      wrong_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'in_progress' CHECK(status IN ('in_progress', 'won', 'lost', 'cancelled')),
+      coins_earned INTEGER NOT NULL DEFAULT 0,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT
+    )
+  `);
+
+  // ---- ตาราง game_stage_rewards (โบนัสเหรียญของแต่ละด่าน ได้ครั้งเดียวต่อผู้ใช้ กันเล่นซ้ำปั๊มเหรียญ) ----
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS game_stage_rewards (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      world INTEGER NOT NULL,
+      stage INTEGER NOT NULL,
+      coins INTEGER NOT NULL,
+      score_percent INTEGER NOT NULL,
+      rewarded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, world, stage)
+    )
+  `);
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (

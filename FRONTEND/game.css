@@ -951,6 +951,8 @@ html, body {
   border-radius: 12px;
   color: var(--cream);
   font-size: clamp(14px, 1.6vw, 20px);
+  white-space: pre-line; /* ขึ้นบรรทัดใหม่ก่อนข้อความโบนัสคอยน์ */
+  text-align: center;
 }
 
 .battle-result-btn {

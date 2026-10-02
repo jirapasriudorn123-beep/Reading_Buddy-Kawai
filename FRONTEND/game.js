@@ -86,7 +86,6 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDialogueControls();
   setupBattleControls();
   initWorldMap();
-  loadAllQuizData(); // โหลดคำถามทั้งหมดล่วงหน้า (ไม่บล็อกการเปิดฉากอื่น)
 
   document.getElementById("exploreBackBtn").addEventListener("click", backToWorldMap);
 });
@@ -535,97 +534,55 @@ let battleActive = false;
 let enemyEncountered = false; // เจอตัวร้ายไปแล้วในรอบนี้ (กันลูปเดินสั่งเข้าต่อสู้ซ้ำทันทีหลังจบการต่อสู้)
 let battleQuiz = [];
 let battleTopic = "";
-let battleCategory = "subject"; // 'subject' (ด่าน 1,3,5) หรือ 'dog' (ด่าน 2,4) — ใช้ตอนบันทึกคะแนน
+let battleId = null;       // id การต่อสู้ฝั่ง server (ส่งคำตอบไปตรวจกับอันนี้)
+let battleStarting = false; // กำลังขอคำถามจาก server อยู่ (กันลูปเดินสั่งเริ่มซ้ำระหว่างรอ)
+let battleReward = null;    // ผลคะแนน/เหรียญของการต่อสู้ที่เพิ่งจบ (จาก server)
 let battleQuizIndex = 0;
 let enemyHp = ENEMY_MAX_HP;
 let playerHearts = PLAYER_MAX_HEARTS;
 let battleTimeLeft = BATTLE_SECONDS;
 let battleTimerId = null;
 
-// ================== คำถามควิซ (ดึงจากฐานข้อมูลผ่าน /api/game/quiz/...) ==================
+// ================== คำถามควิซ (server สุ่มให้ทีละการต่อสู้ ผ่าน /api/game/battle/...) ==================
 // แอดมินแก้ไขคำถามได้ที่ admingame-edit.html (รายบท) / admingame-dogs.html (รายพันธุ์สุนัข)
-// โหลดทั้งหมดไว้ล่วงหน้าตอนเปิดหน้าเกม (ข้อมูลมีไม่เยอะ) เพื่อให้ pickQuizForStage ยังเป็น sync ได้เหมือนเดิม
-const QUIZ_CHAPTER_NUMBERS = [1, 2, 3, 4, 5, 6];
-const QUIZ_BREED_KEYS = ["golden", "shiba", "siberian", "thairidgeback"];
-let quizByChapter = {};
-let quizByBreed = {};
+// server เป็นคนสุ่มคำถาม นับถูก/ผิด และให้เหรียญโบนัสเอง หน้าเว็บส่งไปแค่ข้อที่เลือก (ปลอมคะแนนไม่ได้)
 
-// server ไม่ส่งเฉลยมาด้วย (ตรวจคำตอบที่ POST /api/game/answer แทน) เลยเก็บแค่ id ไว้ส่งกลับไปตรวจ
-function mapQuizRows(rows) {
-  return (rows || []).map((r) => ({
+// หัวข้อคำถามตามด่าน: ด่าน 1,3,5 = บทเรียนของโลกนั้น | ด่าน 2,4 = พันธุ์สุนัขที่เลือก (stageNo นับเริ่มที่ 1)
+function stageTopic(worldI, stageNo) {
+  if (stageNo % 2 === 0) return `พันธุ์${BREED_NAME_TH[selectedPlayerBreed] || "สุนัข"}`;
+  return WORLD_CHAPTER_TITLE[worldI] || `บทที่ ${worldI + 1}`;
+}
+
+async function gameApiPost(path, body) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `เชื่อมต่อ server ไม่สำเร็จ (${res.status})`);
+  return data;
+}
+
+// คืนค่า { battle, questions } — battle เป็น null ถ้าด่านนี้ยังไม่มีคำถาม
+async function requestBattle(worldI, stageNo) {
+  const data = await gameApiPost("/game/battle/start", {
+    world: worldI + 1,
+    stage: stageNo,
+    breed: selectedPlayerBreed,
+  });
+  data.questions = (data.questions || []).map((r) => ({
     id: r.id,
     q: r.question,
     opts: [r.option_1, r.option_2, r.option_3, r.option_4],
   }));
+  return data;
 }
 
-async function fetchQuizList(path) {
-  const token = localStorage.getItem("token");
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`โหลดคำถามไม่สำเร็จ: ${path}`);
-  const data = await res.json();
-  return mapQuizRows(data.questions);
-}
-
-async function loadAllQuizData() {
-  try {
-    const [chapterLists, breedLists] = await Promise.all([
-      Promise.all(QUIZ_CHAPTER_NUMBERS.map((n) => fetchQuizList(`/game/quiz/chapter/${n}`))),
-      Promise.all(QUIZ_BREED_KEYS.map((b) => fetchQuizList(`/game/quiz/breed/${b}`))),
-    ]);
-    QUIZ_CHAPTER_NUMBERS.forEach((n, i) => (quizByChapter[n] = chapterLists[i]));
-    QUIZ_BREED_KEYS.forEach((b, i) => (quizByBreed[b] = breedLists[i]));
-  } catch (err) {
-    console.error("โหลดชุดคำถามจากฐานข้อมูลไม่สำเร็จ:", err);
-  }
-}
-
-// เลือกชุดคำถามตามด่าน: ด่าน 1,3,5 = คำถามจากบทเรียนของโลกนั้น | ด่าน 2,4 = คำถามพันธุ์สุนัขที่เลือก
-// stageNo นับเริ่มที่ 1
-function pickQuizForStage(worldI, stageNo) {
-  const useBreedQuiz = stageNo % 2 === 0;
-  if (useBreedQuiz) {
-    return {
-      list: quizByBreed[selectedPlayerBreed] || [],
-      topic: `พันธุ์${BREED_NAME_TH[selectedPlayerBreed] || "สุนัข"}`,
-      category: "dog",
-    };
-  }
-  const chapterNo = worldI + 1;
-  return {
-    list: quizByChapter[chapterNo] || [],
-    topic: WORLD_CHAPTER_TITLE[worldI] || `บทที่ ${chapterNo}`,
-    category: "subject",
-  };
-}
-
-// ส่งคำตอบให้ server ตรวจ (server บันทึกสถิติที่หน้าแอดมิน "จัดการคะแนน" ให้ด้วย)
-// คืนค่า { correct, correctOption } — correctOption นับเริ่มที่ 1
-async function checkAnswer(category, questionId, pickedIdx) {
-  const token = localStorage.getItem("token");
-  const res = await fetch(`${API_BASE_URL}/game/answer`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      source: category === "dog" ? "breed" : "chapter",
-      questionId,
-      picked: pickedIdx + 1,
-    }),
-  });
-  if (!res.ok) throw new Error(`ตรวจคำตอบไม่สำเร็จ (${res.status})`);
-  return res.json();
-}
-
-// สลับลำดับคำถามแบบสุ่ม เล่นซ้ำจะได้ไม่เจอลำดับเดิม
-function shuffled(list) {
-  const out = list.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
+// คืนค่า { correct, correctOption, status, scorePercent, coinsEarned, alreadyRewarded } — correctOption นับเริ่มที่ 1
+function submitBattleAnswer(pickedIdx) {
+  return gameApiPost(`/game/battle/${battleId}/answer`, { picked: pickedIdx + 1 });
 }
 
 function currentStageNo() {
@@ -641,25 +598,40 @@ function checkEnemyEncounter() {
   startBattle();
 }
 
-function startBattle(e) {
-  if (battleActive) return;
+async function startBattle(e) {
+  if (battleActive || battleStarting) return;
 
   const stageNo = currentStageNo();
-  const { list, topic, category } = pickQuizForStage(worldIdx, stageNo);
+  const topic = stageTopic(worldIdx, stageNo);
 
-  if (!list.length) {
+  battleStarting = true;
+  let data;
+  try {
+    data = await requestBattle(worldIdx, stageNo);
+  } catch (err) {
+    console.error(err);
+    enemyEncountered = true; // ไม่ให้ลูปเดินสั่งเริ่มซ้ำรัวๆ — ออกจากฉากแล้วเข้าใหม่เพื่อลองอีกครั้ง
+    alert("เริ่มการต่อสู้ไม่สำเร็จ: " + err.message);
+    return;
+  } finally {
+    battleStarting = false;
+  }
+
+  if (!data.battle) {
+    enemyEncountered = true;
     alert(`ด่านนี้ยังไม่มีคำถาม (${topic})\nเพิ่มคำถามได้ที่หน้าแอดมิน (จัดการมินิเกม)`);
     return;
   }
 
   battleActive = true;
   enemyEncountered = true;
-  battleCategory = category;
-  // สุ่มคำถามจากคลังทั้งหมดมาแค่ 10 ข้อต่อการต่อสู้ 1 ครั้ง (ถ้าคลังมีน้อยกว่า 10 ก็ใช้เท่าที่มี)
-  battleQuiz = shuffled(list).slice(0, ENEMY_MAX_HP);
+  battleId = data.battle.id;
+  battleReward = null;
+  // server สุ่มคำถามจากคลังมาให้ไม่เกิน 10 ข้อต่อการต่อสู้ 1 ครั้ง
+  battleQuiz = data.questions;
   battleQuizIndex = 0;
-  // เลือดตัวร้ายไม่เกินจำนวนคำถามที่มี ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
-  enemyHp = Math.min(ENEMY_MAX_HP, battleQuiz.length);
+  // เลือดตัวร้าย = จำนวนคำถามที่ได้มา ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
+  enemyHp = data.battle.requiredCorrect;
   playerHearts = PLAYER_MAX_HEARTS;
   battleTimeLeft = BATTLE_SECONDS;
 
@@ -713,21 +685,21 @@ function renderQuizQuestion() {
     btn.type = "button";
     btn.className = "quiz-opt";
     btn.textContent = text;
-    btn.addEventListener("click", () => answerQuiz(i, item.id, wrap));
+    btn.addEventListener("click", () => answerQuiz(i, wrap));
     wrap.appendChild(btn);
   });
 }
 
-async function answerQuiz(picked, questionId, wrap) {
+async function answerQuiz(picked, wrap) {
   const buttons = [...wrap.querySelectorAll(".quiz-opt")];
   buttons.forEach((b) => (b.disabled = true));
 
   let result;
   try {
-    result = await checkAnswer(battleCategory, questionId, picked);
+    result = await submitBattleAnswer(picked);
   } catch (err) {
     console.error(err);
-    alert("เชื่อมต่อ server ไม่ได้ ตรวจคำตอบไม่สำเร็จ ลองกดตอบใหม่อีกครั้งนะ");
+    alert("ตรวจคำตอบไม่สำเร็จ: " + err.message);
     buttons.forEach((b) => (b.disabled = false));
     return;
   }
@@ -746,9 +718,12 @@ async function answerQuiz(picked, questionId, wrap) {
     flashHit("battleDog");
   }
 
+  // แพ้/ชนะ ยึดตามที่ server ตัดสิน (server เป็นคนให้เหรียญโบนัส)
+  if (result.status !== "in_progress") battleReward = result;
+
   setTimeout(() => {
-    if (enemyHp <= 0) return endBattle(true, "ตัวร้ายพ่ายแพ้แล้ว!");
-    if (playerHearts <= 0) return endBattle(false, "หัวใจหมดแล้ว ลองใหม่อีกครั้งนะ");
+    if (result.status === "won") return endBattle(true, "ตัวร้ายพ่ายแพ้แล้ว!");
+    if (result.status === "lost") return endBattle(false, "หัวใจหมดแล้ว ลองใหม่อีกครั้งนะ");
     battleQuizIndex += 1;
     renderQuizQuestion();
   }, 900);
@@ -782,13 +757,22 @@ function updateBattleTimerLabel() {
   document.querySelector(".battle-timer").classList.toggle("urgent", battleTimeLeft <= 60);
 }
 
+// ข้อความผลคะแนน/โบนัสเหรียญบนหน้าผลการต่อสู้
+function rewardMessage(r) {
+  const score = `คะแนน ${r.scorePercent}%`;
+  if (r.coinsEarned > 0) return `${score} — ได้โบนัส +${r.coinsEarned} คอยน์! 🪙`;
+  if (r.alreadyRewarded) return `${score} — ด่านนี้เคยได้โบนัสไปแล้ว`;
+  return `${score} — ได้ 80% ขึ้นไปจะได้โบนัสคอยน์นะ`;
+}
+
 function endBattle(won, message) {
   clearInterval(battleTimerId);
   battleActive = false;
 
   const box = document.getElementById("battleResult");
   document.getElementById("battleResultTitle").textContent = won ? "ผ่านด่าน!" : "แพ้แล้ว";
-  document.getElementById("battleResultText").textContent = message;
+  document.getElementById("battleResultText").textContent =
+    won && battleReward ? `${message}\n${rewardMessage(battleReward)}` : message;
   document.getElementById("battleResultBtn").textContent = won ? "ไปด่านถัดไป" : "ลองใหม่";
   box.classList.add("show");
 
