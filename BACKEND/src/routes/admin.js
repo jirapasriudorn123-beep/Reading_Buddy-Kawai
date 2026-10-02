@@ -453,6 +453,72 @@ router.delete("/users/:id", requireAdmin, async (req, res, next) => {
   }
 });
 
+// ================== ปรับคอยน์ของผู้ใช้ (เพิ่ม/ลด พร้อมเหตุผล) ==================
+const MAX_COIN_ADJUST = 100000;
+const MAX_ADJUST_REASON_LENGTH = 200;
+
+// ประวัติการปรับคอยน์ของผู้ใช้ 1 คน (ล่าสุด 20 ครั้ง)
+router.get("/users/:id/coins", requireAdmin, async (req, res, next) => {
+  try {
+    const user = await db.prepare("SELECT id, username, coins FROM users WHERE id = ?").get(req.params.id);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+    const history = await db
+      .prepare(
+        `SELECT ca.amount, ca.reason, ca.balance_after AS balanceAfter, ca.created_at AS createdAt, a.username AS adminName
+         FROM coin_adjustments ca
+         LEFT JOIN users a ON a.id = ca.admin_id
+         WHERE ca.user_id = ?
+         ORDER BY ca.id DESC
+         LIMIT 20`
+      )
+      .all(user.id);
+    return res.json({ user, history });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// amount บวก = เพิ่ม, ลบ = หัก (หักจนติดลบไม่ได้)
+router.post("/users/:id/coins", requireAdmin, async (req, res, next) => {
+  try {
+    const amount = Number(req.body.amount);
+    const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > MAX_COIN_ADJUST) {
+      return res.status(400).json({ message: `จำนวนคอยน์ต้องเป็นจำนวนเต็ม ไม่เป็น 0 และไม่เกิน ${MAX_COIN_ADJUST}` });
+    }
+    if (!reason) return res.status(400).json({ message: "กรุณาระบุเหตุผล" });
+    if (reason.length > MAX_ADJUST_REASON_LENGTH) {
+      return res.status(400).json({ message: `เหตุผลยาวได้ไม่เกิน ${MAX_ADJUST_REASON_LENGTH} ตัวอักษร` });
+    }
+
+    const user = await db.prepare("SELECT id FROM users WHERE id = ?").get(req.params.id);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+
+    const newBalance = await db.tx(async (t) => {
+      // guard ในคำสั่งเดียว: หักได้เฉพาะถ้ายอดพอจริงตอน UPDATE
+      const update = await t
+        .prepare("UPDATE users SET coins = coins + ? WHERE id = ? AND coins + ? >= 0")
+        .run(amount, user.id, amount);
+      if (update.changes === 0) return null;
+      const { coins } = await t.prepare("SELECT coins FROM users WHERE id = ?").get(user.id);
+      await t
+        .prepare("INSERT INTO coin_adjustments (user_id, admin_id, amount, reason, balance_after) VALUES (?, ?, ?, ?, ?)")
+        .run(user.id, req.user.id, amount, reason, coins);
+      return coins;
+    });
+    if (newBalance === null) {
+      return res.status(400).json({ message: "หักคอยน์เกินยอดที่ผู้ใช้มีอยู่ไม่ได้" });
+    }
+
+    return res.json({
+      message: amount > 0 ? `เพิ่ม ${amount} คอยน์สำเร็จ` : `หัก ${-amount} คอยน์สำเร็จ`,
+      coins: newBalance,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== คะแนน/อันดับ ==================
 router.get("/scores", requireAdmin, async (req, res, next) => {
   try {

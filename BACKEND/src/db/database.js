@@ -547,6 +547,19 @@ async function initDatabase() {
     )
   `);
 
+  // ---- ตาราง coin_adjustments (แอดมินเพิ่ม/ลดคอยน์ให้ผู้ใช้ เก็บทุกครั้งพร้อมเหตุผล ไว้ตรวจย้อนหลัง) ----
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS coin_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      amount INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      balance_after INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ---- ตาราง chat_answers ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS chat_answers (

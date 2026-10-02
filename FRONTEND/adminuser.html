@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css">
+    <link rel="stylesheet" href="adminuser.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -74,7 +75,7 @@
                     <th>คอยน์</th>
                     <th>สถานะ</th>
                     <th>สมัครเมื่อ</th>
-                    <th>ลบ</th>
+                    <th>จัดการ</th>
                 </tr>
             </thead>
             <tbody id="userTableBody">
@@ -83,8 +84,38 @@
     </div>
 </main>
 </div>
+<!-- Modal ปรับคอยน์ของผู้ใช้ 1 คน -->
+<div id="coinModal" class="edit-overlay">
+    <div class="edit-modal-box">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" onclick="closeCoinModal()">&#8592;</button>
+            <span class="edit-modal-title" id="coinModalTitle">ปรับคอยน์</span>
+        </div>
+        <p class="coin-current">คอยน์ปัจจุบัน: <strong id="coinCurrent">-</strong></p>
+
+        <div class="edit-form-group">
+            <label class="edit-form-label" for="coinAmountInput">จำนวน (ใส่ติดลบ = หักคอยน์) :</label>
+            <input class="edit-form-input" id="coinAmountInput" type="number" step="1" placeholder="เช่น 500 หรือ -100"/>
+            <div class="coin-quick">
+                <button type="button" onclick="setCoinAmount(100)">+100</button>
+                <button type="button" onclick="setCoinAmount(500)">+500</button>
+                <button type="button" onclick="setCoinAmount(1000)">+1000</button>
+                <button type="button" onclick="setCoinAmount(-100)">-100</button>
+            </div>
+        </div>
+        <div class="edit-form-group">
+            <label class="edit-form-label" for="coinReasonInput">เหตุผล :</label>
+            <input class="edit-form-input" id="coinReasonInput" type="text" maxlength="200" placeholder="เช่น เตรียมบัญชีสาธิต, ชดเชยระบบขัดข้อง"/>
+        </div>
+        <button class="edit-confirm-btn" id="coinSaveBtn" onclick="saveCoinAdjust()">ยืนยัน</button>
+
+        <h4 class="coin-history-title">ประวัติการปรับคอยน์</h4>
+        <div id="coinHistory" class="coin-history"></div>
+    </div>
+</div>
+
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminuser.js"></script>
+<script src="adminuser.js?v=2"></script>
 </body>
 </html>
