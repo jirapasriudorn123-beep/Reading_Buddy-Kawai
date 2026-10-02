@@ -180,3 +180,25 @@
   font-weight: 700;
   margin-top: 14px;
 }
+
+/* ---- ตารางโบนัสคอยน์มินิเกมรายด่าน (ในหน้าต่างรายละเอียด) ---- */
+.qs-stage-heading {
+  margin: 0 0 10px;
+  font-weight: 600;
+  color: #333;
+}
+
+.qs-stage-table th,
+.qs-stage-table td {
+  text-align: center;
+}
+
+.qs-stage-table th {
+  white-space: nowrap;
+}
+
+.qs-stage-empty {
+  margin: 0;
+  color: #999;
+  text-align: center;
+}

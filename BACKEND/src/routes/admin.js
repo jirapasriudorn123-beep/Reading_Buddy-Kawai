@@ -371,9 +371,14 @@ router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
                 COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN qa.correct ELSE 0 END), 0) AS subjectCorrect,
                 COALESCE(SUM(CASE WHEN qa.category = 'subject' THEN 1 ELSE 0 END), 0) AS subjectTotal,
                 COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN qa.correct ELSE 0 END), 0) AS dogCorrect,
-                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN 1 ELSE 0 END), 0) AS dogTotal
+                COALESCE(SUM(CASE WHEN qa.category = 'dog' THEN 1 ELSE 0 END), 0) AS dogTotal,
+                COALESCE(gr.coins, 0) AS gameBonusCoins,
+                COALESCE(gr.stages, 0) AS gameStagesRewarded
          FROM users u
          LEFT JOIN quiz_answer_log qa ON qa.user_id = u.id
+         LEFT JOIN (
+           SELECT user_id, SUM(coins) AS coins, COUNT(*) AS stages FROM game_stage_rewards GROUP BY user_id
+         ) gr ON gr.user_id = u.id
          WHERE u.is_admin = 0
          GROUP BY u.id
          ORDER BY u.username ASC`
@@ -394,10 +399,27 @@ router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
         dogTotal: r.dogTotal,
         overallPercent: pct(overallCorrect, overallTotal),
         overallTotal,
+        gameBonusCoins: r.gameBonusCoins,
+        gameStagesRewarded: r.gameStagesRewarded,
       };
     });
 
     return res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET โบนัสคอยน์มินิเกมรายด่านของผู้ใช้ 1 คน (ได้ครั้งเดียวต่อด่าน เมื่อชนะด้วยคะแนน 80% ขึ้นไป) — ใช้ในหน้าต่างรายละเอียด
+router.get("/scores/quiz/:userId/stages", requireAdmin, async (req, res, next) => {
+  try {
+    const stages = await db
+      .prepare(
+        `SELECT world, stage, coins, score_percent AS scorePercent, rewarded_at AS rewardedAt
+         FROM game_stage_rewards WHERE user_id = ? ORDER BY world ASC, stage ASC`
+      )
+      .all(Number(req.params.userId));
+    return res.json({ stages });
   } catch (err) {
     next(err);
   }

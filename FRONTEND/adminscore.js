@@ -50,7 +50,7 @@ async function loadQuizScores() {
   } catch (err) {
     console.error("โหลดคะแนนควิซไม่สำเร็จ:", err);
     document.getElementById("quizScoreBody").innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:#d9534f;">โหลดคะแนนไม่สำเร็จ</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;color:#d9534f;">โหลดคะแนนไม่สำเร็จ</td></tr>';
   }
 }
 
@@ -75,7 +75,7 @@ function renderQuizScoreTable() {
 
   const body = document.getElementById("quizScoreBody");
   if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">ไม่พบข้อมูล</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">ไม่พบข้อมูล</td></tr>';
     return;
   }
 
@@ -88,6 +88,7 @@ function renderQuizScoreTable() {
         <td>${u.subjectPercent}%</td>
         <td>${u.dogPercent}%</td>
         <td>${u.overallPercent}%</td>
+        <td>🪙 ${u.gameBonusCoins.toLocaleString()} <span style="color:#999;">(${u.gameStagesRewarded} ด่าน)</span></td>
         <td><span class="qs-status-pill ${passed ? "pass" : "fail"}">${passed ? "ผ่าน" : "ไม่ผ่าน"}</span></td>
         <td>
           <button class="qs-detail-btn" onclick="openScoreDetail(${u.id})" title="ดูรายละเอียด">
@@ -120,6 +121,44 @@ function resetThresholds() {
   onThresholdChange();
 }
 
+// ตารางโบนัสคอยน์มินิเกมรายด่าน (โหลดแยกตอนเปิดหน้าต่างรายละเอียด)
+async function loadStageRewards(userId) {
+  const box = document.getElementById("stageRewardBox");
+  try {
+    const { stages } = await adminApiFetch(`/admin/scores/quiz/${userId}/stages`);
+    if (!box.isConnected) return; // ปิด/เปิดหน้าต่างของคนอื่นไปแล้วระหว่างรอ
+    box.innerHTML = stages.length
+      ? `<table class="lesson-table qs-stage-table">
+          <thead><tr><th>โลก</th><th>ด่าน</th><th>คะแนน</th><th>คอยน์</th><th>วันที่ได้</th></tr></thead>
+          <tbody>${stages
+            .map(
+              (s) => `<tr>
+                <td>${s.world}</td>
+                <td>${s.stage}</td>
+                <td>${s.scorePercent}%</td>
+                <td>🪙 +${s.coins}</td>
+                <td>${escapeHtml(formatThaiDate(s.rewardedAt))}</td>
+              </tr>`
+            )
+            .join("")}</tbody>
+        </table>`
+      : '<p class="qs-stage-empty">ยังไม่เคยได้โบนัสจากมินิเกม</p>';
+  } catch (err) {
+    console.error("โหลดโบนัสมินิเกมไม่สำเร็จ:", err);
+    box.innerHTML = '<p class="qs-stage-empty" style="color:#d9534f;">โหลดข้อมูลไม่สำเร็จ</p>';
+  }
+}
+
+// เวลาใน DB เป็น UTC ("YYYY-MM-DD HH:MM:SS") → แสดงเป็นเวลาไทย
+function formatThaiDate(sqliteDatetime) {
+  if (!sqliteDatetime) return "-";
+  return new Date(sqliteDatetime.replace(" ", "T") + "Z").toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 function openScoreDetail(userId) {
   const u = allQuizScores.find((x) => x.id === userId);
   if (!u) return;
@@ -148,8 +187,14 @@ function openScoreDetail(userId) {
       <p>คะแนนเกี่ยวกับสุนัข = ${u.dogPercent}</p>
     </div>
     <p class="qs-detail-total">คะแนนทั้งหมด = ${u.overallPercent}</p>
+    <hr class="qs-detail-divider">
+    <p class="qs-stage-heading">
+      โบนัสมินิเกม (ชนะด่านด้วยคะแนน 80% ขึ้นไป ได้ครั้งเดียวต่อด่าน) — รวม 🪙 ${u.gameBonusCoins.toLocaleString()}
+    </p>
+    <div id="stageRewardBox"><p class="qs-stage-empty">กำลังโหลด...</p></div>
   `;
   document.getElementById("scoreDetailModal").classList.add("active");
+  loadStageRewards(userId);
 }
 
 function closeScoreDetailModal() {
