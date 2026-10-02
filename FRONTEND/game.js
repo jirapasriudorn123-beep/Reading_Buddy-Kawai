@@ -217,6 +217,16 @@ function initWorldMap() {
 
   updateMapView(false);
   updateMapPlayBtn();
+  bindMapControls(track);
+}
+
+// initWorldMap ถูกเรียกซ้ำทุกครั้งที่สร้างแผนที่ใหม่ (กลับจากการต่อสู้ / รีเซ็ต) แต่ปุ่มกับ track เป็น element เดิม
+// ผูก event แค่ครั้งแรกครั้งเดียว ไม่งั้นกดลูกศร 1 ครั้งจะเลื่อนหลายโลก (ผูกซ้ำกี่รอบ ก็ทำงานซ้ำกี่รอบ)
+let mapControlsBound = false;
+
+function bindMapControls(track) {
+  if (mapControlsBound) return;
+  mapControlsBound = true;
 
   document.getElementById("mapPrevBtn").addEventListener("click", () => goToWorld(worldIdx - 1));
   document.getElementById("mapNextBtn").addEventListener("click", () => goToWorld(worldIdx + 1));
