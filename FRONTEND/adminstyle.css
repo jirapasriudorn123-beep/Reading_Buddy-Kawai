@@ -1363,3 +1363,9 @@ body {
     color: #aaa;
     font-weight: 400;
 }
+
+/* คูปองที่ยังไม่ได้ตั้งมูลค่าส่วนลด (หน้าจัดการร้านค้า) */
+.pet-use-note.coupon-unset {
+    color: #c0533a;
+    font-weight: 600;
+}

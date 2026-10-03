@@ -33,6 +33,12 @@ function isRealCoupon(product) {
   return product.category === "คูปอง" && product.discount_baht > 0;
 }
 
+// หมวดคูปองที่แอดมินยังไม่ได้ตั้งมูลค่าส่วนลด และใช้กับน้องหมาไม่ได้ = ยังไม่พร้อมแลก
+// (เดิมขายเป็นไอเทมธรรมดา หักคอยน์แล้วไปอยู่ในกระเป๋า ผู้ใช้หาใน "คูปองของฉัน" ไม่เจอ)
+function isUnsetCoupon(product) {
+  return product.category === "คูปอง" && !(product.discount_baht > 0) && !product.pet_action;
+}
+
 // สถานะที่ผู้ใช้/พนักงานเห็น: active ที่เลยวันหมดอายุแล้วนับเป็น expired (ไม่ต้องมีงานรันเปลี่ยนสถานะ)
 const STATUS_SQL = `CASE WHEN uc.status = 'used' THEN 'used'
                          WHEN uc.expires_at <= datetime('now') THEN 'expired'
@@ -244,4 +250,4 @@ router.post("/use", async (req, res, next) => {
   }
 });
 
-module.exports = { router, redeemCoupon, isRealCoupon };
+module.exports = { router, redeemCoupon, isRealCoupon, isUnsetCoupon };

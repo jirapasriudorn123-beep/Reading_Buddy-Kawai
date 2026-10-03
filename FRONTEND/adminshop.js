@@ -52,11 +52,18 @@ function renderProducts(items) {
         : `<p class="pet-use-note muted">ของสะสม (ใช้กับน้องไม่ได้)</p>`;
       const safeName = escapeHtml(p.name);
       const safeId = escapeHtml(p.id);
+      // คูปองที่ยังไม่ตั้งมูลค่า (และใช้กับน้องหมาไม่ได้) ผู้ใช้แลกไม่ได้ — เตือนให้แอดมินเห็น
+      const couponNote =
+        p.category === "คูปอง" && !p.pet_action
+          ? p.discount_baht > 0
+            ? `<p class="pet-use-note">🎫 ส่วนลด ${p.discount_baht} บาท · อ่านสะสม ${p.required_reading_minutes || 0} นาที</p>`
+            : `<p class="pet-use-note coupon-unset">⚠️ ยังไม่ได้ตั้งมูลค่าส่วนลด — ผู้ใช้แลกไม่ได้</p>`
+          : "";
       return `
             <div class="product-card">
                 ${tagHTML}
                 <p><strong>${safeName}</strong></p>
-                ${petUseHTML}
+                ${couponNote || petUseHTML}
                 <img src="${escapeHtml(resolveProductImg(p.img))}" width="100" alt="${safeName}" onerror="this.src='img/placeholder.png'">
                 <button class="price-btn"><img src="img/coin_ja.png" alt="เหรียญ" class="price-coin-icon">${p.price}</button>
                 <div class="admin-card-actions">
@@ -198,6 +205,14 @@ async function saveItemEdit() {
   }
   if (Number.isNaN(price) || price < 0) {
     alert("ราคาต้องไม่ติดลบ");
+    return;
+  }
+  if (
+    category === "คูปอง" &&
+    !petAction &&
+    !(Number(document.getElementById("editItemDiscount").value) > 0) &&
+    !confirm("ยังไม่ได้ใส่มูลค่าส่วนลด (บาท) — ผู้ใช้จะแลกคูปองนี้ไม่ได้จนกว่าจะใส่ บันทึกต่อไหม?")
+  ) {
     return;
   }
   if (petAction && !(Number(statGain) >= 1 && Number(statGain) <= 100)) {

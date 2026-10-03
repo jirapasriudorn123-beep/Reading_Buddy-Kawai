@@ -137,6 +137,11 @@ function isRealCoupon(p) {
   return p.category === "คูปอง" && p.discount_baht > 0;
 }
 
+// หมวดคูปองที่แอดมินยังไม่ได้ตั้งมูลค่าและใช้กับน้องหมาไม่ได้ — แลกไม่ได้ (backend ก็ปฏิเสธ)
+function isUnsetCoupon(p) {
+  return p.category === "คูปอง" && !(p.discount_baht > 0) && !p.pet_action;
+}
+
 function updateCouponToolbar() {
   const statusEl = document.getElementById("couponVerifyStatus");
   if (statusEl) {
@@ -200,7 +205,9 @@ function renderProducts(items) {
           `;
         }
         const progressPct = requiredMins ? Math.min(100, Math.round((userReadingMinutes / requiredMins) * 100)) : 100;
-        const lockOverlay = unlocked
+        const lockOverlay = isUnsetCoupon(p)
+          ? `<div class="coupon-lock"><div class="coupon-lock-inner">⏳ คูปองนี้ยังไม่พร้อมใช้งาน</div></div>`
+          : unlocked
           ? ""
           : `<div class="coupon-lock">
                <div class="coupon-lock-inner">
@@ -354,10 +361,11 @@ function showDetail(id) {
 
   // คูปองส่วนลดแลกได้ทีละ 1 ใบ และไม่ผ่านตะกร้า — ซ่อนช่องจำนวนกับปุ่มเพิ่มลงตะกร้า
   const realCoupon = isRealCoupon(product);
+  const hideCart = realCoupon || isUnsetCoupon(product);
   const qtyRow = document.getElementById("modalQtyRow");
-  if (qtyRow) qtyRow.style.display = realCoupon ? "none" : "";
+  if (qtyRow) qtyRow.style.display = hideCart ? "none" : "";
   const cartBtn = document.getElementById("modalAddToCartBtn");
-  if (cartBtn) cartBtn.style.display = realCoupon ? "none" : "";
+  if (cartBtn) cartBtn.style.display = hideCart ? "none" : "";
 
   // ปุ่มซื้อคูปอง = "แลกคูปอง" + disable ถ้าอ่านยังไม่ครบ / แลกไปแล้ว
   const buyBtn = document.querySelector(".buy-now-btn");
@@ -369,7 +377,10 @@ function showDetail(id) {
       buyBtn.disabled = !unlocked || redeemed;
       // คูปองที่มีราคา: ปุ่มโชว์ราคาเหมือนสินค้าทั่วไป (ข้อความ "ใช้ X คอยน์ แลกคูปองนี้" อยู่ในรายละเอียดแล้ว)
       let label = product.price > 0 ? String(product.price) : "แลกคูปอง";
-      if (redeemed) label = "✓ แลกแล้ว";
+      if (isUnsetCoupon(product)) {
+        buyBtn.disabled = true;
+        label = "⏳ ยังไม่พร้อมใช้งาน";
+      } else if (redeemed) label = "✓ แลกแล้ว";
       else if (!unlocked) label = "🔒 ยังปลดล็อคไม่ได้";
       else if (realCoupon && !univVerified) label = "📧 ยืนยันอีเมลก่อนแลก";
       buyBtn.dataset.couponLabel = label;
@@ -439,7 +450,7 @@ async function buyNow() {
 
 function addToCart() {
   if (!tempItem) return;
-  if (isRealCoupon(tempItem)) return; // คูปองแลกผ่านปุ่มแลกเท่านั้น (ปุ่มนี้ถูกซ่อนไว้แล้ว)
+  if (isRealCoupon(tempItem) || isUnsetCoupon(tempItem)) return; // คูปองแลกผ่านปุ่มแลกเท่านั้น
 
   const quantity = getModalQty();
   const found = cart.find((item) => item.id === tempItem.id);

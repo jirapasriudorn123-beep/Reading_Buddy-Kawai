@@ -1,7 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
-const { redeemCoupon, isRealCoupon } = require("./coupons");
+const { redeemCoupon, isRealCoupon, isUnsetCoupon } = require("./coupons");
 
 const router = express.Router();
 
@@ -66,6 +66,9 @@ router.post("/buy", requireAuth, async (req, res) => {
     const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(productId);
     if (!product) {
       return res.status(404).json({ message: "ไม่พบสินค้านี้" });
+    }
+    if (isUnsetCoupon(product)) {
+      return res.status(400).json({ message: "คูปองนี้ยังไม่พร้อมใช้งาน (แอดมินยังไม่ได้ตั้งมูลค่าส่วนลด)" });
     }
 
     // สินค้าที่ต้องอ่านสะสมก่อน (คูปอง) เช็ค reading total ก่อนขาย
