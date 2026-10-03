@@ -3539,3 +3539,15 @@ html.dark-mode body .modal-qty-control input {
   display: block;
   margin: 0 auto;
 }
+
+/* ป้ายโหมดสาธิตในกล่องตั้งเวลาอ่าน (แอดมินเปิดไว้ตอนนำเสนอ) */
+.demo-mode-notice {
+  margin: 0 0 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #fff4e0;
+  border: 1px solid #f0b23d;
+  color: #8a5a0b;
+  font-size: 14px;
+  text-align: center;
+}

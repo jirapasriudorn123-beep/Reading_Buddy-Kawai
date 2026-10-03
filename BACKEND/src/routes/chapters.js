@@ -1,12 +1,12 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { getReadingRules } = require("../services/readingRules");
 
 const router = express.Router();
 
 const MAX_MINUTES = 120;
 const MAX_SECONDS = 59;
-const MIN_READ_MINUTES = 10;
 
 function toSeconds(minutes, seconds) {
   return Number(minutes) * 60 + Number(seconds);
@@ -19,7 +19,9 @@ router.get("/", requireAuth, async (req, res, next) => {
       .prepare("SELECT id, chapter_number, title, coin_reward, detail, image_url, pdf_url FROM chapters ORDER BY chapter_number ASC")
       .all();
 
-    return res.json({ chapters });
+    // กติกาเวลาอ่านตอนนี้ (หน้าเว็บใช้ตั้งค่าเริ่มต้นในกล่องตั้งเวลา และบอกผู้ใช้ตอนเปิดโหมดสาธิต)
+    const readingRules = await getReadingRules();
+    return res.json({ chapters, readingRules });
   } catch (err) {
     next(err);
   }
@@ -54,9 +56,10 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
       }
     }
 
+    const rules = await getReadingRules();
     const plannedReadSeconds = toSeconds(readMinutes, readSeconds);
-    if (plannedReadSeconds < MIN_READ_MINUTES * 60) {
-      return res.status(400).json({ message: `เวลาอ่านต้องตั้งอย่างน้อย ${MIN_READ_MINUTES} นาที` });
+    if (plannedReadSeconds < rules.minReadMinutes * 60) {
+      return res.status(400).json({ message: `เวลาอ่านต้องตั้งอย่างน้อย ${rules.minReadMinutes} นาที` });
     }
     const plannedBreakSeconds = toSeconds(breakMinutes, breakSeconds);
 
@@ -68,9 +71,9 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
          WHERE user_id = ? AND status = 'in_progress'`
       ).run(req.user.id);
       return t.prepare(
-        `INSERT INTO reading_sessions (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status)
-         VALUES (?, ?, ?, ?, 'in_progress')`
-      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds);
+        `INSERT INTO reading_sessions (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status, minutes_per_block)
+         VALUES (?, ?, ?, ?, 'in_progress', ?)`
+      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, rules.minutesPerBlock);
     });
 
     return res.status(201).json({

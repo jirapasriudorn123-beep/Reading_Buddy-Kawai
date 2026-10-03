@@ -4,6 +4,7 @@ const db = require("../db/database");
 const { requireAdmin } = require("../middleware/auth");
 const { findChatAnswer } = require("./chat");
 const { makeAdminUpload } = require("../utils/cloudinary");
+const { getReadingRules, setDemoMode } = require("../services/readingRules");
 
 const router = express.Router();
 
@@ -73,6 +74,31 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       totalCoinsSpent: totalCoinsSpentRow.s,
       gamePlayers: gamePlayersRow.c,
       chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== โหมดสาธิตจับเวลาอ่าน ==================
+// เปิด: ตั้งเวลาอ่านขั้นต่ำ 1 นาที ได้ 10 คอยน์ทุก 1 นาที (ใช้ตอนนำเสนอ) | ปิด: 10 นาที / 10 คอยน์ทุก 5 นาที ตามปกติ
+router.get("/demo-mode", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json({ readingRules: await getReadingRules() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put("/demo-mode", requireAdmin, async (req, res, next) => {
+  try {
+    if (typeof req.body.enabled !== "boolean") {
+      return res.status(400).json({ message: "enabled ต้องเป็น true หรือ false" });
+    }
+    const readingRules = await setDemoMode(req.body.enabled);
+    return res.json({
+      message: req.body.enabled ? "เปิดโหมดสาธิตแล้ว" : "ปิดโหมดสาธิตแล้ว กลับเป็นกติกาปกติ",
+      readingRules,
     });
   } catch (err) {
     next(err);

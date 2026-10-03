@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="adminstyle.css">
+    <link rel="stylesheet" href="adminstyle.css?v=2">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -64,6 +64,15 @@
     <header class="top-nav">
         <h2>หน้าหลัก สวัสดี, <span id="adminNameDisplay">ชื่อผู้ดูแล</span></h2>
     </header>
+
+    <!-- โหมดสาธิตจับเวลาอ่าน: เปิดตอนนำเสนอ ปิดหลังใช้งานเสร็จ -->
+    <div class="demo-mode-card" id="demoModeCard">
+        <div>
+            <div class="demo-mode-title">🧪 โหมดสาธิตจับเวลาอ่าน <span id="demoModeBadge" class="demo-mode-badge">กำลังโหลด...</span></div>
+            <div class="demo-mode-desc" id="demoModeDesc">ปกติ: ตั้งเวลาอ่านขั้นต่ำ 10 นาที · ได้ 10 คอยน์ทุก 5 นาที</div>
+        </div>
+        <button type="button" class="demo-mode-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>...</button>
+    </div>
 
     <div class="dashboard-grid">
         <div class="stat-card">
@@ -129,6 +138,6 @@
 </div>
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js"></script>
+<script src="adminhome.js?v=2"></script>
 </body>
 </html>

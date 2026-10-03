@@ -202,6 +202,8 @@ async function initDatabase() {
     ["away_started_at", "ALTER TABLE reading_sessions ADD COLUMN away_started_at TEXT"],
     // เวลาที่อ่านจริง (หักเวลาที่ออกจากหน้าอ่าน, ไม่เกินเวลาที่ตั้งไว้) = ค่าเดียวกับที่ใช้คิดเหรียญ ใช้ทำสถิติทุกหน้า
     ["read_seconds", "ALTER TABLE reading_sessions ADD COLUMN read_seconds INTEGER"],
+    // กี่นาทีได้ 1 ก้อนคอยน์ — ล็อกไว้ตั้งแต่เริ่มเซสชัน (5 ปกติ, 1 ตอนแอดมินเปิดโหมดสาธิต) ปิด/เปิดโหมดกลางคันไม่กระทบเซสชันที่อ่านอยู่
+    ["minutes_per_block", "ALTER TABLE reading_sessions ADD COLUMN minutes_per_block INTEGER NOT NULL DEFAULT 5"],
   ];
   for (const [col, sql] of sessionColumnMigrations) {
     if (!sessionColumns.includes(col)) await client.execute(sql);

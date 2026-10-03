@@ -1369,3 +1369,61 @@ body {
     color: #c0533a;
     font-weight: 600;
 }
+
+/* การ์ดโหมดสาธิตจับเวลาอ่าน (หน้าหลักแอดมิน) */
+.demo-mode-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #fff;
+    border: 2px solid #d9d2bf;
+    border-radius: 16px;
+}
+.demo-mode-card.on {
+    background: #fff4e0;
+    border-color: #f0b23d;
+}
+.demo-mode-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+.demo-mode-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #e3e3e3;
+    font-size: 12px;
+    font-weight: 600;
+}
+.demo-mode-card.on .demo-mode-badge {
+    background: #f0b23d;
+    color: #fff;
+}
+.demo-mode-desc {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #666;
+}
+.demo-mode-btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 999px;
+    background: #97bc62;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.demo-mode-card.on .demo-mode-btn {
+    background: #c0533a;
+}
+.demo-mode-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

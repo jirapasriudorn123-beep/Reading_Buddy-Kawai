@@ -4,8 +4,10 @@ const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-const COINS_PER_BLOCK = 10;
-const READ_MINUTES_PER_BLOCK = 5;
+const { NORMAL_RULES } = require("../services/readingRules");
+
+// คอยน์ต่อก้อนคงที่ (10) ส่วนกี่นาทีได้ 1 ก้อน ล็อกไว้ในเซสชันตั้งแต่เริ่ม (minutes_per_block: 5 ปกติ, 1 โหมดสาธิต)
+const COINS_PER_BLOCK = NORMAL_RULES.coinsPerBlock;
 const EXTEND_MINUTES = 5;
 const MAX_READ_MINUTES = 120;
 const AWAY_GRACE_SECONDS = 15;
@@ -23,7 +25,7 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
     const session = await db
       .prepare(
         `SELECT rs.id, rs.user_id, rs.chapter_id, rs.planned_read_seconds, rs.status, rs.started_at,
-                rs.away_seconds, rs.away_started_at, c.coin_reward, c.title AS chapter_title
+                rs.away_seconds, rs.away_started_at, rs.minutes_per_block, c.coin_reward, c.title AS chapter_title
          FROM reading_sessions rs
          JOIN chapters c ON c.id = rs.chapter_id
          WHERE rs.id = ?`
@@ -53,7 +55,8 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
 
     const effectiveElapsedSeconds = Math.min(readSeconds, session.planned_read_seconds);
     const effectiveElapsedMinutes = Math.floor(effectiveElapsedSeconds / 60);
-    const coinsEarned = Math.floor(effectiveElapsedMinutes / READ_MINUTES_PER_BLOCK) * COINS_PER_BLOCK;
+    const minutesPerBlock = session.minutes_per_block || NORMAL_RULES.minutesPerBlock;
+    const coinsEarned = Math.floor(effectiveElapsedMinutes / minutesPerBlock) * COINS_PER_BLOCK;
     const completedFullDuration = effectiveElapsedSeconds >= session.planned_read_seconds;
 
     // atomic guard: ปิดเซสชันได้เฉพาะถ้ายัง in_progress อยู่จริงตอน UPDATE

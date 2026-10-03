@@ -47,7 +47,8 @@ let remainingSeconds = 0;
 let onBreak = false; // true ระหว่างช่วงพักหลังอ่านจบ (session จบไปแล้ว รอนับเวลาพักอย่างเดียว)
 let breakCountdownInterval = null;
 
-const MIN_READ_MINUTES = 10;
+// กติกาเวลาอ่าน (backend ส่งมากับ /chapters) — ปกติขั้นต่ำ 10 นาที 10 คอยน์ทุก 5 นาที, โหมดสาธิต 1 นาที 10 คอยน์ทุก 1 นาที
+let readingRules = { demoMode: false, minReadMinutes: 10, minutesPerBlock: 5, coinsPerBlock: 10 };
 const MAX_TIME_MINUTES = 120;
 const TIME_STEP_MINUTES = 5;
 
@@ -132,8 +133,9 @@ async function submitGoal() {
 // ================== Chapters ==================
 
 async function loadChapters() {
-  const { chapters } = await apiFetch("/chapters");
-  renderChapters(chapters);
+  const data = await apiFetch("/chapters");
+  if (data.readingRules) readingRules = data.readingRules;
+  renderChapters(data.chapters);
 }
 
 function renderChapters(chapters) {
@@ -186,7 +188,14 @@ function openChapterTimeModal(chapter) {
   selectedChapter = chapter;
   document.getElementById("modalChapterTitle").textContent = `Chapter ${chapter.chapter_number} ${chapter.title}`;
 
-  document.getElementById("chapterMinutes").value = MIN_READ_MINUTES;
+  const minutesInput = document.getElementById("chapterMinutes");
+  minutesInput.value = readingRules.minReadMinutes;
+  minutesInput.min = readingRules.minReadMinutes;
+  const demoNotice = document.getElementById("demoModeNotice");
+  if (demoNotice) {
+    demoNotice.style.display = readingRules.demoMode ? "block" : "none";
+    demoNotice.textContent = `🧪 โหมดสาธิต: ตั้งเวลาได้ตั้งแต่ ${readingRules.minReadMinutes} นาที · อ่านทุก ${readingRules.minutesPerBlock} นาทีได้ ${readingRules.coinsPerBlock} คอยน์`;
+  }
   document.getElementById("chapterSeconds").value = 0;
   document.getElementById("breakMinutes").value = 0;
   document.getElementById("breakSeconds").value = 0;
@@ -211,8 +220,8 @@ async function confirmStartReading() {
   const breakMinutes = Number(document.getElementById("breakMinutes").value) || 0;
   const breakSeconds = Number(document.getElementById("breakSeconds").value) || 0;
 
-  if (readMinutes * 60 + readSeconds < MIN_READ_MINUTES * 60) {
-    errorEl.textContent = `เวลาอ่านต้องตั้งอย่างน้อย ${MIN_READ_MINUTES} นาที`;
+  if (readMinutes * 60 + readSeconds < readingRules.minReadMinutes * 60) {
+    errorEl.textContent = `เวลาอ่านต้องตั้งอย่างน้อย ${readingRules.minReadMinutes} นาที`;
     errorEl.style.display = "block";
     return;
   }
@@ -306,7 +315,7 @@ async function stopReading() {
   if (!activeSession) return;
 
   const confirmStop = confirm(
-    "ต้องการหยุดอ่านตอนนี้เลยหรือไม่? จะได้เหรียญตามเวลาที่อ่านจริง (นับทุกๆ 5 นาทีที่อ่านครบเท่านั้น)"
+    `ต้องการหยุดอ่านตอนนี้เลยหรือไม่? จะได้เหรียญตามเวลาที่อ่านจริง (นับทุกๆ ${readingRules.minutesPerBlock} นาทีที่อ่านครบเท่านั้น)`
   );
   if (!confirmStop) return;
 

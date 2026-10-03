@@ -104,3 +104,56 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
   loadStats();
 });
+
+// ================== โหมดสาธิตจับเวลาอ่าน ==================
+// เปิด: ขั้นต่ำ 1 นาที 10 คอยน์ทุก 1 นาที (ใช้ตอนนำเสนอ) — ปิด: 10 นาที 10 คอยน์ทุก 5 นาทีตามปกติ
+let demoModeOn = false;
+
+function renderDemoMode(rules) {
+  demoModeOn = !!rules.demoMode;
+  const card = document.getElementById("demoModeCard");
+  const badge = document.getElementById("demoModeBadge");
+  const desc = document.getElementById("demoModeDesc");
+  const btn = document.getElementById("demoModeBtn");
+  card.classList.toggle("on", demoModeOn);
+  badge.textContent = demoModeOn ? "เปิดอยู่" : "ปิดอยู่";
+  desc.textContent = demoModeOn
+    ? `ตอนนี้: ตั้งเวลาอ่านขั้นต่ำ ${rules.minReadMinutes} นาที · ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที — อย่าลืมปิดหลังสาธิต`
+    : `ปกติ: ตั้งเวลาอ่านขั้นต่ำ ${rules.minReadMinutes} นาที · ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที`;
+  btn.textContent = demoModeOn ? "ปิดโหมดสาธิต" : "เปิดโหมดสาธิต";
+  btn.disabled = false;
+}
+
+async function loadDemoMode() {
+  try {
+    const { readingRules } = await adminApiFetch("/admin/demo-mode");
+    renderDemoMode(readingRules);
+  } catch (err) {
+    console.error("โหลดสถานะโหมดสาธิตไม่สำเร็จ:", err);
+  }
+}
+
+async function toggleDemoMode() {
+  const turnOn = !demoModeOn;
+  const question = turnOn
+    ? "เปิดโหมดสาธิต? ผู้ใช้ทุกคนจะตั้งเวลาอ่านได้ตั้งแต่ 1 นาที และได้ 10 คอยน์ทุก 1 นาทีจนกว่าจะปิด"
+    : "ปิดโหมดสาธิต? กลับเป็นขั้นต่ำ 10 นาที และ 10 คอยน์ทุก 5 นาที (เซสชันที่เริ่มไปแล้วยังใช้กติกาเดิมของมัน)";
+  if (!confirm(question)) return;
+
+  const btn = document.getElementById("demoModeBtn");
+  btn.disabled = true;
+  try {
+    const { readingRules } = await adminApiFetch("/admin/demo-mode", {
+      method: "PUT",
+      body: JSON.stringify({ enabled: turnOn }),
+    });
+    renderDemoMode(readingRules);
+  } catch (err) {
+    alert("เปลี่ยนโหมดไม่สำเร็จ: " + err.message);
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (getAdminToken()) loadDemoMode();
+});
