@@ -1,15 +1,17 @@
 const nodemailer = require("nodemailer");
 
+// ================== ช่องทางส่งอีเมล ==================
+// 1) BREVO_API_KEY ตั้งไว้ → ส่งผ่าน Brevo HTTP API (ใช้บน Render: แพ็กเกจฟรีบล็อกพอร์ต SMTP ส่ง Gmail ตรงๆ แล้ว timeout)
+// 2) ไม่มี → ส่งผ่าน Gmail SMTP ด้วย EMAIL_USER + EMAIL_APP_PASSWORD (ใช้ตอนรันในเครื่อง)
+// ผู้ส่งคือ EMAIL_USER ทั้งสองแบบ (ใช้ Brevo ต้องยืนยันอีเมลนี้เป็น sender ใน Brevo ก่อน)
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const SENDER_NAME = "webapp_for_reading";
+
 let transporter = null;
 
 // สร้าง transporter แบบ lazy (สร้างครั้งแรกที่ใช้งานเท่านั้น)
-// ถ้ายังไม่ได้ตั้งค่า EMAIL_USER / EMAIL_APP_PASSWORD ใน .env จะคืนค่า null
 function getTransporter() {
   if (transporter) return transporter;
-
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-    return null;
-  }
 
   transporter = nodemailer.createTransport({
     service: "gmail",
@@ -22,19 +24,58 @@ function getTransporter() {
   return transporter;
 }
 
-// ส่งอีเมลลิงก์รีเซ็ตรหัสผ่าน
-// throw error ชื่อ "EMAIL_NOT_CONFIGURED" ถ้ายังไม่ได้ตั้งค่า .env
-async function sendPasswordResetEmail(toEmail, resetUrl) {
-  const t = getTransporter();
+async function sendViaBrevo({ to, subject, text, html }) {
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: SENDER_NAME, email: process.env.EMAIL_USER },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    const err = new Error(`Brevo API ${response.status}: ${detail.slice(0, 300)}`);
+    err.code = "BREVO_SEND_FAILED";
+    throw err;
+  }
+}
 
-  if (!t) {
+// throw error ชื่อ "EMAIL_NOT_CONFIGURED" ถ้ายังไม่ได้ตั้งค่าช่องทางส่งอีเมลเลย
+async function deliver(message) {
+  if (!process.env.EMAIL_USER) {
     const err = new Error("EMAIL_NOT_CONFIGURED");
     err.code = "EMAIL_NOT_CONFIGURED";
     throw err;
   }
+  if (process.env.BREVO_API_KEY) {
+    return sendViaBrevo(message);
+  }
+  if (!process.env.EMAIL_APP_PASSWORD) {
+    const err = new Error("EMAIL_NOT_CONFIGURED");
+    err.code = "EMAIL_NOT_CONFIGURED";
+    throw err;
+  }
+  await getTransporter().sendMail({
+    from: `"${SENDER_NAME}" <${process.env.EMAIL_USER}>`,
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+}
 
-  await t.sendMail({
-    from: `"webapp_for_reading" <${process.env.EMAIL_USER}>`,
+// ส่งอีเมลลิงก์รีเซ็ตรหัสผ่าน
+async function sendPasswordResetEmail(toEmail, resetUrl) {
+  await deliver({
     to: toEmail,
     subject: "รีเซ็ตรหัสผ่านของคุณ",
     text:
@@ -65,18 +106,8 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
 }
 
 // ส่งอีเมลลิงก์ยืนยันอีเมลมหาวิทยาลัย (ต้องยืนยันก่อนแลกคูปองส่วนลด)
-// throw error ชื่อ "EMAIL_NOT_CONFIGURED" ถ้ายังไม่ได้ตั้งค่า .env
 async function sendUnivVerificationEmail(toEmail, verifyUrl) {
-  const t = getTransporter();
-
-  if (!t) {
-    const err = new Error("EMAIL_NOT_CONFIGURED");
-    err.code = "EMAIL_NOT_CONFIGURED";
-    throw err;
-  }
-
-  await t.sendMail({
-    from: `"webapp_for_reading" <${process.env.EMAIL_USER}>`,
+  await deliver({
     to: toEmail,
     subject: "ยืนยันอีเมลมหาวิทยาลัยเพื่อแลกคูปอง",
     text:
