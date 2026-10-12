@@ -190,12 +190,13 @@ ${message}`;
   return await askGemini(prompt);
 }
 
+// คืน { reply, source } — source บอกว่าคำตอบมาจากไหน (เก็บลง chat_history ใช้แยกคำถามที่ถาม AI จริงตอนวิเคราะห์)
 async function buildReply(message, context, userId) {
   const lower = message.toLowerCase();
 
   // 1) กฎทักทาย/ขอบคุณ (ตอบสั้นๆ ไม่ต้องเปลือง Gemini)
   const basicRule = BASIC_RULES.find((r) => r.keywords.some((k) => lower.includes(k.toLowerCase())));
-  if (basicRule) return basicRule.reply(context);
+  if (basicRule) return { reply: basicRule.reply(context), source: "rule" };
 
   // 2) คำตอบที่แอดมินกรอกไว้ (ตอบก่อน Gemini เพราะเป็นเนื้อหาที่คนคุมเนื้อหาตั้งใจใส่มา)
   const authored = await findChatAnswer(
@@ -206,29 +207,31 @@ async function buildReply(message, context, userId) {
     const source = authored.chapterNumber
       ? `\n\n📖 อ้างอิงจาก Chapter ${authored.chapterNumber}: ${authored.chapterTitle}`
       : "";
-    return `${authored.answer}${source}`;
+    return { reply: `${authored.answer}${source}`, source: "authored" };
   }
 
   // 3) ถามด้วยเลขบท เช่น "บทที่ 3"
   const chapterReply = matchChapterNumber(message, context.chapters);
-  if (chapterReply) return chapterReply;
+  if (chapterReply) return { reply: chapterReply, source: "chapter_info" };
 
   // 4) Fallback → Gemini (Gemini prompt เป็นคนตัดสินเองว่านอกสโคปหรือไม่
   //    ดีกว่า keyword filter ที่ block คำเกี่ยวกับหมาเพราะไม่มีคำตรงเป๊ะ เช่น "ชิบะนิสัยยังไง")
   //    เฉพาะขั้นนี้ที่นับโควต้าถาม AI (ขั้น 1-3 ตอบเองได้ ไม่เปลือง Gemini)
   const quotaSource = await consumeAiQuota(userId);
   if (!quotaSource) {
-    return (
-      `วันนี้ถามน้อง AI ครบ ${DAILY_AI_LIMIT} ข้อแล้วครับ 🐶💤 พรุ่งนี้มาถามใหม่ได้นะครับ\n\n` +
-      `💡 ดูแลน้องหมาจนเลเวลอัพ จะได้คำถาม AI ฟรีเพิ่ม +${LEVEL_UP_AI_BONUS} ข้อต่อเลเวล`
-    );
+    return {
+      reply:
+        `วันนี้ถามน้อง AI ครบ ${DAILY_AI_LIMIT} ข้อแล้วครับ 🐶💤 พรุ่งนี้มาถามใหม่ได้นะครับ\n\n` +
+        `💡 ดูแลน้องหมาจนเลเวลอัพ จะได้คำถาม AI ฟรีเพิ่ม +${LEVEL_UP_AI_BONUS} ข้อต่อเลเวล`,
+      source: "quota_exceeded",
+    };
   }
   try {
-    return await buildGeminiReply(message, context);
+    return { reply: await buildGeminiReply(message, context), source: "gemini" };
   } catch (err) {
     console.error("Gemini fallback error:", err);
     await refundAiQuota(userId, quotaSource);
-    return "ขอโทษครับ ตอนนี้น้อง AI ไม่สามารถตอบได้ชั่วคราว 🐶 กรุณาลองใหม่อีกครั้งนะครับ";
+    return { reply: "ขอโทษครับ ตอนนี้น้อง AI ไม่สามารถตอบได้ชั่วคราว 🐶 กรุณาลองใหม่อีกครั้งนะครับ", source: "error" };
   }
 }
 
@@ -250,11 +253,25 @@ router.post("/message", requireAuth, async (req, res) => {
     }
 
     const question = message.trim();
-    const reply = await buildReply(question, context, req.user.id);
+    const { reply, source } = await buildReply(question, context, req.user.id);
+    // ข้อมูลวิจัย: ถามระหว่างจับเวลาอ่านรอบไหนอยู่ (ใช้เทียบรอบที่ถาม AI กับรอบที่ไม่ได้ถาม)
+    const readingSession = await db
+      .prepare("SELECT id FROM reading_sessions WHERE user_id = ? AND status = 'in_progress' ORDER BY id DESC LIMIT 1")
+      .get(req.user.id);
     // เก็บประวัติไว้ให้เปิดแชทครั้งหน้า/หน้าอื่นแล้วเห็นบทสนทนาเดิม (บันทึกไม่สำเร็จก็ยังตอบผู้ใช้ตามปกติ)
     await db
-      .prepare("INSERT INTO chat_history (user_id, question, answer) VALUES (?, ?, ?)")
-      .run(req.user.id, question, reply)
+      .prepare(
+        `INSERT INTO chat_history (user_id, question, answer, source, chapter_id, reading_session_id)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        req.user.id,
+        question,
+        reply,
+        source,
+        context.currentChapter ? context.currentChapter.id : null,
+        readingSession ? readingSession.id : null
+      )
       .catch((err) => console.error("Save chat history error:", err));
     const aiQuota = await getAiQuotaStatus(req.user.id);
     return res.json({ reply, aiQuota });

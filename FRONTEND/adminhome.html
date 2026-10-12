@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="adminstyle.css?v=2">
+    <link rel="stylesheet" href="adminstyle.css?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -74,6 +74,20 @@
         <button type="button" class="demo-mode-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>...</button>
     </div>
 
+    <!-- ส่งออกข้อมูลวิจัย (Learning Analytics) เป็น CSV เปิดใน Excel / Google Sheets / SPSS -->
+    <div class="demo-mode-card research-export-card">
+        <div>
+            <div class="demo-mode-title">📊 ส่งออกข้อมูลวิจัย (CSV)</div>
+            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ทุกคน (ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน) · เวลาเป็นเวลาไทย</div>
+            <div class="demo-mode-desc research-export-status" id="researchExportStatus" role="status"></div>
+        </div>
+        <div class="research-export-actions">
+            <button type="button" class="demo-mode-btn" onclick="downloadResearchCsv('users')" title="1 แถว = ผู้ใช้ 1 คน">รายคน</button>
+            <button type="button" class="demo-mode-btn" onclick="downloadResearchCsv('days')" title="1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้">รายวัน</button>
+            <button type="button" class="demo-mode-btn" onclick="downloadResearchCsv('sessions')" title="1 แถว = รอบอ่าน 1 รอบ">รายรอบอ่าน</button>
+        </div>
+    </div>
+
     <div class="dashboard-grid">
         <div class="stat-card">
             <div class="stat-icon icon-green-light">
@@ -138,6 +152,6 @@
 </div>
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=3"></script>
+<script src="adminhome.js?v=4"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@ const { requireAdmin } = require("../middleware/auth");
 const { findChatAnswer } = require("./chat");
 const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
+const { EXPORTS } = require("../services/researchExport");
 
 const router = express.Router();
 
@@ -75,6 +76,24 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       gamePlayers: gamePlayersRow.c,
       chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== ส่งออกข้อมูลวิจัย (CSV) ==================
+// GET /api/admin/export/users | days | sessions — รายละเอียดคอลัมน์ดูที่ services/researchExport.js
+router.get("/export/:kind", requireAdmin, async (req, res, next) => {
+  try {
+    const build = EXPORTS[req.params.kind];
+    if (!build) return res.status(404).json({ message: "ไม่มีข้อมูลชุดนี้" });
+    const csv = await build();
+    const stamp = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, "");
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="reading-buddy-${req.params.kind}-${stamp}.csv"`);
+    // frontend กับ backend อยู่คนละ origin — ต้องเปิดให้หน้าเว็บอ่านชื่อไฟล์จาก header นี้ได้
+    res.set("Access-Control-Expose-Headers", "Content-Disposition");
+    return res.send(csv);
   } catch (err) {
     next(err);
   }

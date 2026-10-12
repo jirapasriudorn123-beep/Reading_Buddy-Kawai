@@ -159,3 +159,41 @@ async function toggleDemoMode() {
 document.addEventListener("DOMContentLoaded", () => {
   if (getAdminToken()) loadDemoMode();
 });
+
+// ================== ส่งออกข้อมูลวิจัย (CSV) ==================
+// ต้องแนบ token แอดมินไปด้วย เลยโหลดผ่าน fetch แล้วค่อยสร้างลิงก์ดาวน์โหลดจากไฟล์ที่ได้
+const RESEARCH_EXPORT_LABEL = { users: "รายคน", days: "รายวัน", sessions: "รายรอบอ่าน" };
+
+async function downloadResearchCsv(kind) {
+  const status = document.getElementById("researchExportStatus");
+  status.textContent = `กำลังเตรียมไฟล์${RESEARCH_EXPORT_LABEL[kind]}...`;
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/export/${kind}`, {
+      headers: { Authorization: `Bearer ${getAdminToken()}` },
+    });
+    if (response.status === 401 || response.status === 403) {
+      clearAdminSession();
+      window.location.href = "login.html";
+      return;
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || `ดาวน์โหลดไม่สำเร็จ (${response.status})`);
+    }
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `reading-buddy-${kind}.csv`;
+
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    status.textContent = `ดาวน์โหลด ${filename} แล้ว`;
+  } catch (err) {
+    status.textContent = err.message;
+  }
+}

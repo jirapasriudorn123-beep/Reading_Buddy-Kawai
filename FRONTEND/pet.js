@@ -68,6 +68,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       renderPetPage(pet);
       setupPetting();
+      // ข้อมูลวิจัย: นับการเข้ามาหาน้องหมา (server นับไม่เกิน 1 ครั้งต่อ 30 นาที) ไม่สำเร็จก็ไม่เป็นไร
+      apiFetch("/pet/visit", { method: "POST" }).catch(() => {});
       await loadInventory(); // ของในกระเป๋ามาจากที่ซื้อไว้จริงในร้าน
       // รีเฟรชสถานะทุก 1 นาที เผื่อเปิดหน้าค้างไว้เฉยๆ จะได้เห็นค่าที่ลดลงตามเวลาจริงโดยไม่ต้องกดอะไร
       setInterval(refreshPetStats, 60000);

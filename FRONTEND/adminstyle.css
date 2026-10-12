@@ -1427,3 +1427,11 @@ body {
     opacity: 0.6;
     cursor: default;
 }
+.research-export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.research-export-status:empty {
+    display: none;
+}

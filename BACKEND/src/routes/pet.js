@@ -158,6 +158,31 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+// ข้อมูลวิจัย: บันทึกการดูแลน้องหมา (ดู pet_action_log ใน database.js) — บันทึกไม่สำเร็จก็ไม่ให้กระทบการใช้งาน
+async function logPetAction(conn, userId, action, isFree, productId, amount) {
+  await conn
+    .prepare("INSERT INTO pet_action_log (user_id, action, is_free, product_id, amount) VALUES (?, ?, ?, ?, ?)")
+    .run(userId, action, isFree ? 1 : 0, productId || null, amount || 0);
+}
+
+// ---------- POST /api/pet/visit ----------
+// หน้าน้องหมาเรียกตอนเปิดหน้า: นับการเข้าไปหาน้องหมา (ครั้งเดียวต่อ 30 นาที รีเฟรชซ้ำไม่นับเพิ่ม)
+const VISIT_DEDUPE_MINUTES = 30;
+router.post("/visit", requireAuth, async (req, res, next) => {
+  try {
+    const recent = await db
+      .prepare(
+        `SELECT 1 FROM pet_action_log WHERE user_id = ? AND action = 'visit'
+         AND created_at > datetime('now', ?) LIMIT 1`
+      )
+      .get(req.user.id, `-${VISIT_DEDUPE_MINUTES} minutes`);
+    if (!recent) await logPetAction(db, req.user.id, "visit", true, null, 0);
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 function levelUpMessage(petName, level, aiBonusGained) {
   const bonus = aiBonusGained > 0 ? `\n🤖 ได้คำถาม AI ฟรีเพิ่ม +${aiBonusGained} ข้อ` : "";
   return `🎉 ${petName} เลเวลอัพเป็นเลเวล ${level} แล้ว!${bonus}`;
@@ -211,6 +236,9 @@ router.post("/action", requireAuth, async (req, res) => {
     if (update.changes === 0) {
       return res.status(409).json({ message: "น้องหมากำลังยุ่งอยู่ ลองใหม่อีกครั้งนะ" });
     }
+    await logPetAction(db, req.user.id, "pet", true, null, actualGain).catch((err) =>
+      console.error("Log pet action error:", err)
+    );
 
     const aiBonusGained = await grantLevelUpAiBonus(req.user.id, carePoints - pet.care_points);
     const updatedPet = { ...pet, [stat]: after, care_points: carePoints, level_progress: levelProgress };
@@ -305,6 +333,7 @@ router.post("/use-item", requireAuth, async (req, res) => {
         err.code = "PET_BUSY";
         throw err; // rollback ทั้งก้อน ไอเท็มไม่หาย
       }
+      await logPetAction(t, req.user.id, product.pet_action, false, product.id, actualGain);
     });
     const aiBonusGained = await grantLevelUpAiBonus(req.user.id, carePoints - pet.care_points);
 

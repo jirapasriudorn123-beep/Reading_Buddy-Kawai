@@ -674,6 +674,35 @@ await client.execute(`
   )
 `);
 
+  // ---- ข้อมูลวิจัย: แชทถามน้อง AI ----
+  // source = คำตอบมาจากไหน: gemini (ถาม AI จริง) | authored (คำตอบที่แอดมินกรอก) | chapter_info (ถามเลขบท)
+  //          | rule (ทักทาย/ขอบคุณ) | quota_exceeded (โควต้าหมด) | error (AI ตอบไม่ได้) — แถวเก่าก่อนมีคอลัมน์นี้เป็น NULL
+  // chapter_id = ถามตอนเปิดบทไหนอยู่ | reading_session_id = ถามระหว่างจับเวลาอ่านรอบไหน (NULL = ไม่ได้อ่านอยู่)
+  const chatColumns = (await client.execute("PRAGMA table_info(chat_history)")).rows.map((c) => c.name);
+  for (const [col, sql] of [
+    ["source", "ALTER TABLE chat_history ADD COLUMN source TEXT"],
+    ["chapter_id", "ALTER TABLE chat_history ADD COLUMN chapter_id INTEGER"],
+    ["reading_session_id", "ALTER TABLE chat_history ADD COLUMN reading_session_id INTEGER"],
+  ]) {
+    if (!chatColumns.includes(col)) await client.execute(sql);
+  }
+
+  // ---- ตาราง pet_action_log (ข้อมูลวิจัย: ประวัติการดูแลน้องหมา) ----
+  // action: visit (เปิดหน้าน้องหมา นับไม่เกิน 1 ครั้งต่อ 30 นาที) | pet (ลูบหัว/เล่น ฟรี)
+  //         | feed / bath / happiness / sleep (ใช้ไอเทมที่ซื้อด้วยคอยน์)
+  // is_free แยกการดูแลที่ไม่ต้องใช้คอยน์ ออกจากการใช้ไอเทม (ไอเทมซื้อด้วยคอยน์จากการอ่าน — คนอ่านเยอะเลยใช้ไอเทมได้เยอะเป็นธรรมดา)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS pet_action_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      action TEXT NOT NULL CHECK(action IN ('visit', 'pet', 'feed', 'bath', 'happiness', 'sleep')),
+      is_free INTEGER NOT NULL CHECK(is_free IN (0, 1)),
+      product_id TEXT,
+      amount INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ---- ตาราง site_meta ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS site_meta (

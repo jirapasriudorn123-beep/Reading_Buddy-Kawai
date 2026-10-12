@@ -1,0 +1,384 @@
+const db = require("../db/database");
+
+// ================== ส่งออกข้อมูลวิจัย (Learning Analytics) เป็น CSV ==================
+// 3 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน
+//   users    — 1 แถว = ผู้ใช้ 1 คน (เทียบระหว่างคน เช่น ดูแลหมาบ่อย vs อ่านนาน)
+//   days     — 1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้ (retention, เทียบวันที่ดูแลหมากับวันที่ไม่ได้ดูแลในคนเดียวกัน)
+//   sessions — 1 แถว = รอบอ่าน 1 รอบที่อ่านจบ (ช่วงเวลาที่อ่าน, ความยาวรอบ, รอบที่ถาม AI vs ไม่ได้ถาม)
+// เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
+
+const TZ_MS = 7 * 60 * 60 * 1000;
+const PASS_RATIO = 0.6;
+
+function thaiDateTime(sqliteDatetime) {
+  if (!sqliteDatetime) return "";
+  return new Date(new Date(sqliteDatetime + "Z").getTime() + TZ_MS).toISOString().slice(0, 19).replace("T", " ");
+}
+
+function thaiDate(sqliteDatetime) {
+  return thaiDateTime(sqliteDatetime).slice(0, 10);
+}
+
+function daysBetween(fromDate, toDate) {
+  return Math.round((Date.parse(toDate) - Date.parse(fromDate)) / 86400000);
+}
+
+// 1 = จันทร์ ... 7 = อาทิตย์
+function weekdayOf(date) {
+  const d = new Date(date + "T00:00:00Z").getUTCDay();
+  return d === 0 ? 7 : d;
+}
+
+const round1 = (n) => Math.round(n * 10) / 10;
+const pct = (num, den) => (den > 0 ? round1((num / den) * 100) : "");
+const avg = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+
+function userCode(id) {
+  return `U${String(id).padStart(4, "0")}`;
+}
+
+function toCsv(columns, rows) {
+  const escape = (value) => {
+    if (value === null || value === undefined) return "";
+    const s = String(value);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [columns.join(","), ...rows.map((row) => columns.map((c) => escape(row[c])).join(","))];
+  return "﻿" + lines.join("\r\n") + "\r\n";
+}
+
+// group rows ตาม key → Map(key → rows[])
+function groupBy(rows, key) {
+  const map = new Map();
+  for (const row of rows) {
+    const k = typeof key === "function" ? key(row) : row[key];
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(row);
+  }
+  return map;
+}
+
+// ---------- ดึงข้อมูลดิบทั้งหมดของผู้ใช้ทั่วไป ----------
+async function loadRaw() {
+  const nonAdmin = "user_id IN (SELECT id FROM users WHERE is_admin = 0)";
+  const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons] =
+    await Promise.all([
+      db.prepare("SELECT id, created_at, coins FROM users WHERE is_admin = 0 ORDER BY id").all(),
+      db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
+      db.prepare("SELECT id, chapter_number FROM chapters").all(),
+      db
+        .prepare(
+          `SELECT id, user_id, chapter_id, chapter_test_id, planned_read_seconds, read_seconds, away_seconds,
+                  coins_earned, coins_pending, started_at, ended_at
+           FROM reading_sessions WHERE status = 'completed' AND ${nonAdmin} ORDER BY started_at`
+        )
+        .all(),
+      db.prepare(`SELECT * FROM chapter_tests WHERE ${nonAdmin}`).all(),
+      db
+        .prepare(
+          `SELECT t.user_id, q.pre_answered_at, q.post_answered_at
+           FROM chapter_test_questions q JOIN chapter_tests t ON t.id = q.test_id
+           WHERE t.user_id IN (SELECT id FROM users WHERE is_admin = 0)`
+        )
+        .all(),
+      db.prepare(`SELECT user_id, source, created_at, reading_session_id FROM chat_history WHERE ${nonAdmin}`).all(),
+      db.prepare(`SELECT user_id, action, is_free, created_at FROM pet_action_log WHERE ${nonAdmin}`).all(),
+      db.prepare(`SELECT user_id, status, started_at FROM game_battles WHERE status != 'cancelled' AND ${nonAdmin}`).all(),
+      db.prepare(`SELECT user_id, category, correct, created_at FROM quiz_answer_log WHERE ${nonAdmin}`).all(),
+      db.prepare(`SELECT user_id, price, purchased_at AS created_at FROM purchase_log WHERE ${nonAdmin}`).all(),
+      db.prepare(`SELECT user_id, COUNT(*) AS n FROM user_coupons WHERE ${nonAdmin} GROUP BY user_id`).all(),
+    ]);
+  return { users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons };
+}
+
+// นับกิจกรรมรายวันของแต่ละคน: Map(userId → Map(date → counters))
+function buildDailyActivity(raw) {
+  const byUser = new Map();
+  const bump = (userId, sqliteDatetime, field, amount = 1) => {
+    if (!sqliteDatetime) return;
+    const date = thaiDate(sqliteDatetime);
+    if (!byUser.has(userId)) byUser.set(userId, new Map());
+    const days = byUser.get(userId);
+    if (!days.has(date)) {
+      days.set(date, {
+        reading_rounds: 0,
+        reading_seconds: 0,
+        test_answers: 0,
+        pet_visits: 0,
+        pet_care_free: 0,
+        pet_care_item: 0,
+        ai_questions: 0,
+        chat_messages: 0,
+        game_battles: 0,
+        game_subject_answers: 0,
+        game_subject_correct: 0,
+        purchases: 0,
+      });
+    }
+    days.get(date)[field] += amount;
+  };
+
+  for (const s of raw.sessions) {
+    bump(s.user_id, s.started_at, "reading_rounds");
+    bump(s.user_id, s.started_at, "reading_seconds", s.read_seconds || 0);
+  }
+  for (const a of raw.testAnswers) {
+    bump(a.user_id, a.pre_answered_at, "test_answers");
+    bump(a.user_id, a.post_answered_at, "test_answers");
+  }
+  for (const c of raw.chats) {
+    bump(c.user_id, c.created_at, "chat_messages");
+    if (c.source === "gemini") bump(c.user_id, c.created_at, "ai_questions");
+  }
+  for (const p of raw.petLog) {
+    const field = p.action === "visit" ? "pet_visits" : p.is_free ? "pet_care_free" : "pet_care_item";
+    bump(p.user_id, p.created_at, field);
+  }
+  for (const b of raw.battles) bump(b.user_id, b.started_at, "game_battles");
+  for (const a of raw.answers) {
+    if (a.category !== "subject") continue; // คำถามพันธุ์หมาไม่นับเป็นคะแนนการเรียน
+    bump(a.user_id, a.created_at, "game_subject_answers");
+    if (a.correct) bump(a.user_id, a.created_at, "game_subject_correct");
+  }
+  for (const p of raw.purchases) bump(p.user_id, p.created_at, "purchases");
+  return byUser;
+}
+
+// ---------- users.csv ----------
+const USER_COLUMNS = [
+  "user_code",
+  "registered_at",
+  "active_days",
+  "first_active_date",
+  "last_active_date",
+  "last_active_day_index",
+  "reading_days",
+  "reading_rounds",
+  "reading_minutes",
+  "avg_round_minutes",
+  "rounds_stopped_early",
+  "reading_minutes_per_active_day",
+  "chapters_pretested",
+  "chapters_posttested",
+  "avg_pre_score_pct",
+  "avg_post_score_pct",
+  "avg_gain_pct",
+  "chapters_passed",
+  "pet_visits",
+  "pet_care_free",
+  "pet_care_item",
+  "pet_care_free_per_active_day",
+  "pet_level",
+  "pet_happiness_now",
+  "ai_questions",
+  "ai_questions_per_active_day",
+  "chat_messages",
+  "game_battles",
+  "game_battles_won",
+  "game_subject_answers",
+  "game_subject_correct_pct",
+  "coins_from_reading",
+  "coins_post_bonus",
+  "coins_now",
+  "purchases",
+  "coins_spent",
+  "coupons_redeemed",
+];
+
+async function buildUsersCsv() {
+  const raw = await loadRaw();
+  const daily = buildDailyActivity(raw);
+  const sessionsByUser = groupBy(raw.sessions, "user_id");
+  const testsByUser = groupBy(raw.tests, "user_id");
+  const battlesByUser = groupBy(raw.battles, "user_id");
+  const purchasesByUser = groupBy(raw.purchases, "user_id");
+  const petByUser = new Map(raw.pets.map((p) => [p.user_id, p]));
+  const couponsByUser = new Map(raw.coupons.map((c) => [c.user_id, c.n]));
+
+  const rows = raw.users.map((u) => {
+    const days = daily.get(u.id) || new Map();
+    const dates = [...days.keys()].sort();
+    const totals = [...days.values()].reduce((acc, d) => {
+      for (const [k, v] of Object.entries(d)) acc[k] = (acc[k] || 0) + v;
+      return acc;
+    }, {});
+    const activeDays = dates.length;
+    const perDay = (n) => (activeDays ? round1((n || 0) / activeDays) : "");
+
+    const sessions = sessionsByUser.get(u.id) || [];
+    const readSeconds = sessions.reduce((a, s) => a + (s.read_seconds || 0), 0);
+    const tests = testsByUser.get(u.id) || [];
+    // คะแนนก่อน/หลังอ่าน ใช้ชุดแรกของแต่ละบท (ชุดที่มีทั้ง pre และ post) — ชุดที่อ่านซ้ำไม่มี pre
+    const firstTests = tests.filter((t) => t.attempt === 1 && t.total > 0);
+    const preList = firstTests.filter((t) => t.pre_score !== null).map((t) => (t.pre_score / t.total) * 100);
+    const postList = firstTests.filter((t) => t.status === "completed").map((t) => (t.post_score / t.total) * 100);
+    const gainList = firstTests
+      .filter((t) => t.status === "completed" && t.pre_score !== null)
+      .map((t) => ((t.post_score - t.pre_score) / t.total) * 100);
+    const bestByChapter = new Map();
+    for (const t of tests.filter((t) => t.status === "completed")) {
+      const ratio = t.total > 0 ? t.post_score / t.total : 1;
+      bestByChapter.set(t.chapter_id, Math.max(bestByChapter.get(t.chapter_id) ?? 0, ratio));
+    }
+    const battles = battlesByUser.get(u.id) || [];
+    const purchases = purchasesByUser.get(u.id) || [];
+    const pet = petByUser.get(u.id);
+    const fmt = (v) => (v === null ? "" : round1(v));
+
+    return {
+      user_code: userCode(u.id),
+      registered_at: thaiDateTime(u.created_at),
+      active_days: activeDays,
+      first_active_date: dates[0] || "",
+      last_active_date: dates[dates.length - 1] || "",
+      last_active_day_index: dates.length ? daysBetween(thaiDate(u.created_at), dates[dates.length - 1]) : "",
+      reading_days: [...days.values()].filter((d) => d.reading_rounds > 0).length,
+      reading_rounds: sessions.length,
+      reading_minutes: round1(readSeconds / 60),
+      avg_round_minutes: sessions.length ? round1(readSeconds / 60 / sessions.length) : "",
+      rounds_stopped_early: sessions.filter((s) => (s.read_seconds || 0) < s.planned_read_seconds).length,
+      reading_minutes_per_active_day: activeDays ? round1(readSeconds / 60 / activeDays) : "",
+      chapters_pretested: preList.length,
+      chapters_posttested: postList.length,
+      avg_pre_score_pct: fmt(avg(preList)),
+      avg_post_score_pct: fmt(avg(postList)),
+      avg_gain_pct: fmt(avg(gainList)),
+      chapters_passed: [...bestByChapter.values()].filter((r) => r >= PASS_RATIO - 1e-9).length,
+      pet_visits: totals.pet_visits || 0,
+      pet_care_free: totals.pet_care_free || 0,
+      pet_care_item: totals.pet_care_item || 0,
+      pet_care_free_per_active_day: perDay(totals.pet_care_free),
+      pet_level: pet ? pet.care_points : "",
+      pet_happiness_now: pet ? pet.happiness : "",
+      ai_questions: totals.ai_questions || 0,
+      ai_questions_per_active_day: perDay(totals.ai_questions),
+      chat_messages: totals.chat_messages || 0,
+      game_battles: battles.length,
+      game_battles_won: battles.filter((b) => b.status === "won").length,
+      game_subject_answers: totals.game_subject_answers || 0,
+      game_subject_correct_pct: pct(totals.game_subject_correct || 0, totals.game_subject_answers || 0),
+      coins_from_reading: sessions.filter((s) => !s.coins_pending).reduce((a, s) => a + (s.coins_earned || 0), 0),
+      coins_post_bonus: tests.reduce((a, t) => a + (t.coins_bonus || 0), 0),
+      coins_now: u.coins,
+      purchases: purchases.length,
+      coins_spent: purchases.reduce((a, p) => a + (p.price || 0), 0),
+      coupons_redeemed: couponsByUser.get(u.id) || 0,
+    };
+  });
+  return toCsv(USER_COLUMNS, rows);
+}
+
+// ---------- days.csv ----------
+const DAY_COLUMNS = [
+  "user_code",
+  "date",
+  "day_index",
+  "weekday",
+  "reading_rounds",
+  "reading_minutes",
+  "test_answers",
+  "pet_visits",
+  "pet_care_free",
+  "pet_care_item",
+  "ai_questions",
+  "chat_messages",
+  "game_battles",
+  "game_subject_answers",
+  "game_subject_correct",
+  "purchases",
+];
+
+async function buildDaysCsv() {
+  const raw = await loadRaw();
+  const daily = buildDailyActivity(raw);
+  const rows = [];
+  for (const u of raw.users) {
+    const days = daily.get(u.id);
+    if (!days) continue;
+    const registered = thaiDate(u.created_at);
+    for (const date of [...days.keys()].sort()) {
+      const d = days.get(date);
+      rows.push({
+        user_code: userCode(u.id),
+        date,
+        day_index: daysBetween(registered, date),
+        weekday: weekdayOf(date),
+        ...d,
+        reading_minutes: round1(d.reading_seconds / 60),
+      });
+    }
+  }
+  return toCsv(DAY_COLUMNS, rows);
+}
+
+// ---------- sessions.csv ----------
+const SESSION_COLUMNS = [
+  "user_code",
+  "session_id",
+  "chapter_number",
+  "chapter_attempt",
+  "started_at",
+  "date",
+  "hour",
+  "weekday",
+  "day_index",
+  "planned_minutes",
+  "read_minutes",
+  "away_minutes",
+  "stopped_early",
+  "coins_time",
+  "coins_paid",
+  "ai_questions_during",
+  "chat_messages_during",
+  "chapter_pre_score",
+  "chapter_post_score",
+  "chapter_total",
+];
+
+async function buildSessionsCsv() {
+  const raw = await loadRaw();
+  const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
+  const testById = new Map(raw.tests.map((t) => [t.id, t]));
+  const registeredBy = new Map(raw.users.map((u) => [u.id, thaiDate(u.created_at)]));
+  const chatsBySession = groupBy(
+    raw.chats.filter((c) => c.reading_session_id),
+    "reading_session_id"
+  );
+
+  const rows = raw.sessions
+    .filter((s) => registeredBy.has(s.user_id))
+    .map((s) => {
+      const started = thaiDateTime(s.started_at);
+      const date = started.slice(0, 10);
+      const test = s.chapter_test_id ? testById.get(s.chapter_test_id) : null;
+      const chats = chatsBySession.get(s.id) || [];
+      return {
+        user_code: userCode(s.user_id),
+        session_id: s.id,
+        chapter_number: chapterNumber.get(s.chapter_id) ?? "",
+        chapter_attempt: test ? test.attempt : "",
+        started_at: started,
+        date,
+        hour: Number(started.slice(11, 13)),
+        weekday: weekdayOf(date),
+        day_index: daysBetween(registeredBy.get(s.user_id), date),
+        planned_minutes: round1(s.planned_read_seconds / 60),
+        read_minutes: round1((s.read_seconds || 0) / 60),
+        away_minutes: round1((s.away_seconds || 0) / 60),
+        stopped_early: (s.read_seconds || 0) < s.planned_read_seconds ? 1 : 0,
+        coins_time: s.coins_earned,
+        coins_paid: s.coins_pending ? 0 : 1,
+        ai_questions_during: chats.filter((c) => c.source === "gemini").length,
+        chat_messages_during: chats.length,
+        chapter_pre_score: test && test.pre_score !== null ? test.pre_score : "",
+        chapter_post_score: test && test.status === "completed" ? test.post_score : "",
+        chapter_total: test ? test.total : "",
+      };
+    })
+    .sort((a, b) => (a.user_code === b.user_code ? a.started_at.localeCompare(b.started_at) : a.user_code.localeCompare(b.user_code)));
+  return toCsv(SESSION_COLUMNS, rows);
+}
+
+const EXPORTS = { users: buildUsersCsv, days: buildDaysCsv, sessions: buildSessionsCsv };
+
+module.exports = { EXPORTS };
