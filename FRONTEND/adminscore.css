@@ -212,3 +212,29 @@
 .qs-stars-off {
   color: #ddd;
 }
+
+/* ---- หัวข้อส่วนคะแนน (แบบทดสอบก่อน/หลังอ่าน / มินิเกม) ---- */
+.score-section-title {
+    margin: 8px 0 4px;
+    font-size: 18px;
+}
+.score-section-hint {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #777;
+}
+.gain-up {
+    color: #3f7d1c;
+    font-weight: 600;
+}
+.gain-down {
+    color: #c0533a;
+    font-weight: 600;
+}
+.qs-test-detail {
+    font-size: 14px;
+}
+
+.reading-line {
+    white-space: nowrap;
+}

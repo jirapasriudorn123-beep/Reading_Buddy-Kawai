@@ -361,3 +361,15 @@ html.dark-mode body .game-card-title {
 html.dark-mode body .game-card-conditions {
   color: #aaa;
 }
+
+/* สถิติรายข้อ (ก่อนอ่าน / หลังอ่าน / ในเกม) ใต้ตัวเลือก */
+.qe-q-stats {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+.qe-q-warn {
+  margin-top: 4px;
+  color: #b0661a;
+  font-weight: 600;
+}

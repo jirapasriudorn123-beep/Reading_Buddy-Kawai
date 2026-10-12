@@ -6,6 +6,7 @@ const { findChatAnswer } = require("./chat");
 const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { EXPORTS } = require("../services/researchExport");
+const { getReadingStreaksForAll } = require("../services/petCare");
 
 const router = express.Router();
 
@@ -485,7 +486,19 @@ router.get("/users", requireAdmin, async (req, res, next) => {
         )
         .all();
     }
-    return res.json({ users: rows });
+    // วันอ่านล่าสุด + อ่านติดกันกี่วัน (ดูว่าใครหายไปจากการอ่าน)
+    const streaks = await getReadingStreaksForAll();
+    const users = rows.map((u) => {
+      const st = streaks.get(u.id);
+      return {
+        ...u,
+        lastReadDate: st ? st.lastReadDate : null,
+        daysSinceRead: st ? st.daysSinceRead : null,
+        currentStreak: st ? st.current : 0,
+        longestStreak: st ? st.longest : 0,
+      };
+    });
+    return res.json({ users });
   } catch (err) {
     next(err);
   }
@@ -639,6 +652,105 @@ router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
     });
 
     return res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== คะแนนแบบทดสอบก่อนอ่าน/หลังอ่าน (รายบท) ==================
+// ใช้ชุดแรกของแต่ละบท (attempt 1 = มีทั้ง pre และ post) คิดคะแนนก่อน/หลัง | "ผ่าน" = post ดีที่สุดของบทนั้น ≥ 60%
+const TEST_PASS_RATIO = 0.6;
+
+function avgPct(list) {
+  return list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : null;
+}
+
+function summarizeTests(tests) {
+  const first = tests.filter((t) => t.attempt === 1 && t.total > 0);
+  const pre = first.filter((t) => t.pre_score !== null).map((t) => (t.pre_score / t.total) * 100);
+  const done = first.filter((t) => t.status === "completed");
+  const post = done.map((t) => (t.post_score / t.total) * 100);
+  const gain = done.filter((t) => t.pre_score !== null).map((t) => ((t.post_score - t.pre_score) / t.total) * 100);
+  return { preCount: pre.length, postCount: post.length, avgPrePct: avgPct(pre), avgPostPct: avgPct(post), avgGainPct: avgPct(gain) };
+}
+
+// บทที่ผ่านของแต่ละคน: Map(userId → Set(chapterId))
+function passedChaptersByUser(tests) {
+  const best = new Map();
+  for (const t of tests) {
+    if (t.status !== "completed") continue;
+    const key = `${t.user_id}:${t.chapter_id}`;
+    const ratio = t.total > 0 ? t.post_score / t.total : 1;
+    best.set(key, Math.max(best.get(key) ?? 0, ratio));
+  }
+  const byUser = new Map();
+  for (const [key, ratio] of best) {
+    if (ratio < TEST_PASS_RATIO - 1e-9) continue;
+    const [userId, chapterId] = key.split(":").map(Number);
+    if (!byUser.has(userId)) byUser.set(userId, new Set());
+    byUser.get(userId).add(chapterId);
+  }
+  return byUser;
+}
+
+// ---------- GET /api/admin/scores/tests ----------
+// สรุปรายบท + รายคน (ผู้ใช้ทั่วไปเท่านั้น)
+router.get("/scores/tests", requireAdmin, async (req, res, next) => {
+  try {
+    const [chapters, users, tests, streaks] = await Promise.all([
+      db.prepare("SELECT id, chapter_number, title FROM chapters ORDER BY chapter_number ASC").all(),
+      db.prepare("SELECT id, username, email FROM users WHERE is_admin = 0 ORDER BY username ASC").all(),
+      db
+        .prepare("SELECT * FROM chapter_tests WHERE user_id IN (SELECT id FROM users WHERE is_admin = 0)")
+        .all(),
+      getReadingStreaksForAll(),
+    ]);
+    const passed = passedChaptersByUser(tests);
+
+    const chapterRows = chapters.map((c) => {
+      const ct = tests.filter((t) => t.chapter_id === c.id);
+      return {
+        chapterNumber: c.chapter_number,
+        title: c.title,
+        ...summarizeTests(ct),
+        passedCount: [...passed.values()].filter((set) => set.has(c.id)).length,
+      };
+    });
+
+    const userRows = users.map((u) => {
+      const ut = tests.filter((t) => t.user_id === u.id);
+      const st = streaks.get(u.id);
+      return {
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        ...summarizeTests(ut),
+        chaptersPassed: passed.has(u.id) ? passed.get(u.id).size : 0,
+        currentStreak: st ? st.current : 0,
+        lastReadDate: st ? st.lastReadDate : null,
+      };
+    });
+
+    return res.json({ chapters: chapterRows, users: userRows, passPercent: TEST_PASS_RATIO * 100 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- GET /api/admin/scores/tests/:userId ----------
+// แบบทดสอบทุกชุดของผู้ใช้ 1 คน (รวมชุดที่อ่านซ้ำ) — ใช้ในหน้าต่างรายละเอียด
+router.get("/scores/tests/:userId", requireAdmin, async (req, res, next) => {
+  try {
+    const tests = await db
+      .prepare(
+        `SELECT c.chapter_number AS chapterNumber, c.title, t.attempt, t.status, t.total,
+                t.pre_score AS preScore, t.post_score AS postScore, t.coins_time AS coinsTime,
+                t.coins_bonus AS coinsBonus, t.created_at AS createdAt, t.completed_at AS completedAt
+         FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id
+         WHERE t.user_id = ? ORDER BY c.chapter_number ASC, t.attempt ASC`
+      )
+      .all(Number(req.params.userId));
+    return res.json({ tests });
   } catch (err) {
     next(err);
   }
@@ -880,7 +992,44 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
         .all(chapterId),
     ]);
     if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
-    return res.json({ chapter, questions });
+
+    // สถิติรายข้อ (ผู้ใช้ทั่วไป): ก่อนอ่าน / หลังอ่าน / ในเกม ตอบถูกกี่ % — หาข้อที่ง่ายหรือยากเกินไป
+    const [testStats, gameStats] = await Promise.all([
+      db
+        .prepare(
+          `SELECT q.question_id AS id,
+                  SUM(CASE WHEN q.pre_picked IS NOT NULL THEN 1 ELSE 0 END) AS preAsked,
+                  SUM(COALESCE(q.pre_correct, 0)) AS preCorrect,
+                  SUM(CASE WHEN q.post_picked IS NOT NULL THEN 1 ELSE 0 END) AS postAsked,
+                  SUM(COALESCE(q.post_correct, 0)) AS postCorrect
+           FROM chapter_test_questions q
+           JOIN chapter_tests t ON t.id = q.test_id
+           JOIN users u ON u.id = t.user_id AND u.is_admin = 0
+           JOIN quiz_questions qq ON qq.id = q.question_id AND qq.chapter_id = ?
+           GROUP BY q.question_id`
+        )
+        .all(chapterId),
+      db
+        .prepare(
+          `SELECT l.question_id AS id, COUNT(*) AS gameAsked, SUM(l.correct) AS gameCorrect
+           FROM quiz_answer_log l
+           JOIN users u ON u.id = l.user_id AND u.is_admin = 0
+           JOIN quiz_questions qq ON qq.id = l.question_id AND qq.chapter_id = ?
+           WHERE l.category = 'subject'
+           GROUP BY l.question_id`
+        )
+        .all(chapterId),
+    ]);
+    const empty = { preAsked: 0, preCorrect: 0, postAsked: 0, postCorrect: 0, gameAsked: 0, gameCorrect: 0 };
+    const withStats = questions.map((q) => ({
+      ...q,
+      stats: {
+        ...empty,
+        ...(testStats.find((s) => s.id === q.id) || {}),
+        ...(gameStats.find((s) => s.id === q.id) || {}),
+      },
+    }));
+    return res.json({ chapter, questions: withStats });
   } catch (err) {
     next(err);
   }

@@ -95,20 +95,9 @@ function isLonely(mood) {
   return mood === "lonely" || mood === "very_lonely";
 }
 
-// วันที่อ่านถึงเกณฑ์ (วันไทย ใหม่ → เก่า) แล้วนับ streak ปัจจุบัน + ยาวที่สุด
-async function getReadingStreak(userId) {
-  const minSeconds = await streakMinSeconds();
-  const rows = await db
-    .prepare(
-      `SELECT date(started_at, '+7 hours') AS day FROM reading_sessions
-       WHERE user_id = ? AND status = 'completed'
-       GROUP BY day HAVING SUM(read_seconds) >= ?
-       ORDER BY day DESC`
-    )
-    .all(userId, minSeconds);
-  const days = rows.map((r) => r.day);
+// นับ streak จากวันที่อ่านถึงเกณฑ์ (วันไทย เรียงใหม่ → เก่า): ปัจจุบัน + ยาวที่สุด + อารมณ์น้องหมา
+function streakFromDays(days, minSeconds) {
   const today = thaiToday();
-
   const daysSinceRead = days.length ? dayDiff(days[0], today) : null;
   // streak ยังไม่ขาดถ้าอ่านล่าสุดวันนี้หรือเมื่อวาน (วันนี้ยังอ่านทัน)
   let current = 0;
@@ -136,6 +125,29 @@ async function getReadingStreak(userId) {
   };
 }
 
+const READING_DAYS_SQL = `SELECT user_id, date(started_at, '+7 hours') AS day FROM reading_sessions
+  WHERE status = 'completed' {filter}
+  GROUP BY user_id, day HAVING SUM(read_seconds) >= ?
+  ORDER BY day DESC`;
+
+async function getReadingStreak(userId) {
+  const minSeconds = await streakMinSeconds();
+  const rows = await db.prepare(READING_DAYS_SQL.replace("{filter}", "AND user_id = ?")).all(userId, minSeconds);
+  return streakFromDays(rows.map((r) => r.day), minSeconds);
+}
+
+// streak ของผู้ใช้ทุกคนในคำสั่งเดียว (หน้าแอดมิน) คืน Map(userId → streak) — คนที่ไม่เคยอ่านไม่มีใน Map
+async function getReadingStreaksForAll() {
+  const minSeconds = await streakMinSeconds();
+  const rows = await db.prepare(READING_DAYS_SQL.replace("{filter}", "")).all(minSeconds);
+  const daysByUser = new Map();
+  for (const r of rows) {
+    if (!daysByUser.has(r.user_id)) daysByUser.set(r.user_id, []);
+    daysByUser.get(r.user_id).push(r.day);
+  }
+  return new Map([...daysByUser].map(([userId, days]) => [userId, streakFromDays(days, minSeconds)]));
+}
+
 // อ่านจบรอบ: ถ้าเวลาที่อ่านรอบนี้ถึงเกณฑ์ ความสุขน้องหมา +25 (ไม่ได้ XP — XP มาจากการดูแลเท่านั้น)
 // คืนจำนวนที่เพิ่มจริง (0 = ไม่มีหมา/อ่านไม่ถึงเกณฑ์/ความสุขเต็มแล้ว)
 async function boostHappinessForReading(userId, readSeconds) {
@@ -160,5 +172,6 @@ module.exports = {
   READING_HAPPINESS_BOOST,
   applyDecay,
   getReadingStreak,
+  getReadingStreaksForAll,
   boostHappinessForReading,
 };

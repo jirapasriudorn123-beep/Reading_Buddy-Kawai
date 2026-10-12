@@ -35,6 +35,125 @@ async function loadScores() {
   }
 }
 
+// ================== คะแนนแบบทดสอบก่อนอ่าน/หลังอ่าน (รายบท) ==================
+// คะแนนหลักที่วัดว่าอ่านแล้วเข้าใจ — server คิดจากชุดแรกของแต่ละบท (มีทั้ง pre และ post)
+
+let testScoreUsers = [];
+
+function fmtPct(value) {
+  return value === null || value === undefined ? "-" : `${value}%`;
+}
+
+function fmtGain(value) {
+  if (value === null || value === undefined) return "-";
+  const cls = value > 0 ? "gain-up" : value < 0 ? "gain-down" : "";
+  return `<span class="${cls}">${value > 0 ? "+" : ""}${value}%</span>`;
+}
+
+// คืน HTML: วันที่อ่านล่าสุด + streak คนละบรรทัด (ตารางแคบจะได้ไม่ตัดกลางวันที่)
+function fmtLastRead(u) {
+  if (!u.lastReadDate) return '<span style="color:#999;">ยังไม่เคยอ่าน</span>';
+  const date = new Date(u.lastReadDate + "T00:00:00").toLocaleDateString("th-TH", { dateStyle: "medium" });
+  const line1 = `<span class="reading-line">${escapeHtml(date)}</span>`;
+  return u.currentStreak > 0 ? `${line1}<br><span class="reading-line">🔥 ${u.currentStreak} วัน</span>` : line1;
+}
+
+async function loadTestScores() {
+  try {
+    const data = await adminApiFetch("/admin/scores/tests");
+    testScoreUsers = data.users;
+    document.getElementById("testPassPercent").textContent = data.passPercent;
+    document.getElementById("testChapterBody").innerHTML = data.chapters
+      .map(
+        (c) => `
+        <tr>
+          <td>บทที่ ${c.chapterNumber} ${escapeHtml(c.title)}</td>
+          <td>${c.preCount}</td>
+          <td>${c.postCount}</td>
+          <td>${fmtPct(c.avgPrePct)}</td>
+          <td>${fmtPct(c.avgPostPct)}</td>
+          <td>${fmtGain(c.avgGainPct)}</td>
+          <td>${c.passedCount}</td>
+        </tr>`
+      )
+      .join("");
+    renderTestUserTable();
+  } catch (err) {
+    console.error("โหลดคะแนนแบบทดสอบไม่สำเร็จ:", err);
+    document.getElementById("testChapterBody").innerHTML =
+      '<tr><td colspan="7" style="text-align:center;color:#d9534f;">โหลดคะแนนไม่สำเร็จ</td></tr>';
+  }
+}
+
+function renderTestUserTable() {
+  const term = document.getElementById("scoreSearchInput").value.trim().toLowerCase();
+  const rows = testScoreUsers.filter(
+    (u) => !term || u.username.toLowerCase().includes(term) || (u.email || "").toLowerCase().includes(term)
+  );
+  document.getElementById("testUserBody").innerHTML = rows.length
+    ? rows
+        .map(
+          (u) => `
+        <tr>
+          <td>${escapeHtml(u.username)}</td>
+          <td>${u.postCount}</td>
+          <td>${fmtPct(u.avgPrePct)}</td>
+          <td>${fmtPct(u.avgPostPct)}</td>
+          <td>${fmtGain(u.avgGainPct)}</td>
+          <td>${u.chaptersPassed}</td>
+          <td>${fmtLastRead(u)}</td>
+          <td>
+            <button class="qs-detail-btn" onclick="openTestDetail(${u.id})" title="ดูแบบทดสอบรายบท">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+          </td>
+        </tr>`
+        )
+        .join("")
+    : '<tr><td colspan="8" style="text-align:center;color:#999;">ไม่พบผู้ใช้</td></tr>';
+}
+
+const TEST_STATUS_LABEL = {
+  pre_test: "กำลังทำก่อนอ่าน",
+  reading: "กำลังอ่าน",
+  post_test: "กำลังทำหลังอ่าน",
+  completed: "ทำหลังอ่านแล้ว",
+};
+
+async function openTestDetail(userId) {
+  const u = testScoreUsers.find((x) => x.id === userId);
+  if (!u) return;
+  document.getElementById("scoreDetailTitle").textContent = `แบบทดสอบของ ${u.username}`;
+  document.getElementById("scoreDetailBody").innerHTML = '<p class="qs-stage-empty">กำลังโหลด...</p>';
+  document.getElementById("scoreDetailModal").classList.add("active");
+  try {
+    const { tests } = await adminApiFetch(`/admin/scores/tests/${userId}`);
+    document.getElementById("scoreDetailBody").innerHTML = tests.length
+      ? `<table class="lesson-table qs-test-detail">
+          <thead><tr><th>บท</th><th>ครั้งที่</th><th>สถานะ</th><th>ก่อนอ่าน</th><th>หลังอ่าน</th><th>คอยน์ (เวลา + โบนัส)</th><th>ทำเสร็จเมื่อ</th></tr></thead>
+          <tbody>${tests
+            .map(
+              (t) => `
+            <tr>
+              <td>บทที่ ${t.chapterNumber}</td>
+              <td>${t.attempt}${t.attempt > 1 ? " (อ่านซ้ำ)" : ""}</td>
+              <td>${TEST_STATUS_LABEL[t.status] || t.status}</td>
+              <td>${t.preScore === null ? "-" : `${t.preScore}/${t.total}`}</td>
+              <td>${t.status === "completed" ? `${t.postScore}/${t.total}` : "-"}</td>
+              <td>${t.status === "completed" ? `${t.coinsTime} + ${t.coinsBonus}` : "-"}</td>
+              <td>${formatThaiDate(t.completedAt)}</td>
+            </tr>`
+            )
+            .join("")}</tbody>
+        </table>`
+      : '<p class="qs-stage-empty">ยังไม่เคยทำแบบทดสอบ</p>';
+  } catch (err) {
+    document.getElementById("scoreDetailBody").innerHTML = `<p class="qs-stage-empty">โหลดไม่สำเร็จ: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
 // ================== คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ / เกี่ยวกับสุนัข) ==================
 // % คิดสะสมจากทุกครั้งที่ผู้เล่นเคยตอบคำถามในมินิเกม (ไม่ใช่แค่รอบล่าสุด)
 // เกณฑ์ผ่าน/ไม่ผ่าน อิงจาก "คะแนนทั้งหมด" เท่านั้น — แถบคะแนนวิชา/สุนัขแยกไว้เป็นข้อมูลอ้างอิงเฉย ๆ
@@ -205,10 +324,14 @@ function closeScoreDetailModal() {
 document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return;
   loadScores();
+  loadTestScores();
   loadQuizScores();
   updateThresholdBars();
 
-  document.getElementById("scoreSearchInput").addEventListener("input", renderQuizScoreTable);
+  document.getElementById("scoreSearchInput").addEventListener("input", () => {
+    renderQuizScoreTable();
+    renderTestUserTable();
+  });
   document.getElementById("scoreDetailModal").addEventListener("click", function (e) {
     if (e.target === this) closeScoreDetailModal();
   });

@@ -99,3 +99,13 @@
 .table-container {
   overflow-x: auto;
 }
+
+/* ไม่ได้อ่าน 2 วันขึ้นไป (streak ขาด / น้องหมาเหงา) */
+.reading-gap {
+    color: #c0533a;
+    font-weight: 600;
+}
+
+.reading-line {
+    white-space: nowrap;
+}

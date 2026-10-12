@@ -5,10 +5,20 @@ function formatDate(isoLike) {
   return isoLike.slice(0, 10);
 }
 
+// วันอ่านล่าสุด + streak (วันที่อ่านรวม ≥ 10 นาที) — ไม่ได้อ่าน 2 วันขึ้นไปขึ้นสีเตือน (น้องหมาเหงา)
+function readingStatusHtml(u) {
+  if (u.is_admin) return '<span style="color:#999;">-</span>';
+  if (!u.lastReadDate) return '<span style="color:#999;">ยังไม่เคยอ่าน</span>';
+  const date = new Date(u.lastReadDate + "T00:00:00").toLocaleDateString("th-TH", { dateStyle: "medium" });
+  const line1 = `<span class="reading-line">${escapeHtml(date)}</span>`;
+  if (u.currentStreak > 0) return `${line1}<br><span class="reading-line">🔥 ${u.currentStreak} วัน</span>`;
+  return `${line1}<br><span class="reading-line reading-gap">ไม่ได้อ่าน ${u.daysSinceRead} วัน</span>`;
+}
+
 function renderUserTable() {
   const tbody = document.getElementById("userTableBody");
   if (!currentUsers.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#999;">ไม่พบผู้ใช้</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#999;">ไม่พบผู้ใช้</td></tr>`;
     return;
   }
   tbody.innerHTML = currentUsers
@@ -19,6 +29,7 @@ function renderUserTable() {
       <td>${escapeHtml(u.email)}</td>
       <td>${u.coins}</td>
       <td>${u.is_admin ? "แอดมิน" : "ผู้ใช้ทั่วไป"}</td>
+      <td>${readingStatusHtml(u)}</td>
       <td>${escapeHtml(formatDate(u.created_at))}</td>
       <td>
         ${

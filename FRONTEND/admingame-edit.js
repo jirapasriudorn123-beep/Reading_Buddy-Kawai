@@ -71,6 +71,27 @@ function renderLevelFilter() {
   };
 }
 
+// สถิติรายข้อจากผู้ใช้จริง: ก่อนอ่าน / หลังอ่าน / ในเกม ตอบถูกกี่ % — ช่วยหาข้อที่ง่ายหรือยากเกินไป
+const STATS_MIN_ANSWERS = 5; // ตอบอย่างน้อยเท่านี้ถึงจะเตือนว่าง่าย/ยากเกินไป
+function questionStatsHtml(stats) {
+  if (!stats) return "";
+  const part = (label, correct, asked) =>
+    asked > 0 ? `${label}ถูก ${Math.round((correct / asked) * 100)}% (${asked} ครั้ง)` : `${label} -`;
+  if (!stats.preAsked && !stats.postAsked && !stats.gameAsked) {
+    return '<p class="qe-q-stats">📊 ยังไม่มีผู้ใช้ตอบข้อนี้</p>';
+  }
+  const warnings = [];
+  if (stats.preAsked >= STATS_MIN_ANSWERS && stats.preCorrect / stats.preAsked >= 0.8) {
+    warnings.push("⚠️ อาจง่ายเกินไป (ก่อนอ่านก็ตอบถูกเกือบหมด)");
+  }
+  if (stats.postAsked >= STATS_MIN_ANSWERS && stats.postCorrect / stats.postAsked < 0.3) {
+    warnings.push("⚠️ อาจยากหรือกำกวม (หลังอ่านยังตอบถูกน้อย)");
+  }
+  return `
+    <p class="qe-q-stats">📊 ${part("ก่อนอ่าน", stats.preCorrect, stats.preAsked)} · ${part("หลังอ่าน", stats.postCorrect, stats.postAsked)} · ${part("ในเกม", stats.gameCorrect, stats.gameAsked)}</p>
+    ${warnings.map((w) => `<p class="qe-q-stats qe-q-warn">${w}</p>`).join("")}`;
+}
+
 function renderQuestions() {
   const wrap = document.getElementById("questionList");
   const filtered =
@@ -117,6 +138,7 @@ function renderQuestions() {
             )
             .join("")}
         </div>
+        ${questionStatsHtml(q.stats)}
       </div>`;
     })
     .join("");
