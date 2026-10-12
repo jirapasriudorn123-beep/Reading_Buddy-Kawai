@@ -47,7 +47,7 @@ function renderGameCards() {
           <span class="game-ch-badge">World ${ch.chapter_number}</span>
           <div class="game-card-info">
             <div class="game-card-conditions">
-              เงื่อนไข : ต้องอ่านบทเรียน ${ch.game_required_minutes} นาที
+              เงื่อนไข : อ่านบทเรียน ${ch.game_required_minutes} นาที แล้วทำแบบทดสอบหลังอ่าน
               <span class="separator">|</span>
               คำถาม: ${ch.game_question_count} ข้อ
             </div>

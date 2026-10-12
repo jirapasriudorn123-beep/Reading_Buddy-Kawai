@@ -2,27 +2,36 @@ const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { redeemCoupon, isRealCoupon, isUnsetCoupon } = require("./coupons");
+const { passedChapterCount, clearedWorldCount } = require("../services/chapterTests");
 
 const router = express.Router();
 
+// เงื่อนไขแลกคูปอง: ผ่านแบบทดสอบหลังอ่าน (≥ 3/5) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก (คอยน์เป็นราคาที่ต้องจ่ายแยกต่างหาก)
+async function couponProgress(userId) {
+  const [passedChapters, clearedWorlds] = await Promise.all([passedChapterCount(userId), clearedWorldCount(userId)]);
+  return { passedChapters, clearedWorlds };
+}
+
+function couponUnlocked(product, progress) {
+  return (
+    progress.passedChapters >= (product.required_post_chapters || 0) &&
+    progress.clearedWorlds >= (product.required_game_worlds || 0)
+  );
+}
+
 // ---------- GET /api/shop/products ----------
-// คืน products + reading total ของ user (นาที) ให้ frontend คำนวณเปอร์เซ็นต์ปลดล็อคคูปองได้เลย
+// คืน products + ความคืบหน้าเงื่อนไขคูปองของ user ให้ frontend โชว์ว่าปลดล็อคคูปองไหนแล้ว
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
-    const [products, readingRow, couponRows, user] = await Promise.all([
+    const [products, progress, couponRows, user] = await Promise.all([
       db.prepare("SELECT * FROM products ORDER BY category, name").all(),
-      db
-        .prepare(
-          "SELECT COALESCE(SUM(read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
-        )
-        .get(req.user.id),
+      couponProgress(req.user.id),
       db.prepare("SELECT product_id FROM user_coupons WHERE user_id = ?").all(req.user.id),
       db.prepare("SELECT univ_verified_at FROM users WHERE id = ?").get(req.user.id),
     ]);
-    const readingMinutes = Math.floor((readingRow.s || 0) / 60);
     return res.json({
       products,
-      readingMinutes,
+      couponProgress: progress,
       // คูปองแบบที่แลกไปแล้ว (แต่ละแบบแลกได้ครั้งเดียว) + ยืนยันอีเมลมหาวิทยาลัยแล้วหรือยัง
       redeemedCouponIds: couponRows.map((r) => r.product_id),
       univVerified: !!(user && user.univ_verified_at),
@@ -71,25 +80,17 @@ router.post("/buy", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "คูปองนี้ยังไม่พร้อมใช้งาน (แอดมินยังไม่ได้ตั้งมูลค่าส่วนลด)" });
     }
 
-    // สินค้าที่ต้องอ่านสะสมก่อน (คูปอง) เช็ค reading total ก่อนขาย
-    // ใช้ read_seconds (เวลาที่อ่านจริง) จาก reading_sessions ที่ status='completed' เท่านั้น (ตรงกับ admin dashboard)
-    if (product.required_reading_minutes > 0) {
-      const requiredSeconds = product.required_reading_minutes * 60;
-      const row = await db
-        .prepare(
-          "SELECT COALESCE(SUM(read_seconds), 0) AS s FROM reading_sessions WHERE user_id = ? AND status = 'completed'"
-        )
-        .get(req.user.id);
-      const totalSeconds = row.s || 0;
-      if (totalSeconds < requiredSeconds) {
-        const hoursHave = Math.floor(totalSeconds / 3600);
-        const minsHave = Math.floor((totalSeconds % 3600) / 60);
-        const hoursNeed = Math.floor(requiredSeconds / 3600);
-        const minsNeed = Math.floor((requiredSeconds % 3600) / 60);
+    // คูปอง: ต้องผ่านแบบทดสอบหลังอ่านครบจำนวนบท + ผ่านด่านบทเรียนในเกมครบจำนวนโลก ก่อนแลก
+    if (product.required_post_chapters > 0 || product.required_game_worlds > 0) {
+      const progress = await couponProgress(req.user.id);
+      if (!couponUnlocked(product, progress)) {
         return res.status(400).json({
           message:
-            `ต้องอ่านสะสม ${hoursNeed} ชั่วโมง ${minsNeed} นาที ถึงจะแลกได้ ` +
-            `(ตอนนี้อ่านไป ${hoursHave} ชั่วโมง ${minsHave} นาที)`,
+            `ยังแลกคูปองนี้ไม่ได้ — ต้องผ่านแบบทดสอบหลังอ่าน ${product.required_post_chapters} บท ` +
+            `(ตอนนี้ ${progress.passedChapters} บท)` +
+            (product.required_game_worlds > 0
+              ? ` และผ่านด่านบทเรียนในเกม ${product.required_game_worlds} โลก (ตอนนี้ ${progress.clearedWorlds} โลก)`
+              : ""),
         });
       }
     }

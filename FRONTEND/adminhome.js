@@ -117,9 +117,11 @@ function renderDemoMode(rules) {
   const btn = document.getElementById("demoModeBtn");
   card.classList.toggle("on", demoModeOn);
   badge.textContent = demoModeOn ? "เปิดอยู่" : "ปิดอยู่";
+  const presets = (rules.presets || []).map((p) => `${p.readMinutes}/${p.breakMinutes}`).join(" หรือ ");
+  const rewardText = `ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที`;
   desc.textContent = demoModeOn
-    ? `ตอนนี้: ตั้งเวลาอ่านขั้นต่ำ ${rules.minReadMinutes} นาที · ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที — อย่าลืมปิดหลังสาธิต`
-    : `ปกติ: ตั้งเวลาอ่านขั้นต่ำ ${rules.minReadMinutes} นาที · ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที`;
+    ? `ตอนนี้: รอบอ่าน ${presets} นาที · ${rewardText} · ไม่จำกัดรอบต่อวัน · อ่านบทละ ${rules.postTestMinReadMinutes} นาทีก็ทำแบบทดสอบหลังอ่านได้ — อย่าลืมปิดหลังสาธิต`
+    : `ปกติ: รอบอ่าน Pomodoro ${presets} นาที · ${rewardText} · ได้คอยน์วันละไม่เกิน ${rules.dailyCoinRounds} รอบ`;
   btn.textContent = demoModeOn ? "ปิดโหมดสาธิต" : "เปิดโหมดสาธิต";
   btn.disabled = false;
 }

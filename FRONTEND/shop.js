@@ -116,7 +116,8 @@ function updateCoinDisplay(coins) {
 
 // ================== โหลด + แสดงสินค้า ==================
 
-let userReadingMinutes = 0; // เวลาอ่านสะสมรวม (นาที) ของ user — ใช้เช็คแลกคูปอง
+// ความคืบหน้าเงื่อนไขคูปองของ user: ผ่านแบบทดสอบหลังอ่านกี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
+let couponProgress = { passedChapters: 0, clearedWorlds: 0 };
 let redeemedCouponIds = new Set(); // คูปองแบบที่แลกไปแล้ว (แต่ละแบบแลกได้ครั้งเดียว)
 let univVerified = false; // ยืนยันอีเมลมหาวิทยาลัยแล้วหรือยัง (ต้องยืนยันก่อนแลกคูปอง)
 let currentTab = "ทั้งหมด";
@@ -124,7 +125,7 @@ let currentTab = "ทั้งหมด";
 async function loadProducts() {
   const data = await apiFetch("/shop/products");
   allProducts = data.products;
-  userReadingMinutes = data.readingMinutes || 0;
+  couponProgress = data.couponProgress || couponProgress;
   redeemedCouponIds = new Set(data.redeemedCouponIds || []);
   univVerified = !!data.univVerified;
   updateCouponToolbar();
@@ -155,12 +156,20 @@ function updateCouponToolbar() {
 }
 
 // แปลง (นาที) → "X ชม. Y นาที" (ตัด "Y นาที" ถ้า = 0)
-function formatMinsHours(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h && m) return `${h} ชม. ${m} นาที`;
-  if (h) return `${h} ชม.`;
-  return `${m} นาที`;
+// เงื่อนไขแลกคูปอง (คอยน์เป็นราคาแยกต่างหาก): ผ่าน post กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
+function couponRequirements(p) {
+  const reqs = [];
+  if (p.required_post_chapters > 0) {
+    reqs.push({ label: "ผ่านแบบทดสอบหลังอ่าน (≥ 3/5)", unit: "บท", need: p.required_post_chapters, have: couponProgress.passedChapters });
+  }
+  if (p.required_game_worlds > 0) {
+    reqs.push({ label: "ผ่านด่านบทเรียนในเกม (≥ 2 ดาว)", unit: "โลก", need: p.required_game_worlds, have: couponProgress.clearedWorlds });
+  }
+  return reqs;
+}
+
+function couponUnlocked(p) {
+  return couponRequirements(p).every((r) => r.have >= r.need);
 }
 
 function renderProducts(items) {
@@ -189,8 +198,7 @@ function renderProducts(items) {
       // คลิก → เปิด modal แสดง เงื่อนไข + ปุ่มแลก (ถ้าอ่านครบ)
       const isCoupon = p.category === "คูปอง";
       if (isCoupon) {
-        const requiredMins = p.required_reading_minutes || 0;
-        const unlocked = userReadingMinutes >= requiredMins;
+        const unlocked = couponUnlocked(p);
         // แลกแล้ว: ทับด้วยป้าย "แลกแล้ว" คลิกแล้วเปิดคูปองของฉันแทน
         if (isRealCoupon(p) && redeemedCouponIds.has(p.id)) {
           return `
@@ -204,16 +212,21 @@ function renderProducts(items) {
             </div>
           `;
         }
-        const progressPct = requiredMins ? Math.min(100, Math.round((userReadingMinutes / requiredMins) * 100)) : 100;
+        const reqLines = couponRequirements(p)
+          .map((r) => {
+            const pct = Math.min(100, Math.round((Math.min(r.have, r.need) / r.need) * 100));
+            return `<div class="coupon-progress-text">${r.label} ${Math.min(r.have, r.need)} / ${r.need} ${r.unit}</div>
+                    <div class="coupon-progress"><div class="coupon-progress-bar" style="width:${pct}%"></div></div>`;
+          })
+          .join("");
         const lockOverlay = isUnsetCoupon(p)
           ? `<div class="coupon-lock"><div class="coupon-lock-inner">⏳ คูปองนี้ยังไม่พร้อมใช้งาน</div></div>`
           : unlocked
           ? ""
           : `<div class="coupon-lock">
                <div class="coupon-lock-inner">
-                 🔒 อ่านต่ออีก ${formatMinsHours(requiredMins - userReadingMinutes)} เพื่อปลดล็อค
-                 <div class="coupon-progress"><div class="coupon-progress-bar" style="width:${progressPct}%"></div></div>
-                 <div class="coupon-progress-text">${formatMinsHours(userReadingMinutes)} / ${formatMinsHours(requiredMins)}</div>
+                 🔒 ทำเงื่อนไขให้ครบเพื่อปลดล็อค
+                 ${reqLines}
                </div>
              </div>`;
         // ราคาเป็นคอยน์ (แลกด้วยเหรียญ) — โชว์มุมขวาล่างของ banner
@@ -344,14 +357,13 @@ function showDetail(id) {
   const isCoupon = product.category === "คูปอง";
   const desc = product.description || (isCoupon ? "ยังไม่ระบุเงื่อนไขการใช้งาน" : "ไม่มีรายละเอียดสินค้า");
   if (isCoupon) {
-    const reqMins = product.required_reading_minutes || 0;
-    const unlocked = userReadingMinutes >= reqMins;
     const priceLine = product.price > 0 ? `🪙 ใช้ ${product.price} คอยน์ แลกคูปองนี้\n\n` : "";
-    const header = reqMins
-      ? `⏱️ ต้องอ่านสะสม ${formatMinsHours(reqMins)}\n` +
-        `📖 คุณอ่านไปแล้ว ${formatMinsHours(userReadingMinutes)}` +
-        (unlocked ? " ✅ ปลดล็อคแล้ว!" : ` (ขาดอีก ${formatMinsHours(reqMins - userReadingMinutes)})`) +
-        `\n\n`
+    const reqs = couponRequirements(product);
+    const header = reqs.length
+      ? "🔓 เงื่อนไขปลดล็อค\n" +
+        reqs.map((r) => `${r.have >= r.need ? "✅" : "⬜"} ${r.label} ${Math.min(r.have, r.need)}/${r.need} ${r.unit}`).join("\n") +
+        (couponUnlocked(product) ? "\nปลดล็อคแล้ว!" : "") +
+        "\n\n"
       : "";
     document.getElementById("modalDesc").innerText = priceLine + header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`;
   } else {
@@ -371,8 +383,7 @@ function showDetail(id) {
   const buyBtn = document.querySelector(".buy-now-btn");
   if (buyBtn) {
     if (isCoupon) {
-      const reqMins = product.required_reading_minutes || 0;
-      const unlocked = userReadingMinutes >= reqMins;
+      const unlocked = couponUnlocked(product);
       const redeemed = realCoupon && redeemedCouponIds.has(product.id);
       buyBtn.disabled = !unlocked || redeemed;
       // คูปองที่มีราคา: ปุ่มโชว์ราคาเหมือนสินค้าทั่วไป (ข้อความ "ใช้ X คอยน์ แลกคูปองนี้" อยู่ในรายละเอียดแล้ว)

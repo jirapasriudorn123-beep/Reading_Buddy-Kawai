@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261012">
+    <link rel="stylesheet" href="style.css?v=20261013">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css">
@@ -98,36 +98,23 @@
             <h2 class="main-title">สถาปัตยกรรมคอมพิวเตอร์และการแก้ปัญหาเชิงตรรกะ (Computer Architecture and Logical Problem Solving)</h2>
 
 <div id="chapterModal" class="modal-overlay">
-    <div class="timer-modal-content">
-        <h2 class="timer-modal-title">ตั้งเวลาอ่าน</h2>
+    <div class="timer-modal-content chapter-start-content" role="dialog" aria-modal="true" aria-labelledby="chapterModalTitle">
+        <h2 class="timer-modal-title" id="chapterModalTitle">เริ่มอ่าน</h2>
         <p id="modalChapterTitle" class="timer-chapter-info"></p>
         <p id="demoModeNotice" class="demo-mode-notice" style="display:none;"></p>
 
-        <div class="time-sections-grid">
-            <div class="time-section-block">
-                <div class="time-header-label start-label">เริ่ม</div>
-                <div class="timer-input-group">
-                    <input type="number" id="chapterMinutes" placeholder=" " min="10" max="120" class="time-field">
-                    <span class="time-colon">:</span>
-                    <input type="number" id="chapterSeconds" placeholder=" " min="0" max="59" class="time-field">
-                </div>
-            </div>
+        <div id="chapterStatus" class="chapter-status"></div>
 
-            <div class="time-section-block">
-                <div class="time-header-label break-label">พัก</div>
-                <div class="timer-input-group">
-                    <input type="number" id="breakMinutes" placeholder=" " min="0" max="120" class="time-field">
-                    <span class="time-colon">:</span>
-                    <input type="number" id="breakSeconds" placeholder=" " min="0" max="59" class="time-field">
-                </div>
-            </div>
-        </div>
+        <p class="preset-label">เลือกรอบอ่านแบบ Pomodoro</p>
+        <div id="presetGroup" class="preset-group"></div>
+        <p id="dailyRoundsNote" class="daily-rounds-note" style="display:none;"></p>
         <p class="gentle-error" id="chapterError" style="display:none;"></p>
 
         <div class="timer-action-group">
-            <button id="startReadingBtn" class="timer-btn-confirm">เริ่มจับเวลา</button>
+            <button id="startReadingBtn" class="timer-btn-confirm">เริ่มอ่าน</button>
             <button id="cancelReadingBtn" class="timer-btn-cancel">ยกเลิก</button>
         </div>
+        <button type="button" id="postTestBtn" class="post-test-btn" style="display:none;">📝 ทำแบบทดสอบหลังอ่าน</button>
     </div>
 </div>
 
@@ -140,8 +127,8 @@
         <div id="quizBody"></div>
         <p class="gentle-error" id="quizError" style="display:none;"></p>
         <div class="timer-action-group">
-            <button type="button" id="quizPrimaryBtn" class="timer-btn-confirm" style="display:none;">ตกลง</button>
-            <button type="button" id="quizSecondaryBtn" class="quiz-secondary-btn"></button>
+            <button type="button" id="quizPrimaryBtn" class="timer-btn-confirm" style="display:none;"></button>
+            <button type="button" id="quizSecondaryBtn" class="quiz-secondary-btn" style="display:none;"></button>
         </div>
     </div>
 </div>
@@ -153,7 +140,6 @@
             <input type="number" id="readerMinutes" class="reader-time-input" disabled>
             <span class="time-colon">:</span>
             <input type="number" id="readerSeconds" class="reader-time-input" disabled>
-            <button type="button" id="readerExtendBtn" class="time-add-btn">+5</button>
         </div>
         <div class="reader-timer-group">
             <span class="reader-timer-icon">☕</span>
@@ -182,7 +168,7 @@
 </div>
 <script src="config.js"></script>
 <script src="notifications.js"></script>
-<script src="script.js?v=20261012"></script>
+<script src="script.js?v=20261013"></script>
 <script src="theme.js"></script>
 <script src="chat.js"></script>
     <script src="cursor.js"></script>

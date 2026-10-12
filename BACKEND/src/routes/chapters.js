@@ -1,120 +1,152 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
-const { getReadingRules } = require("../services/readingRules");
+const { getReadingRules, dailyTimeCoinCap, coinsPerRound, timeCoinsToday } = require("../services/readingRules");
+const tests = require("../services/chapterTests");
 
 const router = express.Router();
 
-const MAX_MINUTES = 120;
-const MAX_SECONDS = 59;
-const QUIZ_QUESTIONS_PER_SESSION = 3; // แบบทดสอบก่อน/หลังอ่าน รอบละ 3 ข้อ
-
-function toSeconds(minutes, seconds) {
-  return Number(minutes) * 60 + Number(seconds);
+// สถานะคอยน์จากเวลาอ่านวันนี้ (นับเป็นรอบละ 25 นาที) — null = ไม่จำกัด (โหมดสาธิต)
+async function dailyRoundsStatus(userId, rules) {
+  const cap = dailyTimeCoinCap(rules);
+  if (cap === null) return { roundsUsed: null, roundsCap: null };
+  const used = await timeCoinsToday(userId);
+  return { roundsUsed: Math.min(rules.dailyCoinRounds, Math.floor(used / coinsPerRound(rules))), roundsCap: rules.dailyCoinRounds };
 }
 
 // ---------- GET /api/chapters ----------
+// บทเรียนทั้งหมด + สถานะการอ่าน/แบบทดสอบของผู้ใช้ในแต่ละบท + กติกาเวลาอ่าน (รอบ Pomodoro ที่เลือกได้)
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const chapters = await db
       .prepare("SELECT id, chapter_number, title, coin_reward, detail, image_url, pdf_url FROM chapters ORDER BY chapter_number ASC")
       .all();
-
-    // กติกาเวลาอ่านตอนนี้ (หน้าเว็บใช้ตั้งค่าเริ่มต้นในกล่องตั้งเวลา และบอกผู้ใช้ตอนเปิดโหมดสาธิต)
     const readingRules = await getReadingRules();
-    return res.json({ chapters, readingRules });
+    const [progress, daily] = await Promise.all([
+      Promise.all(chapters.map((c) => tests.chapterProgress(req.user.id, c.id))),
+      dailyRoundsStatus(req.user.id, readingRules),
+    ]);
+
+    return res.json({
+      chapters: chapters.map((c, i) => ({ ...c, progress: progress[i] })),
+      readingRules: { ...readingRules, ...daily },
+    });
   } catch (err) {
     next(err);
   }
 });
 
 // ---------- POST /api/chapters/:chapterId/sessions ----------
+// เริ่มอ่าน 1 รอบ Pomodoro — body: { presetId } ("25" = อ่าน 25 พัก 5, "50" = อ่าน 50 พัก 10)
+// บทที่ยังไม่ได้ทำแบบทดสอบก่อนอ่าน ตอบ 409 PRE_TEST_REQUIRED ให้หน้าเว็บพาไปทำก่อน
 router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
   try {
     const chapterId = Number(req.params.chapterId);
-    let { readMinutes, readSeconds, breakMinutes, breakSeconds } = req.body;
-
-    readMinutes = Number(readMinutes);
-    readSeconds = Number(readSeconds);
-    breakMinutes = Number(breakMinutes) || 0;
-    breakSeconds = Number(breakSeconds) || 0;
-
-    const chapter = await db.prepare("SELECT id, title, coin_reward FROM chapters WHERE id = ?").get(chapterId);
+    const chapter = await db.prepare("SELECT id, title FROM chapters WHERE id = ?").get(chapterId);
     if (!chapter) {
       return res.status(404).json({ message: "ไม่พบ Chapter นี้" });
     }
 
-    // ---- validate เวลา ----
-    for (const [label, m, s] of [
-      ["เวลาอ่าน", readMinutes, readSeconds],
-      ["เวลาพัก", breakMinutes, breakSeconds],
-    ]) {
-      if (!Number.isInteger(m) || !Number.isInteger(s)) {
-        return res.status(400).json({ message: `กรุณากรอก${label}เป็นตัวเลข` });
-      }
-      if (m < 0 || m > MAX_MINUTES || s < 0 || s > MAX_SECONDS || (m === MAX_MINUTES && s > 0)) {
-        return res.status(400).json({ message: `${label}ต้องอยู่ระหว่าง 0:00 ถึง ${MAX_MINUTES}:00` });
-      }
-    }
-
     const rules = await getReadingRules();
-    const plannedReadSeconds = toSeconds(readMinutes, readSeconds);
-    if (plannedReadSeconds < rules.minReadMinutes * 60) {
-      return res.status(400).json({ message: `เวลาอ่านต้องตั้งอย่างน้อย ${rules.minReadMinutes} นาที` });
+    const preset = rules.presets.find((p) => p.id === String(req.body.presetId));
+    if (!preset) {
+      return res.status(400).json({ message: "กรุณาเลือกรอบเวลาอ่าน" });
     }
-    const plannedBreakSeconds = toSeconds(breakMinutes, breakSeconds);
 
-    // ---- แบบทดสอบก่อนอ่าน: สุ่มคำถามของบทนี้ (ชุดเดียวกับมินิเกม) ข้อเดิมจะถูกถามซ้ำหลังอ่าน ----
-    // บทที่ยังไม่มีคำถามเลย ข้ามแบบทดสอบไปเริ่มอ่านทันที (แอดมินควรเพิ่มคำถามให้ครบทุกบท)
-    const questions = await db
-      .prepare(
-        `SELECT id, question, option_1, option_2, option_3, option_4
-         FROM quiz_questions WHERE chapter_id = ? AND enabled = 1
-         ORDER BY RANDOM() LIMIT ?`
-      )
-      .all(chapterId, QUIZ_QUESTIONS_PER_SESSION);
-    const status = questions.length > 0 ? "pre_test" : "in_progress";
+    const test = await tests.getOrCreateActiveTest(req.user.id, chapterId);
+    if (test.status === "pre_test") {
+      return res.status(409).json({ code: "PRE_TEST_REQUIRED", message: "ทำแบบทดสอบก่อนอ่านบทนี้ก่อนนะ" });
+    }
+    if (test.status === "post_test") {
+      return res.status(409).json({ code: "POST_TEST_IN_PROGRESS", message: "ทำแบบทดสอบหลังอ่านบทนี้ให้เสร็จก่อนนะ" });
+    }
 
-    // ---- เซสชันเก่าที่ค้างอยู่ (รีเฟรช/ปิดหน้าระหว่างทำแบบทดสอบหรืออ่าน หน้าเว็บเลยไม่รู้จักแล้ว จบหรือยกเลิกเองไม่ได้) ----
+    const plannedReadSeconds = preset.readMinutes * 60;
+    const plannedBreakSeconds = preset.breakMinutes * 60;
+
+    // ---- เซสชันเก่าที่ค้าง in_progress (รีเฟรช/ปิดหน้าระหว่างอ่าน หน้าเว็บเลยไม่รู้จักแล้ว จบหรือยกเลิกเองไม่ได้) ----
     // ยกเลิกทิ้งแล้วเริ่มอันใหม่แทน (ไม่ให้เหรียญของอันเก่า กันเปิดค้างไว้เฉยๆ แล้วมาเก็บเหรียญทีหลัง)
     const result = await db.tx(async (t) => {
       await t.prepare(
         `UPDATE reading_sessions SET status = 'cancelled', ended_at = datetime('now')
-         WHERE user_id = ? AND status IN ('pre_test', 'in_progress', 'post_test')`
+         WHERE user_id = ? AND status = 'in_progress'`
       ).run(req.user.id);
-      const inserted = await t.prepare(
+      return t.prepare(
         `INSERT INTO reading_sessions
-           (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status, minutes_per_block, quiz_total)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, status, rules.minutesPerBlock, questions.length);
-      for (const [i, q] of questions.entries()) {
-        await t.prepare(
-          "INSERT INTO reading_session_questions (session_id, position, question_id) VALUES (?, ?, ?)"
-        ).run(inserted.lastInsertRowid, i + 1, q.id);
-      }
-      return inserted;
+           (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status, minutes_per_block, chapter_test_id)
+         VALUES (?, ?, ?, ?, 'in_progress', ?, ?)`
+      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, rules.minutesPerBlock, test.id);
     });
 
     return res.status(201).json({
-      message: status === "pre_test" ? "ทำแบบทดสอบก่อนอ่าน แล้วเริ่มจับเวลาอ่าน" : "เริ่มจับเวลาอ่านแล้ว",
+      message: "เริ่มจับเวลาอ่านแล้ว",
       session: {
         id: result.lastInsertRowid,
         chapterId,
         chapterTitle: chapter.title,
         plannedReadSeconds,
         plannedBreakSeconds,
-        status,
       },
-      // ไม่ส่งเฉลยมา — server ตรวจเองตอนส่งคำตอบ
-      preTest: questions.map((q, i) => ({
-        position: i + 1,
-        question: q.question,
-        options: [q.option_1, q.option_2, q.option_3, q.option_4],
-      })),
     });
   } catch (err) {
     console.error("Start reading session error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ================== แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท (ถามทีละข้อ ข้อละ 1 นาที) ==================
+
+// ---------- POST /api/chapters/:chapterId/test/next ----------
+// ข้อถัดไปของแบบทดสอบที่ต้องทำตอนนี้ — body: { phase: "pre" | "post" }
+// pre: ถ้ายังไม่เคยเริ่มบทนี้จะสร้างชุดแบบทดสอบให้ | post: เริ่ม post ได้เมื่ออ่านบทนี้ครบเวลาขั้นต่ำแล้ว
+// คืน { phase, question } หรือ { phase, done: true, summary }
+router.post("/:chapterId/test/next", requireAuth, async (req, res, next) => {
+  try {
+    const chapterId = Number(req.params.chapterId);
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(chapterId);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบ Chapter นี้" });
+
+    const phase = req.body.phase;
+    let test;
+    if (phase === "pre") {
+      test = await tests.getOrCreateActiveTest(req.user.id, chapterId);
+      if (test.status !== "pre_test") {
+        return res.json({ phase: "pre", done: true, summary: { phase: "pre", preScore: test.pre_score, total: test.total } });
+      }
+    } else if (phase === "post") {
+      const started = await tests.startPostTest(req.user.id, chapterId);
+      if (started.error) return res.status(started.error.status).json({ message: started.error.message });
+      test = started.test;
+    } else {
+      return res.status(400).json({ message: "phase ไม่ถูกต้อง" });
+    }
+
+    return res.json(await tests.serveNext(req.user.id, test));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- POST /api/chapters/:chapterId/test/answer ----------
+// ตอบข้อที่กำลังถามอยู่ — body: { phase, picked (0-4), tabSwitched }
+// picked 0: ก่อนอ่าน = "ยังไม่รู้" / หลังอ่าน = หมดเวลา | หลังอ่านสลับแท็บระหว่างข้อ = ข้อนั้นผิด
+router.post("/:chapterId/test/answer", requireAuth, async (req, res, next) => {
+  try {
+    const chapterId = Number(req.params.chapterId);
+    const picked = Number(req.body.picked);
+    if (!Number.isInteger(picked) || picked < 0 || picked > 4) {
+      return res.status(400).json({ message: "คำตอบไม่ถูกต้อง" });
+    }
+
+    const test = await tests.getLatestTest(req.user.id, chapterId);
+    const phase = test ? tests.phaseOf(test) : null;
+    if (!phase || phase !== req.body.phase) {
+      return res.status(400).json({ message: "ไม่มีแบบทดสอบที่รอตอบอยู่ ลองเปิดบทนี้ใหม่อีกครั้งนะ" });
+    }
+
+    return res.json(await tests.answerCurrent(req.user.id, test, picked, !!req.body.tabSwitched));
+  } catch (err) {
+    next(err);
   }
 });
 

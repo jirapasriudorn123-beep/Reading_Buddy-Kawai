@@ -1,70 +1,36 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { completedChapterNumbers, reviewQuestionIds, MIN_STARS_FOR_WORLD_CLEAR } = require("../services/chapterTests");
 
 const router = express.Router();
 
-// จำนวนเวิลด์ทั้งหมด และจำนวนด่านต่อเวิลด์ของ Phayao Adventure
-// (ต้องตรงกับฝั่ง FRONTEND/stage-select.js)
-const TOTAL_WORLDS = 6;
-const STAGES_PER_WORLD = 4;
-
-async function getOrCreateProgress(userId) {
-  let row = await db.prepare("SELECT * FROM game_progress WHERE user_id = ?").get(userId);
-  if (!row) {
-    await db.prepare("INSERT INTO game_progress (user_id, unlocked_world, unlocked_stage) VALUES (?, 1, 1)").run(userId);
-    row = await db.prepare("SELECT * FROM game_progress WHERE user_id = ?").get(userId);
-  }
-  return row;
-}
+// ================== ความคืบหน้าเกม (เก็บที่ server) ==================
+// โลกที่ N เปิดเล่นได้เมื่อทำแบบทดสอบหลังอ่านบทที่ N เสร็จแล้ว (อ่านก่อนค่อยมาทบทวนในเกม)
+// ด่านที่ชนะแล้ว + ดาวที่ดีที่สุดเก็บใน game_stage_clears (รีเฟรชหน้าแล้วไม่หาย)
+// "ผ่านโลก" (ใช้เป็นเงื่อนไขคูปอง) ดู MIN_STARS_FOR_WORLD_CLEAR ใน services/chapterTests.js
 
 // ---------- GET /api/game/progress ----------
 router.get("/progress", requireAuth, async (req, res, next) => {
   try {
-    const progress = await getOrCreateProgress(req.user.id);
-    return res.json({
-      unlockedWorld: progress.unlocked_world,
-      unlockedStage: progress.unlocked_stage,
-      totalWorlds: TOTAL_WORLDS,
-      stagesPerWorld: STAGES_PER_WORLD,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ---------- POST /api/game/progress/complete ----------
-router.post("/progress/complete", requireAuth, async (req, res, next) => {
-  try {
-    const { world, stage } = req.body;
-
-    if (!Number.isInteger(world) || !Number.isInteger(stage)) {
-      return res.status(400).json({ message: "world/stage ต้องเป็นตัวเลข" });
+    const [chapters, done, clears] = await Promise.all([
+      db.prepare("SELECT chapter_number, title FROM chapters ORDER BY chapter_number ASC").all(),
+      completedChapterNumbers(req.user.id),
+      db.prepare("SELECT world, stage, best_stars FROM game_stage_clears WHERE user_id = ?").all(req.user.id),
+    ]);
+    const worlds = [];
+    for (let w = 1; w <= GAME_WORLDS; w++) {
+      const chapter = chapters.find((c) => c.chapter_number === w);
+      const stageClears = clears.filter((c) => c.world === w);
+      worlds.push({
+        world: w,
+        chapterTitle: chapter ? chapter.title : null,
+        unlocked: done.has(w),
+        clearedStages: stageClears.map((c) => ({ stage: c.stage, stars: c.best_stars })),
+        cleared: stageClears.some((c) => c.stage % 2 === 1 && c.best_stars >= MIN_STARS_FOR_WORLD_CLEAR),
+      });
     }
-
-    const progress = await getOrCreateProgress(req.user.id);
-
-    if (world !== progress.unlocked_world || stage !== progress.unlocked_stage) {
-      return res.status(400).json({ message: "ด่านนี้ยังไม่ปลดล็อค หรือเล่นจบไปแล้ว" });
-    }
-
-    let nextWorld = progress.unlocked_world;
-    let nextStage = progress.unlocked_stage + 1;
-    if (nextStage > STAGES_PER_WORLD) {
-      nextStage = 1;
-      nextWorld = Math.min(TOTAL_WORLDS, progress.unlocked_world + 1);
-    }
-
-    await db.prepare(
-      "UPDATE game_progress SET unlocked_world = ?, unlocked_stage = ?, updated_at = datetime('now') WHERE user_id = ?"
-    ).run(nextWorld, nextStage, req.user.id);
-
-    return res.json({
-      unlockedWorld: nextWorld,
-      unlockedStage: nextStage,
-      totalWorlds: TOTAL_WORLDS,
-      stagesPerWorld: STAGES_PER_WORLD,
-    });
+    return res.json({ worlds, stagesPerWorld: GAME_STAGES_PER_WORLD, minStarsForWorldClear: MIN_STARS_FOR_WORLD_CLEAR });
   } catch (err) {
     next(err);
   }
@@ -125,8 +91,18 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
       return res.status(400).json({ message: "world/stage ไม่ถูกต้อง" });
     }
 
+    // โลกที่ N เล่นได้เมื่อทำแบบทดสอบหลังอ่านบทที่ N แล้ว
+    const done = await completedChapterNumbers(req.user.id);
+    if (!done.has(world)) {
+      return res.status(403).json({
+        code: "WORLD_LOCKED",
+        message: `อ่านบทที่ ${world} และทำแบบทดสอบหลังอ่านก่อน ถึงจะเข้าโลกนี้ได้`,
+      });
+    }
+
     const source = stage % 2 === 0 ? "breed" : "chapter";
     let rows;
+    let reviewIds = [];
     if (source === "breed") {
       if (!VALID_BREEDS.includes(breed)) {
         return res.status(400).json({ message: "พันธุ์สุนัขไม่ถูกต้อง" });
@@ -145,13 +121,18 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
            WHERE c.chapter_number = ? AND q.enabled = 1`
         )
         .all(world);
+      // ทบทวน: ข้อที่ตอบผิดใน post ครั้งล่าสุดของบทนี้ (และยังไม่เคยตอบถูกในเกมหลังจากนั้น) เอามาถามก่อน
+      const chapter = await db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(world);
+      if (chapter) reviewIds = await reviewQuestionIds(req.user.id, chapter.id);
     }
 
     if (!rows.length) {
       return res.json({ battle: null, questions: [] });
     }
 
-    const questions = shuffle(rows).slice(0, BATTLE_MAX_QUESTIONS);
+    const review = reviewIds.map((id) => rows.find((r) => r.id === id)).filter(Boolean);
+    const rest = shuffle(rows.filter((r) => !reviewIds.includes(r.id)));
+    const questions = [...review, ...rest].slice(0, BATTLE_MAX_QUESTIONS);
     const requiredCorrect = questions.length;
 
     // เลิกการต่อสู้เก่าที่ค้างอยู่ (ปิดหน้า/หมดเวลา) แล้วเริ่มอันใหม่
@@ -176,6 +157,7 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
         requiredCorrect,
         maxWrong: BATTLE_MAX_WRONG,
         alreadyRewarded: !!rewarded,
+        reviewCount: review.length,
       },
       questions,
     });
@@ -243,11 +225,19 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
       ).run(correctCount, wrongCount, status, status, battleId, battle.correct_count, battle.wrong_count);
       if (update.changes === 0) return null;
 
-      await t.prepare("INSERT INTO quiz_answer_log (user_id, category, correct) VALUES (?, ?, ?)").run(
+      await t.prepare("INSERT INTO quiz_answer_log (user_id, category, correct, question_id) VALUES (?, ?, ?, ?)").run(
         req.user.id,
         src.category,
-        correct ? 1 : 0
+        correct ? 1 : 0,
+        questionId
       );
+
+      if (status === "won") {
+        await t.prepare(
+          `INSERT INTO game_stage_clears (user_id, world, stage, best_stars) VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id, world, stage) DO UPDATE SET best_stars = MAX(best_stars, excluded.best_stars)`
+        ).run(req.user.id, battle.world, battle.stage, stars);
+      }
 
       // ชนะด่านที่เคยได้โบนัสไปแล้ว: เก็บดาวที่ดีที่สุดไว้ (คอยน์ไม่ได้เพิ่ม)
       if (stars > 0) {

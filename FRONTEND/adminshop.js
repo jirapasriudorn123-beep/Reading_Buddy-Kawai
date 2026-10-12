@@ -56,7 +56,7 @@ function renderProducts(items) {
       const couponNote =
         p.category === "คูปอง" && !p.pet_action
           ? p.discount_baht > 0
-            ? `<p class="pet-use-note">🎫 ส่วนลด ${p.discount_baht} บาท · อ่านสะสม ${p.required_reading_minutes || 0} นาที</p>`
+            ? `<p class="pet-use-note">🎫 ส่วนลด ${p.discount_baht} บาท · ผ่านแบบทดสอบ ${p.required_post_chapters || 0} บท · ผ่านเกม ${p.required_game_worlds || 0} โลก</p>`
             : `<p class="pet-use-note coupon-unset">⚠️ ยังไม่ได้ตั้งมูลค่าส่วนลด — ผู้ใช้แลกไม่ได้</p>`
           : "";
       return `
@@ -123,7 +123,8 @@ function resetModalFields() {
   document.getElementById("editItemPetAction").value = "";
   document.getElementById("editItemStatGain").value = "";
   document.getElementById("editItemDiscount").value = "";
-  document.getElementById("editItemReqMinutes").value = "";
+  document.getElementById("editItemReqChapters").value = "";
+  document.getElementById("editItemReqWorlds").value = "";
   togglePetGainField();
   toggleCouponFields();
 
@@ -158,7 +159,8 @@ function openEditModal(id) {
   document.getElementById("editItemPetAction").value = product.pet_action || "";
   document.getElementById("editItemStatGain").value = product.stat_gain || "";
   document.getElementById("editItemDiscount").value = product.discount_baht || "";
-  document.getElementById("editItemReqMinutes").value = product.required_reading_minutes || "";
+  document.getElementById("editItemReqChapters").value = product.required_post_chapters || "";
+  document.getElementById("editItemReqWorlds").value = product.required_game_worlds || "";
   togglePetGainField();
   toggleCouponFields();
 
@@ -234,7 +236,8 @@ async function saveItemEdit() {
     };
     if (category === "คูปอง") {
       payload.discountBaht = Number(document.getElementById("editItemDiscount").value) || 0;
-      payload.requiredReadingMinutes = Number(document.getElementById("editItemReqMinutes").value) || 0;
+      payload.requiredPostChapters = Number(document.getElementById("editItemReqChapters").value) || 0;
+      payload.requiredGameWorlds = Number(document.getElementById("editItemReqWorlds").value) || 0;
     }
 
     if (selectedProductFile) {

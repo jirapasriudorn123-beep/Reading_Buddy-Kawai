@@ -3741,3 +3741,228 @@ html.dark-mode body .quiz-result-answer {
         font-size: 16px;
     }
 }
+
+/* ================== เลือกรอบอ่าน Pomodoro + สถานะบท ================== */
+.chapter-start-content {
+    min-width: 0;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 28px;
+}
+
+.chapter-status {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.chapter-status p {
+    margin: 2px 0;
+}
+
+.preset-label {
+    margin: 0 0 8px;
+    font-weight: 600;
+}
+
+.preset-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.preset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 14px 10px;
+    background: #fff;
+    border: 1px solid #000;
+    border-radius: 12px;
+    font-family: 'Kanit', sans-serif;
+    color: #222;
+    cursor: pointer;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.preset-btn:hover {
+    background-color: #eef5e2;
+}
+
+.preset-btn.is-selected {
+    background-color: #c2d8a4;
+    box-shadow: inset 0 0 0 2px #3f6b1c;
+}
+
+.preset-read {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.preset-break {
+    font-size: 14px;
+    color: #555;
+}
+
+.daily-rounds-note {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: #555;
+}
+
+.post-test-btn {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background-color: #fce883;
+    border: 1px solid #000;
+    border-radius: 10px;
+    font-family: 'Kanit', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.post-test-btn:hover {
+    background-color: #f5d84f;
+}
+
+.timer-btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.chapter-badge {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 10px;
+    background: #fff;
+    border: 1px solid #000;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #222;
+}
+
+/* ---- แบบทดสอบ: แถบเวลาข้อละ 1 นาที + สรุปรอบ ---- */
+.quiz-timer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+}
+
+.quiz-timer-bar {
+    flex: 1;
+    height: 8px;
+    background: #e3e3e3;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.quiz-timer-fill {
+    height: 100%;
+    background: #8db755;
+    transition: width 0.25s linear;
+}
+
+.quiz-timer-fill.urgent {
+    background: #dd5a22;
+}
+
+.quiz-timer-text {
+    min-width: 64px;
+    text-align: right;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.round-summary p,
+.round-summary {
+    margin: 4px 0;
+    line-height: 1.6;
+}
+
+.quiz-loading {
+    color: #555;
+}
+
+.quiz-coins p {
+    margin: 0;
+}
+
+.quiz-coins-sub {
+    font-size: 13px;
+    font-weight: 400;
+    color: #555;
+}
+
+.quiz-unlock {
+    margin: 14px 0 0;
+    font-weight: 600;
+}
+
+html.dark-mode body .chapter-status,
+html.dark-mode body .preset-btn {
+    background-color: #2a2f35;
+    border-color: #555;
+    color: #e8e8e8;
+}
+
+html.dark-mode body .preset-btn:hover {
+    background-color: #343b42;
+}
+
+html.dark-mode body .preset-btn.is-selected {
+    background-color: #3f5a2a;
+    box-shadow: inset 0 0 0 2px #a6d27a;
+}
+
+html.dark-mode body .preset-break,
+html.dark-mode body .daily-rounds-note,
+html.dark-mode body .quiz-coins-sub,
+html.dark-mode body .quiz-loading,
+html.dark-mode body .quiz-timer-text {
+    color: #bbb;
+}
+
+html.dark-mode body .post-test-btn,
+html.dark-mode body .chapter-badge {
+    color: #1a1a1a;
+}
+
+html.dark-mode body .quiz-timer-bar {
+    background: #444;
+}
+
+@media (max-width: 600px) {
+    .chapter-start-content {
+        padding: 20px 16px;
+    }
+}
+
+/* ปุ่มในป๊อปอัพแบบทดสอบ/สรุปรอบ: ข้อความยาวได้ (ปุ่มเดิมของหน้า timer ตั้ง nowrap + padding กว้าง) */
+.quiz-modal-content .timer-action-group {
+    flex-wrap: wrap;
+}
+
+.quiz-modal-content .timer-btn-confirm,
+.quiz-modal-content .quiz-secondary-btn {
+    flex: 1 1 180px;
+    min-width: 0;
+    padding: 10px 16px;
+    font-size: 17px;
+    white-space: normal;
+}

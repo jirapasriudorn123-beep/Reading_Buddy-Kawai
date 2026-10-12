@@ -52,7 +52,7 @@ function onChapterNavChange(value) {
 function renderConditionBar() {
   document.getElementById("conditionText").textContent =
     `บทที่ ${currentChapter.chapter_number} ${currentChapter.title} : ` +
-    `ต้องอ่านบทเรียน ${currentChapter.game_required_minutes} นาที | ` +
+    `อ่านบทเรียน ${currentChapter.game_required_minutes} นาที แล้วทำแบบทดสอบหลังอ่าน | ` +
     `คำถาม: ${currentChapter.game_question_count} ข้อ`;
 }
 

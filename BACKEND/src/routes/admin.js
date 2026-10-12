@@ -41,7 +41,7 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       db.prepare("SELECT COUNT(*) c FROM users WHERE last_active_at > datetime('now', '-5 minutes')").get(),
       db.prepare("SELECT COALESCE(SUM(read_seconds), 0) s FROM reading_sessions WHERE status = 'completed'").get(),
       db.prepare(`SELECT COALESCE(SUM(i.count * p.price), 0) s FROM inventory i JOIN products p ON i.product_id = p.id`).get(),
-      db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_progress").get(),
+      db.prepare("SELECT COUNT(DISTINCT user_id) c FROM game_battles").get(),
       db
         .prepare(
           `SELECT date(started_at, '+7 hours') as day,
@@ -227,15 +227,20 @@ function validatePetUse(petAction, statGain) {
   return [action, gain];
 }
 
-// ช่องของคูปอง: นาทีอ่านสะสมขั้นต่ำ + มูลค่าส่วนลดที่ร้านจริง (บาท) — undefined = ไม่ได้ส่งมา (ใช้ค่าเดิม)
-function validateCouponFields(requiredReadingMinutes, discountBaht) {
+// ช่องของคูปอง: มูลค่าส่วนลดที่ร้านจริง (บาท) + เงื่อนไขแลก (ผ่าน post กี่บท / ผ่านด่านบทเรียนในเกมกี่โลก)
+// คืน [discountBaht, requiredPostChapters, requiredGameWorlds] — undefined = ไม่ได้ส่งมา (ใช้ค่าเดิม)
+function validateCouponFields(body) {
   const parse = (value, label, max) => {
     if (value === undefined || value === null || value === "") return undefined;
     const n = Number(value);
     if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`${label}ต้องเป็นจำนวนเต็ม 0-${max}`);
     return n;
   };
-  return [parse(requiredReadingMinutes, "นาทีอ่านสะสมขั้นต่ำ", 100000), parse(discountBaht, "มูลค่าส่วนลด", 10000)];
+  return [
+    parse(body.discountBaht, "มูลค่าส่วนลด", 10000),
+    parse(body.requiredPostChapters, "จำนวนบทที่ต้องผ่านแบบทดสอบหลังอ่าน", 100),
+    parse(body.requiredGameWorlds, "จำนวนโลกที่ต้องผ่านในเกม", 6),
+  ];
 }
 
 router.post("/products", requireAdmin, async (req, res) => {
@@ -251,7 +256,7 @@ router.post("/products", requireAdmin, async (req, res) => {
     let petUse, couponFields;
     try {
       petUse = validatePetUse(petAction, statGain);
-      couponFields = validateCouponFields(req.body.requiredReadingMinutes, req.body.discountBaht);
+      couponFields = validateCouponFields(req.body);
     } catch (validationErr) {
       return res.status(400).json({ message: validationErr.message });
     }
@@ -259,8 +264,8 @@ router.post("/products", requireAdmin, async (req, res) => {
     const id = makeProductId();
     await db.prepare(
       `INSERT INTO products (id, name, price, img, category, description, tag, pet_action, stat_gain,
-                             required_reading_minutes, discount_baht)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             discount_baht, required_post_chapters, required_game_worlds)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       name.trim(),
@@ -272,7 +277,8 @@ router.post("/products", requireAdmin, async (req, res) => {
       petUse[0],
       petUse[1],
       couponFields[0] ?? 0,
-      couponFields[1] ?? 0
+      couponFields[1] ?? 0,
+      couponFields[2] ?? 0
     );
 
     const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
@@ -300,14 +306,15 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
       if (petAction !== undefined) {
         petUse = validatePetUse(petAction, statGain !== undefined ? statGain : product.stat_gain);
       }
-      couponFields = validateCouponFields(req.body.requiredReadingMinutes, req.body.discountBaht);
+      couponFields = validateCouponFields(req.body);
     } catch (validationErr) {
       return res.status(400).json({ message: validationErr.message });
     }
 
     await db.prepare(
       `UPDATE products SET name = ?, price = ?, img = ?, category = ?, description = ?, tag = ?,
-                           pet_action = ?, stat_gain = ?, required_reading_minutes = ?, discount_baht = ?
+                           pet_action = ?, stat_gain = ?, discount_baht = ?,
+                           required_post_chapters = ?, required_game_worlds = ?
        WHERE id = ?`
     ).run(
       name && name.trim() ? name.trim() : product.name,
@@ -318,8 +325,9 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
       tag !== undefined ? (tag || null) : product.tag,
       petUse[0],
       petUse[1],
-      couponFields[0] ?? product.required_reading_minutes,
-      couponFields[1] ?? product.discount_baht,
+      couponFields[0] ?? product.discount_baht,
+      couponFields[1] ?? product.required_post_chapters,
+      couponFields[2] ?? product.required_game_worlds,
       id
     );
 

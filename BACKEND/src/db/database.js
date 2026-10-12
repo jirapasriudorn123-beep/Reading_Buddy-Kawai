@@ -204,12 +204,9 @@ async function initDatabase() {
     ["read_seconds", "ALTER TABLE reading_sessions ADD COLUMN read_seconds INTEGER"],
     // กี่นาทีได้ 1 ก้อนคอยน์ — ล็อกไว้ตั้งแต่เริ่มเซสชัน (5 ปกติ, 1 ตอนแอดมินเปิดโหมดสาธิต) ปิด/เปิดโหมดกลางคันไม่กระทบเซสชันที่อ่านอยู่
     ["minutes_per_block", "ALTER TABLE reading_sessions ADD COLUMN minutes_per_block INTEGER NOT NULL DEFAULT 5"],
-    // แบบทดสอบก่อน/หลังอ่าน: จำนวนข้อของรอบนี้ (0 = บทนี้ยังไม่มีคำถาม ข้ามแบบทดสอบ) และคะแนนที่ได้
-    // status ของเซสชัน: pre_test → in_progress (กำลังอ่าน) → post_test → completed
-    //                  (ข้ามแบบทดสอบหลังอ่าน = skipped_post ไม่ได้คอยน์ | ยกเลิก = cancelled)
-    ["quiz_total", "ALTER TABLE reading_sessions ADD COLUMN quiz_total INTEGER NOT NULL DEFAULT 0"],
-    ["pre_score", "ALTER TABLE reading_sessions ADD COLUMN pre_score INTEGER"],
-    ["post_score", "ALTER TABLE reading_sessions ADD COLUMN post_score INTEGER"],
+    // รอบนี้อ่านบทในแบบทดสอบรายบทชุดไหน (chapter_tests.id) | coins_pending = 1: คอยน์ของรอบนี้ยังไม่เข้า รอทำ post ของบท
+    ["chapter_test_id", "ALTER TABLE reading_sessions ADD COLUMN chapter_test_id INTEGER"],
+    ["coins_pending", "ALTER TABLE reading_sessions ADD COLUMN coins_pending INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [col, sql] of sessionColumnMigrations) {
     if (!sessionColumns.includes(col)) await client.execute(sql);
@@ -345,6 +342,25 @@ async function initDatabase() {
     );
   }
 
+  // เงื่อนไขแลกคูปอง (แทน "อ่านสะสม X นาที" เดิม): ผ่านแบบทดสอบหลังอ่าน (≥ 3/5) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
+  // ตอนเพิ่มคอลัมน์ครั้งแรก ตั้งให้คูปองตามมูลค่า: 20 บาท = 2 บท | 30 บาท = 4 บท + 2 โลก | 50 บาท = 6 บท + 6 โลก
+  if (!productColumns.includes("required_post_chapters")) {
+    await client.execute("ALTER TABLE products ADD COLUMN required_post_chapters INTEGER NOT NULL DEFAULT 0");
+    await client.execute("ALTER TABLE products ADD COLUMN required_game_worlds INTEGER NOT NULL DEFAULT 0");
+    await client.batch(
+      [
+        [20, 2, 0],
+        [30, 4, 2],
+        [50, 6, 6],
+      ].map(([baht, chapters, worlds]) => ({
+        sql: `UPDATE products SET required_post_chapters = ?, required_game_worlds = ?
+              WHERE category = 'คูปอง' AND discount_baht = ?`,
+        args: [chapters, worlds, baht],
+      })),
+      "write"
+    );
+  }
+
   if (isFirstProductMigration) {
     const defaults = [
       ["cucumber", "feed", 6],
@@ -421,23 +437,50 @@ async function initDatabase() {
     )
   `);
 
-  // ---- ตาราง reading_session_questions (แบบทดสอบก่อนอ่าน/หลังอ่านของแต่ละรอบการอ่าน) ----
-  // ใช้คำถามบทเรียนชุดเดียวกับมินิเกม (quiz_questions) สุ่มมารอบละไม่เกิน 3 ข้อ ถามข้อเดิมทั้ง pre และ post
-  // pre_picked = 0 หมายถึงกด "ยังไม่รู้" (นับเป็นตอบผิด) | *_ms = เวลาที่ใช้ตอบข้อนั้น (หน้าเว็บจับให้) ใช้คัดคำตอบที่กดมั่วออกตอนวิเคราะห์
+  // ---- ตาราง chapter_tests (แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท) ----
+  // 1 แถว = อ่านบทนั้น 1 รอบใหญ่ (attempt): attempt 1 = ทำ pre ตอนเริ่มอ่านบทครั้งแรก, attempt ถัดไป (อ่านบทซ้ำ) ไม่มี pre
+  // status: pre_test → reading (อ่านได้หลายรอบ Pomodoro) → post_test → completed
+  // คอยน์จากเวลาอ่านของทุกรอบในบทนี้ค้างไว้ (reading_sessions.coins_pending = 1) จนกว่าจะทำ post เสร็จ
   await client.execute(`
-    CREATE TABLE IF NOT EXISTS reading_session_questions (
-      session_id INTEGER NOT NULL REFERENCES reading_sessions(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS chapter_tests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+      attempt INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pre_test', 'reading', 'post_test', 'completed')),
+      total INTEGER NOT NULL DEFAULT 0,
+      pre_score INTEGER,
+      post_score INTEGER,
+      coins_time INTEGER NOT NULL DEFAULT 0,
+      coins_bonus INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      pre_done_at TEXT,
+      post_started_at TEXT,
+      completed_at TEXT,
+      UNIQUE (user_id, chapter_id, attempt)
+    )
+  `);
+
+  // ---- ตาราง chapter_test_questions (คำถามของแบบทดสอบแต่ละชุด ถามทีละข้อ ข้อละ 1 นาที) ----
+  // *_order = ลำดับที่ถาม (pre_order NULL = ชุดนี้ไม่มี pre) | *_shown_at = server ส่งข้อนี้ให้ดูเมื่อไหร่ (ใช้จับเวลา)
+  // picked 0 = ไม่ได้เลือก ("ยังไม่รู้" ตอน pre / หมดเวลา / สลับแท็บ ตอน post) นับเป็นผิด
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS chapter_test_questions (
+      test_id INTEGER NOT NULL REFERENCES chapter_tests(id) ON DELETE CASCADE,
       question_id INTEGER NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
+      pre_order INTEGER,
+      pre_shown_at TEXT,
       pre_picked INTEGER,
       pre_correct INTEGER,
-      pre_ms INTEGER,
       pre_answered_at TEXT,
+      post_order INTEGER,
+      post_shown_at TEXT,
       post_picked INTEGER,
       post_correct INTEGER,
-      post_ms INTEGER,
+      post_timed_out INTEGER NOT NULL DEFAULT 0,
+      post_tab_switched INTEGER NOT NULL DEFAULT 0,
       post_answered_at TEXT,
-      PRIMARY KEY (session_id, position)
+      PRIMARY KEY (test_id, question_id)
     )
   `);
 
@@ -479,6 +522,12 @@ async function initDatabase() {
     )
   `);
 
+  // question_id = ข้อไหน (ใช้หาข้อที่เคยตอบผิดใน post แล้วยังไม่เคยตอบถูกในเกม เอามาถามก่อน) — แถวเก่าก่อนมีคอลัมน์นี้เป็น NULL
+  const answerLogColumns = (await client.execute("PRAGMA table_info(quiz_answer_log)")).rows.map((c) => c.name);
+  if (!answerLogColumns.includes("question_id")) {
+    await client.execute("ALTER TABLE quiz_answer_log ADD COLUMN question_id INTEGER");
+  }
+
   // ---- ตาราง game_battles (การต่อสู้ในมินิเกม 1 ครั้ง) ----
   // server เป็นคนสุ่มคำถาม (question_ids เป็น JSON array) + นับถูก/ผิดเอง หน้าเว็บส่งมาแค่ข้อที่เลือก
   // เลยปลอมคะแนน/ตอบข้อเดิมที่รู้เฉลยซ้ำๆ เพื่อเอาเหรียญไม่ได้
@@ -518,6 +567,19 @@ async function initDatabase() {
   if (!stageRewardColumns.includes("stars")) {
     await client.execute("ALTER TABLE game_stage_rewards ADD COLUMN stars INTEGER NOT NULL DEFAULT 0");
   }
+
+  // ---- ตาราง game_stage_clears (ด่านที่เคยชนะ + ดาวที่ดีที่สุด ใช้เก็บความคืบหน้าเกมและเงื่อนไขคูปอง) ----
+  // ต่างจาก game_stage_rewards ที่มีแถวเฉพาะตอนได้คอยน์ — ตารางนี้บันทึกทุกครั้งที่ชนะ
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS game_stage_clears (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      world INTEGER NOT NULL,
+      stage INTEGER NOT NULL,
+      best_stars INTEGER NOT NULL DEFAULT 0,
+      first_cleared_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, world, stage)
+    )
+  `);
 
   // ---- ตาราง univ_email_verifications (ลิงก์ยืนยันอีเมลมหาวิทยาลัยที่ส่งไปแล้ว รอผู้ใช้กด) ----
   await client.execute(`

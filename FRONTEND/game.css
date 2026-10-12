@@ -1042,3 +1042,22 @@ html, body {
 }
 
 .battle-result-btn:hover { background: #3a3ea8; }
+
+/* ด่านที่เคยชนะแล้ว (บันทึกที่ server) */
+.stage-node.cleared::after {
+  content: "✓";
+  position: absolute;
+  top: -12%;
+  right: -12%;
+  width: 42%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3f6b1c;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  font-size: clamp(9px, 1.2vw, 14px);
+  font-weight: 700;
+}

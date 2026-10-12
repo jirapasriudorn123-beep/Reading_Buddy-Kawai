@@ -40,19 +40,19 @@ async function apiFetch(path, options = {}) {
 // ================== ตัวแปร state หลักของหน้า ==================
 
 let currentGoal = { goal_minutes: 0, goal_seconds: 0 };
-let selectedChapter = null; // chapter ที่กำลังเปิด modal ตั้งเวลาอ่านอยู่
-let activeSession = null; // { id, chapterTitle, plannedReadSeconds, plannedBreakSeconds }
+let chaptersData = []; // บทเรียน + สถานะการอ่าน/แบบทดสอบของผู้ใช้ (progress) จาก /chapters
+let selectedChapter = null; // chapter ที่กำลังเปิด modal เลือกรอบอ่านอยู่
+let selectedPresetId = null; // รอบ Pomodoro ที่เลือก ("25" = อ่าน 25 พัก 5, "50" = อ่าน 50 พัก 10)
+let activeSession = null; // { id, chapterId, plannedReadSeconds, plannedBreakSeconds }
 let countdownInterval = null;
 let remainingSeconds = 0;
 let onBreak = false; // true ระหว่างช่วงพักหลังอ่านจบ (session จบไปแล้ว รอนับเวลาพักอย่างเดียว)
 let breakCountdownInterval = null;
-// ช่วงของรอบการอ่านที่กำลังทำอยู่: 'pre' (แบบทดสอบก่อนอ่าน) → 'reading' → 'post' (แบบทดสอบหลังอ่าน) | null = ไม่มีรอบค้าง
+// 'reading' ระหว่างนับเวลาอ่าน | null = ไม่ได้อ่านอยู่ (แบบทดสอบก่อน/หลังอ่านแยกไปอยู่ในตัวแปร quiz)
 let sessionPhase = null;
 
-// กติกาเวลาอ่าน (backend ส่งมากับ /chapters) — ปกติขั้นต่ำ 10 นาที 10 คอยน์ทุก 5 นาที, โหมดสาธิต 1 นาที 10 คอยน์ทุก 1 นาที
-let readingRules = { demoMode: false, minReadMinutes: 10, minutesPerBlock: 5, coinsPerBlock: 10 };
-const MAX_TIME_MINUTES = 120;
-const TIME_STEP_MINUTES = 5;
+// กติกาเวลาอ่าน (backend ส่งมากับ /chapters): รอบ Pomodoro ที่เลือกได้ + คอยน์ต่อเวลา + โควต้ารอบต่อวัน
+let readingRules = { demoMode: false, presets: [], minutesPerBlock: 5, coinsPerBlock: 10, roundsUsed: null, roundsCap: null };
 
 // ================== เริ่มทำงานเมื่อโหลดหน้า ==================
 
@@ -137,7 +137,18 @@ async function submitGoal() {
 async function loadChapters() {
   const data = await apiFetch("/chapters");
   if (data.readingRules) readingRules = data.readingRules;
+  chaptersData = data.chapters;
   renderChapters(data.chapters);
+}
+
+// ป้ายสถานะบนการ์ดบท
+function chapterBadge(progress) {
+  if (!progress) return "";
+  if (progress.status === "post_test" || (progress.status === "reading" && progress.canPostTest)) return "📝 พร้อมทำแบบทดสอบ";
+  if (progress.status === "reading" || progress.status === "pre_test") return "📖 กำลังอ่าน";
+  if (progress.passed) return "✅ ผ่านแล้ว";
+  if (progress.completedCount > 0) return "🔁 อ่านซ้ำได้";
+  return "";
 }
 
 function renderChapters(chapters) {
@@ -163,6 +174,7 @@ function renderChapters(chapters) {
       
     card.innerHTML = `
       <div class="card-inner">
+        ${chapterBadge(chapter.progress) ? `<div class="chapter-badge">${chapterBadge(chapter.progress)}</div>` : ""}
         <div class="chapter-label">CHAPTER ${chapter.chapter_number}</div>
         <p class="chapter-desc">${escapeHtml(chapter.title)}</p>
         <div class="card-icon">${iconHtml}</div>
@@ -179,28 +191,95 @@ function renderChapters(chapters) {
 window.currentReadingChapterTitle = null;
 window.currentReadingChapterId = null;
 
-// ---- ขั้น 1: ป๊อปอัพตั้งเวลาอ่าน/พัก ก่อนเริ่มจับเวลาจริง ----
+// ---- ขั้น 1: ป๊อปอัพเลือกรอบอ่าน (Pomodoro) + สถานะการอ่าน/แบบทดสอบของบทนี้ ----
+
+function formatMinutes(seconds) {
+  return `${Math.floor(seconds / 60)} นาที`;
+}
+
+function chapterStatusLines(progress) {
+  if (!progress || progress.status === "none" || progress.status === "pre_test") {
+    return ["📝 อ่านบทนี้ครั้งแรก: ทำแบบทดสอบก่อนอ่าน 5 ข้อ (ข้อละ 1 นาที) ก่อนนะ ไม่มีผลกับคอยน์"];
+  }
+  if (progress.status === "post_test") {
+    return ["📝 ทำแบบทดสอบหลังอ่านค้างอยู่ ทำให้เสร็จก่อนอ่านต่อนะ (ข้อที่เปิดค้างไว้จนหมดเวลานับว่าผิด)"];
+  }
+  if (progress.status === "reading") {
+    return [
+      `📖 อ่านบทนี้แล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
+        `คอยน์รอปลดล็อก ${progress.pendingCoins} 🪙`,
+      progress.canPostTest
+        ? "✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ + โบนัสข้อที่ตอบถูก"
+        : "คอยน์จะเข้าหลังทำแบบทดสอบหลังอ่าน (อ่านครบเวลาก่อนถึงจะทำได้)",
+    ];
+  }
+  // completed = อ่านซ้ำ (ชุดใหม่ ไม่มีแบบทดสอบก่อนอ่าน)
+  const best = progress.bestPostScore != null ? ` (หลังอ่านดีที่สุด ${progress.bestPostScore}/${progress.total})` : "";
+  return [`${progress.passed ? "✅ ผ่านบทนี้แล้ว" : "อ่านบทนี้จบไปแล้ว"}${best} — อ่านซ้ำได้ ข้อที่เคยตอบผิดจะถูกถามก่อนในแบบทดสอบหลังอ่าน`];
+}
+
+function renderPresetButtons() {
+  const group = document.getElementById("presetGroup");
+  group.innerHTML = readingRules.presets
+    .map(
+      (p) => `
+        <button type="button" class="preset-btn${p.id === selectedPresetId ? " is-selected" : ""}" data-preset="${escapeHtml(p.id)}"
+                aria-pressed="${p.id === selectedPresetId}">
+          <span class="preset-read">อ่าน ${p.readMinutes} นาที</span>
+          <span class="preset-break">พัก ${p.breakMinutes} นาที</span>
+        </button>`
+    )
+    .join("");
+  group.querySelectorAll(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedPresetId = btn.dataset.preset;
+      renderPresetButtons();
+    });
+  });
+}
 
 function openChapterTimeModal(chapter) {
-  if (activeSession) {
-    alert("คุณกำลังอ่านอยู่แล้ว กรุณาจบเซสชันปัจจุบันก่อน");
+  if (activeSession || quiz) {
+    alert("คุณกำลังอ่านหรือทำแบบทดสอบอยู่ กรุณาทำให้เสร็จก่อน");
     return;
   }
 
   selectedChapter = chapter;
+  const progress = chapter.progress;
   document.getElementById("modalChapterTitle").textContent = `Chapter ${chapter.chapter_number} ${chapter.title}`;
 
-  const minutesInput = document.getElementById("chapterMinutes");
-  minutesInput.value = readingRules.minReadMinutes;
-  minutesInput.min = readingRules.minReadMinutes;
   const demoNotice = document.getElementById("demoModeNotice");
   if (demoNotice) {
     demoNotice.style.display = readingRules.demoMode ? "block" : "none";
-    demoNotice.textContent = `🧪 โหมดสาธิต: ตั้งเวลาได้ตั้งแต่ ${readingRules.minReadMinutes} นาที · อ่านทุก ${readingRules.minutesPerBlock} นาทีได้ ${readingRules.coinsPerBlock} คอยน์`;
+    demoNotice.textContent = `🧪 โหมดสาธิต: รอบสั้นพิเศษ · อ่านทุก ${readingRules.minutesPerBlock} นาทีได้ ${readingRules.coinsPerBlock} คอยน์`;
   }
-  document.getElementById("chapterSeconds").value = 0;
-  document.getElementById("breakMinutes").value = 0;
-  document.getElementById("breakSeconds").value = 0;
+
+  document.getElementById("chapterStatus").innerHTML = chapterStatusLines(progress)
+    .map((line) => `<p>${escapeHtml(line)}</p>`)
+    .join("");
+
+  if (!readingRules.presets.some((p) => p.id === selectedPresetId)) {
+    selectedPresetId = readingRules.presets.length ? readingRules.presets[0].id : null;
+  }
+  renderPresetButtons();
+
+  const roundsNote = document.getElementById("dailyRoundsNote");
+  if (readingRules.roundsCap) {
+    const full = readingRules.roundsUsed >= readingRules.roundsCap;
+    roundsNote.textContent = full
+      ? `วันนี้ได้คอยน์จากการอ่านครบ ${readingRules.roundsCap}/${readingRules.roundsCap} รอบแล้ว อ่านต่อได้ แต่รอบต่อไปจะไม่ได้คอยน์ (พรุ่งนี้ได้ใหม่)`
+      : `วันนี้ได้คอยน์จากการอ่านแล้ว ${readingRules.roundsUsed}/${readingRules.roundsCap} รอบ (รอบ 50 นาทีนับเป็น 2 รอบ)`;
+    roundsNote.style.display = "";
+  } else {
+    roundsNote.style.display = "none";
+  }
+
+  const busyWithPost = progress && progress.status === "post_test";
+  document.getElementById("startReadingBtn").disabled = busyWithPost;
+  document.getElementById("presetGroup").style.display = busyWithPost ? "none" : "";
+  const postBtn = document.getElementById("postTestBtn");
+  postBtn.style.display = progress && progress.canPostTest ? "" : "none";
+  postBtn.textContent = busyWithPost ? "📝 ทำแบบทดสอบหลังอ่านต่อ" : "📝 ทำแบบทดสอบหลังอ่าน";
   document.getElementById("chapterError").style.display = "none";
 
   document.getElementById("chapterModal").style.display = "flex";
@@ -214,81 +293,52 @@ function closeChapterModal() {
 async function confirmStartReading() {
   const errorEl = document.getElementById("chapterError");
   errorEl.style.display = "none";
-
   if (!selectedChapter) return;
-
-  const readMinutes = Number(document.getElementById("chapterMinutes").value) || 0;
-  const readSeconds = Number(document.getElementById("chapterSeconds").value) || 0;
-  const breakMinutes = Number(document.getElementById("breakMinutes").value) || 0;
-  const breakSeconds = Number(document.getElementById("breakSeconds").value) || 0;
-
-  if (readMinutes * 60 + readSeconds < readingRules.minReadMinutes * 60) {
-    errorEl.textContent = `เวลาอ่านต้องตั้งอย่างน้อย ${readingRules.minReadMinutes} นาที`;
-    errorEl.style.display = "block";
-    return;
-  }
-  if (readMinutes > MAX_TIME_MINUTES || breakMinutes > MAX_TIME_MINUTES) {
-    errorEl.textContent = `เวลาต้องไม่เกิน ${MAX_TIME_MINUTES} นาที`;
+  if (!selectedPresetId) {
+    errorEl.textContent = "กรุณาเลือกรอบเวลาอ่าน";
     errorEl.style.display = "block";
     return;
   }
 
+  const chapter = selectedChapter;
   try {
-    const result = await apiFetch(`/chapters/${selectedChapter.id}/sessions`, {
-      method: "POST",
-      body: JSON.stringify({ readMinutes, readSeconds, breakMinutes, breakSeconds }),
-    });
-
-    activeSession = {
-      id: result.session.id,
-      chapterTitle: result.session.chapterTitle,
-      plannedReadSeconds: result.session.plannedReadSeconds,
-      plannedBreakSeconds: result.session.plannedBreakSeconds,
-    };
-
-    document.getElementById("chapterModal").style.display = "none";
-    const chapter = selectedChapter;
-
-    // บทที่มีคำถาม: ทำแบบทดสอบก่อนอ่านก่อน แล้วค่อยเปิด PDF + เริ่มนับเวลา (server เริ่มนับตอนส่งคำตอบ)
-    if (result.preTest && result.preTest.length > 0) {
-      sessionPhase = "pre";
-      openQuiz("pre", result.preTest, {
-        onSubmit: async (answers) => {
-          await apiFetch(`/sessions/${activeSession.id}/pre-test`, {
-            method: "POST",
-            body: JSON.stringify({ answers }),
-          });
-          closeQuiz();
-          startReadingPhase(chapter);
-        },
-        onSecondary: cancelBeforeReading,
-      });
-    } else {
-      startReadingPhase(chapter);
-    }
+    await startReadingRound(chapter);
   } catch (err) {
+    // อ่านบทนี้ครั้งแรก: ต้องทำแบบทดสอบก่อนอ่านก่อน แล้วค่อยเริ่มนับเวลา
+    if (err.data && err.data.code === "PRE_TEST_REQUIRED") {
+      document.getElementById("chapterModal").style.display = "none";
+      runChapterTest(chapter, "pre", () => startReadingRound(chapter).catch((e) => alert(e.message)));
+      return;
+    }
     errorEl.textContent = err.message;
     errorEl.style.display = "block";
   }
 }
 
-function startReadingPhase(chapter) {
+async function startReadingRound(chapter) {
+  const result = await apiFetch(`/chapters/${chapter.id}/sessions`, {
+    method: "POST",
+    body: JSON.stringify({ presetId: selectedPresetId }),
+  });
+  activeSession = {
+    id: result.session.id,
+    chapterId: chapter.id,
+    plannedReadSeconds: result.session.plannedReadSeconds,
+    plannedBreakSeconds: result.session.plannedBreakSeconds,
+  };
+  document.getElementById("chapterModal").style.display = "none";
   sessionPhase = "reading";
   openReaderView(chapter);
-  updateBreakClockDisplay(activeSession.plannedBreakSeconds); // โชว์เวลาพักที่ตั้งไว้ล่วงหน้า (ยังไม่นับถอยหลังจนกว่าจะอ่านจบ)
+  updateBreakClockDisplay(activeSession.plannedBreakSeconds); // โชว์เวลาพักของรอบนี้ไว้ล่วงหน้า (นับถอยหลังหลังอ่านจบ)
   startCountdown(activeSession.plannedReadSeconds);
 }
 
-// กด "ยกเลิก" ตอนทำแบบทดสอบก่อนอ่าน: ยกเลิกรอบนี้ทั้งรอบ (ยังไม่ได้เริ่มอ่าน)
-async function cancelBeforeReading() {
-  if (!activeSession) return;
-  try {
-    await apiFetch(`/sessions/${activeSession.id}/cancel`, { method: "POST" });
-  } catch (err) {
-    console.error("Cancel session error:", err);
-  }
-  closeQuiz();
-  resetReaderTimerState();
+// ปุ่ม "ทำแบบทดสอบหลังอ่าน" ในป๊อปอัพบท (อ่านครบเวลาขั้นต่ำของบทแล้ว)
+function startPostTestFromModal() {
+  if (!selectedChapter) return;
+  const chapter = selectedChapter;
+  document.getElementById("chapterModal").style.display = "none";
+  runChapterTest(chapter, "post", () => {});
 }
 
 // ---- ขั้น 2: หน้าจออ่าน PDF พร้อมนาฬิกานับถอยหลัง (แทนที่การ์ด chapter ในหน้าเดิม เปิดหลังกด "เริ่มจับเวลา" แล้วเท่านั้น) ----
@@ -305,7 +355,6 @@ function openReaderView(chapter) {
   btn.textContent = "หยุด";
   btn.classList.remove("on-break");
   btn.classList.add("is-running");
-  document.getElementById("readerExtendBtn").style.display = "";
 
   document.querySelector(".main-title").style.display = "none";
   document.getElementById("chapterScrollWrapper").style.display = "none";
@@ -343,7 +392,7 @@ async function loadReaderPdf(chapter) {
   placeholder.style.display = available ? "none" : "flex";
 }
 
-// readerStartStopBtn ทำหน้าที่ต่างกันตามช่วง: ระหว่างอ่าน = "หยุด" (จบเซสชันก่อนเวลา ได้เหรียญตามเวลาที่อ่านจริง), ระหว่างพัก = "ข้ามพัก"
+// readerStartStopBtn ทำหน้าที่ต่างกันตามช่วง: ระหว่างอ่าน = "หยุด" (จบรอบก่อนเวลา คิดคอยน์ตามเวลาที่อ่านจริง), ระหว่างพัก = "ข้ามพัก"
 async function stopReading() {
   if (onBreak) {
     finishBreak(false);
@@ -352,26 +401,12 @@ async function stopReading() {
   if (!activeSession || sessionPhase !== "reading") return;
 
   const confirmStop = confirm(
-    `ต้องการหยุดอ่านตอนนี้เลยหรือไม่? จะได้เหรียญตามเวลาที่อ่านจริง (นับทุกๆ ${readingRules.minutesPerBlock} นาทีที่อ่านครบเท่านั้น) ` +
-      `หลังทำแบบทดสอบหลังอ่าน`
+    `ต้องการหยุดอ่านตอนนี้เลยหรือไม่? คิดคอยน์ตามเวลาที่อ่านจริง (ทุกๆ ${readingRules.minutesPerBlock} นาทีที่อ่านครบ) ` +
+      `คอยน์จะเข้าหลังทำแบบทดสอบหลังอ่านบทนี้`
   );
   if (!confirmStop) return;
 
   await completeReadingSession(false); // false = จบก่อนเวลา ไม่เข้าสู่ช่วงพัก
-}
-
-// ปุ่ม "+5" หน้าอ่าน PDF: เพิ่มเวลาอ่านอีก 5 นาทีระหว่างกำลังอ่านจริง (ฝั่งเซิร์ฟเวอร์เป็นคนเก็บเวลาที่ตั้งไว้ล่าสุด กันไม่ให้ client โกงเวลา)
-async function extendReadingTime() {
-  if (!activeSession || onBreak || sessionPhase !== "reading") return;
-
-  try {
-    const result = await apiFetch(`/sessions/${activeSession.id}/extend`, { method: "POST" });
-    activeSession.plannedReadSeconds = result.plannedReadSeconds;
-    remainingSeconds += result.addedSeconds;
-    updateReaderClockDisplay(remainingSeconds);
-  } catch (err) {
-    alert(err.message);
-  }
 }
 
 // ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (ไฟล์ buzzer 5 วิ จาก sound/timer-end.mp3) ==================
@@ -451,15 +486,16 @@ function updateBreakClockDisplay(seconds) {
   document.getElementById("readerBreakSeconds").value = s;
 }
 
-// จบช่วงอ่าน (ทั้งอ่านครบเวลาเองและกด "หยุด" ก่อนเวลา) — ได้เหรียญตามเวลาที่อ่านจริง (ปัดลงทุกๆ 5 นาที)
-// รอบที่มีแบบทดสอบ: คอยน์จะเข้าหลังทำแบบทดสอบหลังอ่านเท่านั้น (ข้าม = ไม่ได้คอยน์รอบนี้)
+// จบรอบอ่าน (ทั้งอ่านครบเวลาเองและกด "หยุด" ก่อนเวลา) — คิดคอยน์ตามเวลาที่อ่านจริง (ปัดลงทุกๆ 5 นาที)
+// คอยน์ยังไม่เข้า: ค้างไว้จนกว่าจะทำแบบทดสอบหลังอ่านของบทนี้ | ได้คอยน์วันละไม่เกิน 4 รอบ
 // enterBreakAfter = true เฉพาะตอนอ่านครบเวลาตามธรรมชาติเท่านั้น ถ้าหยุดเองจะปิดหน้าอ่านทันที ไม่เข้าช่วงพัก
 async function completeReadingSession(enterBreakAfter) {
   if (!activeSession || sessionPhase !== "reading") return;
   const sessionId = activeSession.id;
+  const chapter = chaptersData.find((c) => c.id === activeSession.chapterId);
 
   clearInterval(countdownInterval);
-  sessionPhase = "post"; // กันนับถอยหลังต่อตอนสลับแท็บกลับมา ระหว่างรอผล/ทำแบบทดสอบ
+  sessionPhase = null; // กันนับถอยหลังต่อตอนสลับแท็บกลับมา ระหว่างรอผล
 
   let result;
   try {
@@ -471,49 +507,13 @@ async function completeReadingSession(enterBreakAfter) {
     return;
   }
 
-  const awayNote = result.awaySeconds >= AWAY_NOTICE_MIN_SECONDS
-    ? `ไม่นับเวลาที่ออกจากหน้าอ่าน ${formatAwayDuration(result.awaySeconds)}`
-    : "";
-
-  // บทที่ยังไม่มีคำถาม: ได้คอยน์ทันทีแบบเดิม
-  if (!result.postTest) {
-    updateCoinBadge(result.totalCoins);
-    alert(
-      `${result.message}\nได้รับ ${result.coinsEarned} เหรียญ 🎉\nเหรียญรวม: ${result.totalCoins}` +
-        (awayNote ? `\n(${awayNote})` : "")
-    );
-    finishRound(enterBreakAfter);
-    return;
-  }
-
-  openQuiz("post", result.postTest, {
-    coinsPending: result.coinsPending,
-    awayNote,
-    onSubmit: async (answers) => {
-      const graded = await apiFetch(`/sessions/${sessionId}/post-test`, {
-        method: "POST",
-        body: JSON.stringify({ answers }),
-      });
-      updateCoinBadge(graded.totalCoins);
-      showQuizResults(graded, awayNote, () => {
-        closeQuiz();
-        finishRound(enterBreakAfter);
-      });
-    },
-    onSecondary: async () => {
-      if (!confirm("ถ้าข้ามแบบทดสอบหลังอ่าน รอบนี้จะไม่ได้รับคอยน์ และไม่นับเป็นเวลาอ่าน ต้องการข้ามใช่ไหม?")) return;
-      try {
-        await apiFetch(`/sessions/${sessionId}/skip-post-test`, { method: "POST" });
-      } catch (err) {
-        console.error("Skip post-test error:", err);
-      }
-      closeQuiz();
-      finishRound(false);
-    },
-  });
+  updateCoinBadge(result.totalCoins);
+  if (result.roundsCap) readingRules.roundsUsed = result.roundsUsed;
+  if (chapter && result.progress) chapter.progress = result.progress;
+  showRoundSummary(result, chapter, enterBreakAfter);
 }
 
-// ปิดรอบการอ่าน (session จบที่ฝั่งเซิร์ฟเวอร์แล้ว ไม่ต้อง cancel ซ้ำได้อีก) แล้วเข้าช่วงพักถ้าอ่านครบเวลาและตั้งเวลาพักไว้
+// ปิดรอบการอ่าน (session จบที่ฝั่งเซิร์ฟเวอร์แล้ว ไม่ต้อง cancel ซ้ำได้อีก) แล้วเข้าช่วงพักถ้าอ่านครบเวลาและมีเวลาพัก
 function finishRound(enterBreakAfter) {
   const plannedBreakSeconds = (activeSession && activeSession.plannedBreakSeconds) || 0;
   activeSession = null;
@@ -526,56 +526,143 @@ function finishRound(enterBreakAfter) {
   }
 }
 
-// ================== แบบทดสอบก่อนอ่าน/หลังอ่าน (ป๊อปอัพเดียวกัน ถามทีละข้อ) ==================
-// ก่อนอ่าน: ไม่เฉลย ไม่มีผลกับคอยน์ มีปุ่ม "ยังไม่รู้" | หลังอ่าน: ข้อเดิม (สลับลำดับ) ต้องทำถึงจะได้คอยน์ แล้วเฉลยเทียบกัน
+// ================== ป๊อปอัพกลาง: สรุปรอบอ่าน / แบบทดสอบก่อน-หลังอ่าน / ผลแบบทดสอบ ==================
 
-const QUIZ_COPY = {
-  pre: {
-    kicker: "แบบทดสอบก่อนอ่าน",
-    hint: "ตอบตามที่รู้ตอนนี้ ไม่มีผลกับคอยน์ ถ้ายังไม่รู้ให้กด \"ยังไม่รู้\" ได้เลย",
-    secondary: "ยกเลิก",
-  },
-  post: {
-    kicker: "แบบทดสอบหลังอ่าน",
-    hint: "คำถามชุดเดิมกับก่อนอ่าน ทำให้ครบเพื่อรับคอยน์ของรอบนี้",
-    secondary: "ข้าม (ไม่รับคอยน์)",
-  },
-};
-const OPTION_LABELS = ["ก", "ข", "ค", "ง"];
-
-let quiz = null; // { mode, questions, index, answers, shownAt, handlers }
-
-function openQuiz(mode, questions, handlers) {
-  quiz = { mode, questions, index: 0, answers: [], shownAt: 0, handlers };
-  const copy = QUIZ_COPY[mode];
-  document.getElementById("quizKicker").textContent = copy.kicker;
-  let hint = copy.hint;
-  if (mode === "post") {
-    hint += ` (รอบนี้ได้ ${handlers.coinsPending} คอยน์)`;
-    if (handlers.awayNote) hint += ` · ${handlers.awayNote}`;
-  }
-  document.getElementById("quizHint").textContent = hint;
-  document.getElementById("quizHint").style.display = "";
-
+function setQuizButtons(primary, secondary) {
+  const primaryBtn = document.getElementById("quizPrimaryBtn");
   const secondaryBtn = document.getElementById("quizSecondaryBtn");
-  secondaryBtn.textContent = copy.secondary;
-  secondaryBtn.style.display = "";
-  secondaryBtn.disabled = false;
-  document.getElementById("quizPrimaryBtn").style.display = "none";
+  for (const [btn, cfg] of [[primaryBtn, primary], [secondaryBtn, secondary]]) {
+    btn.style.display = cfg ? "" : "none";
+    btn.disabled = false;
+    btn.onclick = cfg ? cfg.onClick : null;
+    if (cfg) btn.textContent = cfg.label;
+  }
+}
 
-  renderQuizQuestion();
+function openQuizPanel({ kicker, title, hint }) {
+  document.getElementById("quizKicker").textContent = kicker;
+  document.getElementById("quizTitle").textContent = title;
+  const hintEl = document.getElementById("quizHint");
+  hintEl.textContent = hint || "";
+  hintEl.style.display = hint ? "" : "none";
+  document.getElementById("quizError").style.display = "none";
   document.getElementById("quizModal").style.display = "flex";
 }
 
-function closeQuiz() {
-  quiz = null;
+function closeQuizPanel() {
   document.getElementById("quizModal").style.display = "none";
 }
 
-function renderQuizQuestion() {
-  const q = quiz.questions[quiz.index];
+// สรุปหลังจบรอบอ่าน: คอยน์รอปลดล็อก + ความคืบหน้าของบท + ปุ่มไปทำแบบทดสอบหลังอ่าน (ถ้าอ่านครบเวลาของบทแล้ว)
+function showRoundSummary(result, chapter, enterBreakAfter) {
+  const progress = result.progress || {};
+  const lines = [];
+  if (result.capped && result.coinsEarned === 0) {
+    lines.push(`วันนี้ได้คอยน์จากการอ่านครบ ${result.roundsCap} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖`);
+  } else {
+    lines.push(`รอบนี้ได้ ${result.coinsEarned} คอยน์ 🪙 — ${result.coinsPending ? "รอปลดล็อก จะเข้าหลังทำแบบทดสอบหลังอ่านบทนี้" : "เข้าบัญชีแล้ว"}`);
+    if (result.capped) lines.push(`(ครบโควต้าวันละ ${result.roundsCap} รอบพอดี คอยน์รอบนี้เลยได้ไม่เต็ม)`);
+  }
+  if (result.roundsCap) lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${result.roundsUsed}/${result.roundsCap} รอบ`);
+  if (result.awaySeconds >= AWAY_NOTICE_MIN_SECONDS) {
+    lines.push(`ไม่นับเวลาที่ออกจากหน้าอ่าน ${formatAwayDuration(result.awaySeconds)}`);
+  }
+  if (progress.status === "reading") {
+    lines.push(
+      `บทนี้อ่านแล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
+        `คอยน์รอปลดล็อกรวม ${progress.pendingCoins} 🪙`
+    );
+  }
+
+  openQuizPanel({
+    kicker: "จบรอบอ่าน",
+    title: result.completedFullDuration ? "อ่านครบเวลาแล้ว! 🎉" : "หยุดอ่านแล้ว",
+    hint: progress.canPostTest ? "อ่านบทนี้ครบเวลาแล้ว ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ทั้งหมด + โบนัสข้อที่ตอบถูก" : "",
+  });
+  document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
+    .map((l) => `<p>${escapeHtml(l)}</p>`)
+    .join("")}</div>`;
+
+  const done = () => {
+    closeQuizPanel();
+    finishRound(enterBreakAfter);
+  };
+  if (progress.canPostTest && chapter) {
+    setQuizButtons(
+      {
+        label: "📝 ทำแบบทดสอบหลังอ่านเลย",
+        onClick: () => {
+          activeSession = null;
+          runChapterTest(chapter, "post", () => resetReaderTimerState());
+        },
+      },
+      { label: enterBreakAfter && activeSession && activeSession.plannedBreakSeconds ? "พักก่อน" : "ไว้ทีหลัง", onClick: done }
+    );
+  } else {
+    setQuizButtons({ label: "ตกลง", onClick: done }, null);
+  }
+}
+
+// ---------- แบบทดสอบ (ถามทีละข้อ server จับเวลาข้อละ 1 นาที) ----------
+// ก่อนอ่าน: ไม่บอกผล มีปุ่ม "ยังไม่รู้" | หลังอ่าน: สลับแท็บระหว่างข้อ = ข้อนั้นผิด, ไม่เฉลยข้อที่ผิด
+
+const OPTION_LABELS = ["ก", "ข", "ค", "ง"];
+const TEST_COPY = {
+  pre: {
+    kicker: "แบบทดสอบก่อนอ่าน",
+    hint: "ตอบตามที่รู้ตอนนี้ ไม่มีผลกับคอยน์ ข้อละ 1 นาที ถ้ายังไม่รู้กด \"ยังไม่รู้\" ได้เลย",
+    leave: "ทำทีหลัง",
+  },
+  post: {
+    kicker: "แบบทดสอบหลังอ่าน",
+    hint: "ข้อละ 1 นาที · ห้ามสลับแท็บ (สลับแท็บ = ข้อนั้นผิด) · ทำครบเพื่อรับคอยน์ + โบนัสข้อละ 10 คอยน์",
+    leave: "ออกก่อน",
+  },
+};
+
+let quiz = null; // { chapter, phase, onFinished, question, timerId, deadline, tabSwitched, busy }
+
+async function runChapterTest(chapter, phase, onFinished) {
+  quiz = { chapter, phase, onFinished, question: null, timerId: null, deadline: 0, tabSwitched: false, busy: true };
+  const copy = TEST_COPY[phase];
+  openQuizPanel({ kicker: copy.kicker, title: `Chapter ${chapter.chapter_number} ${chapter.title}`, hint: copy.hint });
+  document.getElementById("quizBody").innerHTML = `<p class="quiz-loading">กำลังโหลดคำถาม...</p>`;
+  setQuizButtons(null, { label: copy.leave, onClick: leaveTest });
+
+  try {
+    const res = await apiFetch(`/chapters/${chapter.id}/test/next`, { method: "POST", body: JSON.stringify({ phase }) });
+    handleTestResponse(res);
+  } catch (err) {
+    showTestError(err.message, true);
+  }
+}
+
+function handleTestResponse(res) {
+  if (!quiz) return;
+  quiz.busy = false;
+  if (res.done) {
+    finishTest(res.summary);
+  } else {
+    renderTestQuestion(res.question);
+  }
+}
+
+function showTestError(message, fatal) {
+  const errorEl = document.getElementById("quizError");
+  errorEl.textContent = message;
+  errorEl.style.display = "block";
+  if (fatal) {
+    if (quiz) clearInterval(quiz.timerId);
+    document.getElementById("quizBody").innerHTML = "";
+    setQuizButtons({ label: "ปิด", onClick: () => endTest(false) }, null);
+  }
+}
+
+function renderTestQuestion(q) {
+  quiz.question = q;
+  quiz.tabSwitched = false;
+  document.getElementById("quizTitle").textContent = `ข้อ ${q.index} / ${q.total}`;
   document.getElementById("quizError").style.display = "none";
-  document.getElementById("quizTitle").textContent = `ข้อ ${quiz.index + 1} / ${quiz.questions.length}`;
 
   const optionsHtml = q.options
     .map(
@@ -586,87 +673,148 @@ function renderQuizQuestion() {
         </button>`
     )
     .join("");
-  const unknownHtml = quiz.mode === "pre"
+  const unknownHtml = q.allowUnknown
     ? `<button type="button" class="quiz-option quiz-option-unknown" data-picked="0">ยังไม่รู้</button>`
     : "";
 
   const body = document.getElementById("quizBody");
   body.innerHTML = `
+    <div class="quiz-timer" aria-live="polite">
+      <div class="quiz-timer-bar"><div class="quiz-timer-fill" id="quizTimerFill"></div></div>
+      <span class="quiz-timer-text" id="quizTimerText"></span>
+    </div>
     <p class="quiz-question">${escapeHtml(q.question)}</p>
     <div class="quiz-options">${optionsHtml}${unknownHtml}</div>
   `;
   body.querySelectorAll(".quiz-option").forEach((btn) => {
-    btn.addEventListener("click", () => pickQuizAnswer(Number(btn.dataset.picked)));
+    btn.addEventListener("click", () => submitTestAnswer(Number(btn.dataset.picked)));
   });
-  quiz.shownAt = Date.now();
+
+  // นับถอยหลังตามเวลาที่ server บอก (server ตรวจเวลาเองอีกชั้น ตอบช้าเกินก็นับผิด)
+  clearInterval(quiz.timerId);
+  quiz.deadline = Date.now() + q.secondsLeft * 1000;
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((quiz.deadline - Date.now()) / 1000));
+    document.getElementById("quizTimerText").textContent = `${left} วินาที`;
+    const fill = document.getElementById("quizTimerFill");
+    fill.style.width = `${(left / 60) * 100}%`;
+    fill.classList.toggle("urgent", left <= 10);
+    if (left <= 0) submitTestAnswer(0); // หมดเวลา: ก่อนอ่านนับเป็น "ยังไม่รู้" / หลังอ่านนับผิด
+  };
+  tick();
+  quiz.timerId = setInterval(tick, 250);
 }
 
-async function pickQuizAnswer(picked) {
-  if (!quiz) return;
-  const q = quiz.questions[quiz.index];
-  quiz.answers.push({ position: q.position, picked, ms: Date.now() - quiz.shownAt });
+async function submitTestAnswer(picked) {
+  if (!quiz || quiz.busy || !quiz.question) return;
+  quiz.busy = true;
+  clearInterval(quiz.timerId);
+  document.querySelectorAll("#quizBody button").forEach((b) => (b.disabled = true));
 
-  if (quiz.index + 1 < quiz.questions.length) {
-    quiz.index += 1;
-    renderQuizQuestion();
-    return;
-  }
-
-  // ตอบครบแล้ว → ส่งให้ server ตรวจ (กดซ้ำไม่ได้ระหว่างรอ)
-  const body = document.getElementById("quizBody");
-  body.querySelectorAll("button").forEach((btn) => (btn.disabled = true));
-  document.getElementById("quizSecondaryBtn").disabled = true;
   const current = quiz;
   try {
-    await current.handlers.onSubmit(current.answers);
-  } catch (err) {
-    // ส่งไม่สำเร็จ (เช่น เน็ตหลุด) → ให้ตอบใหม่ตั้งแต่ข้อแรก
+    const res = await apiFetch(`/chapters/${current.chapter.id}/test/answer`, {
+      method: "POST",
+      body: JSON.stringify({ phase: current.phase, picked, tabSwitched: current.tabSwitched }),
+    });
     if (quiz !== current) return;
-    quiz.index = 0;
-    quiz.answers = [];
-    renderQuizQuestion();
-    document.getElementById("quizSecondaryBtn").disabled = false;
-    const errorEl = document.getElementById("quizError");
-    errorEl.textContent = `ส่งคำตอบไม่สำเร็จ: ${err.message} ลองตอบอีกครั้งนะ`;
-    errorEl.style.display = "block";
+    handleTestResponse(res);
+  } catch (err) {
+    if (quiz !== current) return;
+    quiz.busy = false;
+    showTestError(`ส่งคำตอบไม่สำเร็จ: ${err.message}`, true);
   }
 }
 
-// เฉลยหลังทำแบบทดสอบหลังอ่าน: คะแนนก่อนอ่าน → หลังอ่าน + ข้อไหนถูก/ผิด
-function showQuizResults(graded, awayNote, onDone) {
-  document.getElementById("quizKicker").textContent = "ผลการอ่านรอบนี้";
-  document.getElementById("quizTitle").textContent = `ก่อนอ่าน ${graded.preScore}/${graded.total} → หลังอ่าน ${graded.postScore}/${graded.total}`;
-  document.getElementById("quizHint").style.display = "none";
-  document.getElementById("quizError").style.display = "none";
+// สลับแท็บระหว่างทำแบบทดสอบหลังอ่าน: ข้อนั้นนับว่าผิด (ส่งทันทีที่กลับมาที่แท็บนี้)
+function onTestVisibilityChange() {
+  if (!quiz || quiz.phase !== "post" || !quiz.question || quiz.busy) return;
+  if (document.hidden) {
+    quiz.tabSwitched = true;
+  } else if (quiz.tabSwitched) {
+    alert("คุณสลับแท็บระหว่างทำแบบทดสอบหลังอ่าน ข้อนี้นับว่าผิดนะ");
+    submitTestAnswer(0);
+  }
+}
 
-  const answerText = (q, picked) => {
-    if (!picked) return "ยังไม่รู้";
-    return `${OPTION_LABELS[picked - 1]}. ${escapeHtml(q.options[picked - 1])}`;
-  };
-  const rows = graded.results
+function leaveTest() {
+  if (!quiz) return;
+  const warning = quiz.phase === "post"
+    ? "ออกจากแบบทดสอบหลังอ่านตอนนี้? ข้อที่เปิดอยู่จะนับว่าผิดถ้าหมดเวลาก่อนกลับมา และคอยน์ของบทนี้จะเข้าหลังทำครบเท่านั้น"
+    : "ทำแบบทดสอบก่อนอ่านทีหลัง? ต้องทำให้เสร็จก่อนถึงจะเริ่มอ่านบทนี้ได้";
+  if (!confirm(warning)) return;
+  endTest(false);
+}
+
+async function endTest(completed) {
+  if (!quiz) return;
+  const { onFinished } = quiz;
+  clearInterval(quiz.timerId);
+  quiz = null;
+  closeQuizPanel();
+  // โหลดสถานะบท/คอยน์ใหม่ (การ์ดบท + ป้ายสถานะ)
+  try {
+    await Promise.all([loadChapters(), loadUserInfo()]);
+  } catch (err) {
+    console.error("Reload chapters error:", err);
+  }
+  if (completed) onFinished();
+  else if (!activeSession && !onBreak) resetReaderTimerState();
+}
+
+function finishTest(summary) {
+  clearInterval(quiz.timerId);
+  quiz.question = null;
+  if (summary.phase === "pre") {
+    document.getElementById("quizTitle").textContent = "ทำแบบทดสอบก่อนอ่านเสร็จแล้ว ✅";
+    document.getElementById("quizHint").style.display = "none";
+    document.getElementById("quizBody").innerHTML =
+      `<p class="round-summary">เริ่มอ่านได้เลย! อ่านครบเวลาของบทนี้แล้วจะได้ทำแบบทดสอบหลังอ่าน (ข้อเดิม) เพื่อดูว่าเข้าใจขึ้นแค่ไหน 📖</p>`;
+    setQuizButtons({ label: "เริ่มอ่าน", onClick: () => endTest(true) }, null);
+    return;
+  }
+  showTestResults(summary);
+}
+
+// ผลแบบทดสอบหลังอ่าน: คะแนนก่อน → หลัง, คอยน์ที่ได้, ข้อไหนถูก/ผิด (ข้อที่ผิดไม่เฉลย ให้กลับไปอ่านแล้วเจอซ้ำในเกม/ครั้งหน้า)
+function showTestResults(summary) {
+  const scoreText = summary.preScore != null
+    ? `ก่อนอ่าน ${summary.preScore}/${summary.total} → หลังอ่าน ${summary.postScore}/${summary.total}`
+    : `หลังอ่าน ${summary.postScore}/${summary.total}`;
+  document.getElementById("quizKicker").textContent = "ผลแบบทดสอบหลังอ่าน";
+  document.getElementById("quizTitle").textContent = scoreText;
+  document.getElementById("quizHint").style.display = "none";
+
+  const answerText = (q, picked) => (picked ? `${OPTION_LABELS[picked - 1]}. ${escapeHtml(q.options[picked - 1])}` : "ไม่ได้ตอบ");
+  const rows = summary.results
     .map((q, i) => {
-      const preOk = q.prePicked === q.correctOption;
-      const postOk = q.postPicked === q.correctOption;
+      let detail;
+      if (q.correct) detail = `✅ ${answerText(q, q.postPicked)}`;
+      else if (q.tabSwitched) detail = "❌ สลับแท็บระหว่างทำข้อนี้";
+      else if (q.timedOut) detail = "❌ หมดเวลา";
+      else detail = `❌ ${answerText(q, q.postPicked)}`;
       return `
         <li class="quiz-result-item">
           <p class="quiz-result-question">${i + 1}. ${escapeHtml(q.question)}</p>
-          <p class="quiz-result-line">ก่อนอ่าน: ${preOk ? "✅" : "❌"} ${answerText(q, q.prePicked)}</p>
-          <p class="quiz-result-line">หลังอ่าน: ${postOk ? "✅" : "❌"} ${answerText(q, q.postPicked)}</p>
-          ${postOk ? "" : `<p class="quiz-result-line quiz-result-answer">เฉลย: ${answerText(q, q.correctOption)}</p>`}
+          <p class="quiz-result-line">${detail}</p>
         </li>`;
     })
     .join("");
+  const wrongCount = summary.results.filter((q) => !q.correct).length;
+  const passNote = summary.passed ? "✅ ผ่านบทนี้แล้ว (นับเป็นเงื่อนไขแลกคูปอง) · " : "";
+  const unlockNote = `${passNote}🎮 โลกที่ ${quiz.chapter.chapter_number} ในเกมเปิดแล้ว ไปทบทวนกันเลย!`;
 
   document.getElementById("quizBody").innerHTML = `
-    <p class="quiz-coins">ได้รับ ${graded.coinsEarned} เหรียญ 🎉 · เหรียญรวม ${graded.totalCoins}</p>
-    ${awayNote ? `<p class="quiz-hint">(${escapeHtml(awayNote)})</p>` : ""}
+    <div class="quiz-coins">
+      <p>คอยน์จากเวลาอ่าน ${summary.coinsTime} + โบนัสตอบถูก ${summary.coinsBonus} = <strong>${summary.coinsTime + summary.coinsBonus} คอยน์</strong> 🎉</p>
+      <p class="quiz-coins-sub">เหรียญรวม ${summary.totalCoins} · โบนัสข้อละ ${summary.bonusPerCorrect} คอยน์ (ข้อที่เคยตอบถูกแล้วไม่ได้ซ้ำ)</p>
+    </div>
     <ol class="quiz-results">${rows}</ol>
+    ${wrongCount ? `<p class="quiz-hint">ข้อที่ผิดยังไม่เฉลยนะ ลองกลับไปอ่านดู — ข้อเหล่านี้จะถูกถามก่อนในเกมทบทวนและครั้งหน้าที่อ่านบทนี้</p>` : ""}
+    <p class="quiz-unlock">${unlockNote}</p>
   `;
-
-  document.getElementById("quizSecondaryBtn").style.display = "none";
-  const primaryBtn = document.getElementById("quizPrimaryBtn");
-  primaryBtn.style.display = "";
-  primaryBtn.onclick = onDone;
+  updateCoinBadge(summary.totalCoins);
+  setQuizButtons({ label: "ตกลง", onClick: () => endTest(true) }, null);
 }
 
 // ================== ช่วงพักหลังอ่านจบ (นับถอยหลังฝั่ง client ล้วนๆ ไม่มี session ผูกอยู่แล้ว) ==================
@@ -678,7 +826,6 @@ function startBreakCountdown(totalSeconds) {
   btn.textContent = "ข้ามพัก";
   btn.classList.remove("is-running");
   btn.classList.add("on-break");
-  document.getElementById("readerExtendBtn").style.display = "none"; // เพิ่มเวลาได้เฉพาะตอนอ่านจริง ไม่ใช่ช่วงพัก
 
   remainingSeconds = totalSeconds;
   updateBreakClockDisplay(remainingSeconds);
@@ -731,6 +878,8 @@ function resetReaderTimerState() {
 
   closeReaderView();
   document.getElementById("readerPdfFrame").src = "";
+  // อัปเดตป้ายสถานะบนการ์ดบท (เวลาที่อ่านสะสม / พร้อมทำแบบทดสอบ)
+  loadChapters().catch((err) => console.error("Reload chapters error:", err));
   window.currentReadingChapterTitle = null;
   window.currentReadingChapterId = null;
   selectedChapter = null;
@@ -759,12 +908,9 @@ function bindStaticEventListeners() {
     if (e.target.id === "chapterModal") closeChapterModal(); // กดพื้นหลังเพื่อปิด
   });
 
-  document.getElementById("quizSecondaryBtn").addEventListener("click", () => {
-    if (quiz && quiz.handlers.onSecondary) quiz.handlers.onSecondary();
-  });
-
+  document.getElementById("postTestBtn").addEventListener("click", startPostTestFromModal);
   document.getElementById("readerStartStopBtn").addEventListener("click", stopReading);
-  document.getElementById("readerExtendBtn").addEventListener("click", extendReadingTime);
+  document.addEventListener("visibilitychange", onTestVisibilityChange);
 
   document.getElementById("logoutBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -785,7 +931,7 @@ function bindStaticEventListeners() {
 
   // เตือนก่อนออกจากหน้าถ้ากำลังจับเวลาอ่าน/พักอยู่ กันลืมกด "หยุด"/"ข้ามพัก"
   window.addEventListener("beforeunload", (e) => {
-    if (activeSession || onBreak) {
+    if (activeSession || onBreak || quiz) {
       e.preventDefault();
       e.returnValue = "";
     }

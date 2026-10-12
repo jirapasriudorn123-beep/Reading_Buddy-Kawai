@@ -86,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDialogueControls();
   setupBattleControls();
   initWorldMap();
+  loadGameProgress().then(rebuildWorldMap);
 
   document.getElementById("exploreBackBtn").addEventListener("click", backToWorldMap);
 });
@@ -93,8 +94,50 @@ document.addEventListener("DOMContentLoaded", () => {
 // ================== หน้าเลือกโลก (World Select) ==================
 // กล้อง: ซูมเข้าไปทีละโลก อยู่กึ่งกลางจอเสมอ เลื่อนซ้าย-ขวาได้ทั้งลากด้วยนิ้ว/เมาส์ และกดปุ่มลูกศร
 const TOTAL_WORLDS = 6;
-// จำนวนโลกที่ปลดล็อคแล้ว (ยังไม่ผูกกับ backend/ความคืบหน้าจริงของผู้เล่น เริ่มที่โลก 1 ไปก่อน)
-let unlockedWorldCount = 1;
+// ความคืบหน้าจาก server (/api/game/progress): โลกที่ N เปิดเมื่อทำแบบทดสอบหลังอ่านบทที่ N แล้ว + ด่านที่เคยชนะ
+// ยังโหลดไม่เสร็จ = ล็อกทุกโลกไว้ก่อน
+let worldProgress = [];
+let gameProgressLoaded = false;
+
+function isWorldUnlocked(i) {
+  return !!(worldProgress[i] && worldProgress[i].unlocked);
+}
+
+function stageClearStars(worldI, stageNo) {
+  const w = worldProgress[worldI];
+  const clear = w && w.clearedStages.find((c) => c.stage === stageNo);
+  return clear ? clear.stars : 0;
+}
+
+async function loadGameProgress() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE_URL}/game/progress`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`โหลดความคืบหน้าเกมไม่สำเร็จ (${res.status})`);
+    const data = await res.json();
+    const firstLoad = !gameProgressLoaded;
+    worldProgress = data.worlds;
+    gameProgressLoaded = true;
+    // โหลดครั้งแรก: ให้น้องหมายืนที่ด่านแรกที่ยังไม่ผ่านของแต่ละโลก
+    if (firstLoad) {
+      worldProgress.forEach((w, i) => {
+        const stages = STAGE_POSITIONS[i] || [];
+        const next = stages.findIndex((_, si) => !stageClearStars(i, si + 1));
+        currentStageIdxByWorld[i] = stages.length ? (next === -1 ? stages.length - 1 : next) : 0;
+      });
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// สร้างแผนที่ใหม่ให้ตรงกับความคืบหน้าล่าสุด (หลังโหลดจาก server / กลับจากการต่อสู้)
+function rebuildWorldMap() {
+  worldCards.forEach((card) => card.remove());
+  worldCards = [];
+  document.getElementById("worldCardTrack").innerHTML = "";
+  initWorldMap();
+}
 
 // ---------- ตำแหน่งด่าน (วงกลมสีเหลืองในภาพ) ต่อโลก ----------
 // พิกัดอิงจากภาพต้นฉบับ world-select.png ขนาด 640x720 ต่อโลก 1 ช่อง เรียงตามลำดับเส้นทางที่เดินจริง
@@ -124,7 +167,7 @@ let worldIdx = 0;
 let worldCards = [];
 
 // ภาพแถบโลกใช้ไฟล์เดียวคงที่เสมอ (สะพานทุกเส้นเป็นแบบปลดล็อคในภาพอยู่แล้ว ไม่มีล็อกฝังอยู่)
-// ส่วนล็อกที่มองเห็นบนสะพานจริงๆ คือไอคอน KeyLock.png ที่วางทับด้วยโค้ดตรงนี้เอง ตาม unlockedWorldCount
+// ส่วนล็อกที่มองเห็นบนสะพานจริงๆ คือไอคอน KeyLock.png ที่วางทับด้วยโค้ดตรงนี้เอง ตามโลกที่ยังไม่ปลดล็อค (isWorldUnlocked)
 const WORLD_STRIP_SRC = "img/game/world1-6/unlock5.png";
 
 // ซ่อนแผนที่จนกว่าภาพแถบโลกจะโหลดเสร็จ (ภาพใหญ่ 3840x720 เน็ตช้าจะค่อยๆ วาดจากบนลงล่าง ดูเหมือนด่านขาดครึ่ง)
@@ -178,6 +221,11 @@ function initWorldMap() {
       stages.forEach((pos, si) => {
         const node = document.createElement("div");
         node.className = "stage-node";
+        const stars = stageClearStars(i, si + 1);
+        if (stars) {
+          node.classList.add("cleared");
+          node.title = `ผ่านแล้ว ${stars} ดาว`;
+        }
         node.style.left = (pos.x / WORLD_ART_SOURCE_W) * 100 + "%";
         node.style.top = (pos.y / WORLD_ART_SOURCE_H) * 100 + "%";
         node.addEventListener("click", (ev) => {
@@ -194,17 +242,18 @@ function initWorldMap() {
       art.appendChild(dogMarker);
     }
 
-    const locked = i >= unlockedWorldCount;
-    if (locked) {
+    if (!isWorldUnlocked(i)) {
       card.classList.add("locked");
       const hint = document.createElement("div");
       hint.className = "lock-hint";
-      hint.textContent = "ผ่านโลกก่อนหน้าก่อนถึงจะเล่นได้";
+      hint.textContent = gameProgressLoaded
+        ? `อ่านบทที่ ${i + 1} แล้วทำแบบทดสอบหลังอ่าน ถึงจะเข้าโลกนี้ได้`
+        : "กำลังโหลดความคืบหน้า...";
       card.appendChild(hint);
     }
 
     // ไอคอนกุญแจล็อกตรงรอยต่อ วางทับบนสะพานเมื่อ "โลกถัดไป" ยังไม่ปลดล็อค
-    if (i < TOTAL_WORLDS - 1 && i + 1 >= unlockedWorldCount) {
+    if (i < TOTAL_WORLDS - 1 && !isWorldUnlocked(i + 1)) {
       const lockBadge = document.createElement("div");
       lockBadge.className = "next-lock-badge";
       lockBadge.innerHTML = '<img src="img/game/world1-6/KeyLock.png" alt="">';
@@ -261,11 +310,11 @@ function updateMapView(animate) {
 
 function updateMapPlayBtn() {
   const playBtn = document.getElementById("mapPlayBtn");
-  playBtn.disabled = worldIdx >= unlockedWorldCount;
+  playBtn.disabled = !isWorldUnlocked(worldIdx);
 }
 
 function enterFocusedWorld(e) {
-  if (worldIdx >= unlockedWorldCount) return; // โลกนี้ยังไม่ปลดล็อค กดเข้าไม่ได้
+  if (!isWorldUnlocked(worldIdx)) return; // ยังไม่ได้ทำแบบทดสอบหลังอ่านบทนี้ กดเข้าไม่ได้
   const config = WORLD_SCENE[worldIdx];
   if (!config) {
     alert("โลกนี้ยังไม่มีฉากให้เล่น (รอเพิ่มทีหลัง)");
@@ -326,15 +375,12 @@ function walkDogTo(worldI, targetStageIdx) {
   step();
 }
 
+// ความคืบหน้าจริงเก็บที่ server แล้ว ปุ่มนี้แค่พาน้องหมากลับไปยืนที่ด่านแรกของทุกโลก (ด่านที่ผ่านแล้วยังผ่านอยู่)
 function resetGameProgress() {
-  if (!confirm("รีเซ็ตความคืบหน้าเกมทั้งหมดกลับไปเริ่มที่โลก 1?")) return;
-  unlockedWorldCount = 1;
+  if (!confirm("ให้น้องหมากลับไปยืนที่ด่านแรกของทุกโลก? (ด่านที่ผ่านแล้วยังบันทึกไว้เหมือนเดิม)")) return;
   currentStageIdxByWorld.fill(0);
-  worldCards.forEach((card) => card.remove());
-  worldCards = [];
   worldIdx = 0;
-  document.getElementById("worldCardTrack").innerHTML = "";
-  initWorldMap();
+  rebuildWorldMap();
 }
 
 // ---------- ลากด้วยนิ้ว/เมาส์เพื่อเลื่อนดูโลกอื่น ----------
@@ -577,6 +623,7 @@ let battleId = null;       // id การต่อสู้ฝั่ง server 
 let battleStarting = false; // กำลังขอคำถามจาก server อยู่ (กันลูปเดินสั่งเริ่มซ้ำระหว่างรอ)
 let battleReward = null;    // ผลคะแนน/เหรียญของการต่อสู้ที่เพิ่งจบ (จาก server)
 let battleQuizIndex = 0;
+let battleReviewCount = 0; // จำนวนข้อแรกๆ ที่เป็นข้อทบทวน (เคยตอบผิดในแบบทดสอบหลังอ่าน)
 let enemyHp = ENEMY_MAX_HP;
 let playerHearts = PLAYER_MAX_HEARTS;
 let battleTimeLeft = BATTLE_SECONDS;
@@ -666,6 +713,7 @@ async function startBattle(e) {
   enemyEncountered = true;
   battleId = data.battle.id;
   battleReward = null;
+  battleReviewCount = data.battle.reviewCount || 0;
   // server สุ่มคำถามจากคลังมาให้ไม่เกิน 10 ข้อต่อการต่อสู้ 1 ครั้ง
   battleQuiz = data.questions;
   battleQuizIndex = 0;
@@ -715,7 +763,8 @@ function renderEnemyHp() {
 function renderQuizQuestion() {
   const item = battleQuiz[battleQuizIndex % battleQuiz.length];
   document.getElementById("quizQuestion").textContent = item.q;
-  document.getElementById("quizTopic").textContent = `คำถามที่ ${battleQuizIndex + 1} : ${battleTopic}`;
+  const reviewTag = battleQuizIndex < battleReviewCount ? " · 🔁 ทบทวนข้อที่เคยตอบผิด" : "";
+  document.getElementById("quizTopic").textContent = `คำถามที่ ${battleQuizIndex + 1} : ${battleTopic}${reviewTag}`;
 
   const wrap = document.getElementById("quizOptions");
   wrap.innerHTML = "";
@@ -833,13 +882,12 @@ function endBattle(won, message) {
   if (won) advanceStageProgress();
 }
 
-// ผ่านด่านแล้วเลื่อนไปด่านถัดไป (ครบ 5 ด่านของโลกนี้ก็ปลดล็อคโลกถัดไป)
+// ผ่านด่านแล้วเลื่อนน้องหมาไปด่านถัดไปของโลกนี้ (โลกถัดไปเปิดจากการอ่าน + แบบทดสอบหลังอ่าน ไม่ได้เปิดจากการเล่นจบโลก)
 function advanceStageProgress() {
   const stageIdx = currentStageIdxByWorld[worldIdx] || 0;
-  if (stageIdx + 1 < STAGES_PER_WORLD) {
+  const stageCount = (STAGE_POSITIONS[worldIdx] || []).length;
+  if (stageIdx + 1 < Math.min(STAGES_PER_WORLD, stageCount)) {
     currentStageIdxByWorld[worldIdx] = stageIdx + 1;
-  } else if (unlockedWorldCount < TOTAL_WORLDS) {
-    unlockedWorldCount += 1;
   }
 }
 
@@ -858,10 +906,8 @@ function leaveBattle(e) {
   if (playerRafId) cancelAnimationFrame(playerRafId);
   if (playerAnimTimer) clearInterval(playerAnimTimer);
 
-  worldCards.forEach((card) => card.remove());
-  worldCards = [];
-  document.getElementById("worldCardTrack").innerHTML = "";
-  initWorldMap();
+  // โหลดด่านที่ผ่าน/ดาวล่าสุดจาก server แล้วค่อยวาดแผนที่ใหม่
+  loadGameProgress().then(rebuildWorldMap);
 }
 
 function setupBattleControls() {
