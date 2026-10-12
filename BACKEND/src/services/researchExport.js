@@ -8,6 +8,7 @@ const db = require("../db/database");
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
 
 const TZ_MS = 7 * 60 * 60 * 1000;
+const STREAK_MIN_SECONDS = 10 * 60; // ตรงกับ services/petCare.js: วันที่อ่านรวม ≥ 10 นาที นับเป็นวันอ่าน
 const PASS_RATIO = 0.6;
 
 function thaiDateTime(sqliteDatetime) {
@@ -32,6 +33,17 @@ function weekdayOf(date) {
 const round1 = (n) => Math.round(n * 10) / 10;
 const pct = (num, den) => (den > 0 ? round1((num / den) * 100) : "");
 const avg = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+
+// วันอ่านติดกันที่ยาวที่สุด (dates เรียงเก่า → ใหม่)
+function longestStreak(dates) {
+  let longest = 0;
+  let run = 0;
+  for (let i = 0; i < dates.length; i++) {
+    run = i > 0 && daysBetween(dates[i - 1], dates[i]) === 1 ? run + 1 : 1;
+    longest = Math.max(longest, run);
+  }
+  return longest;
+}
 
 function userCode(id) {
   return `U${String(id).padStart(4, "0")}`;
@@ -153,6 +165,7 @@ const USER_COLUMNS = [
   "last_active_date",
   "last_active_day_index",
   "reading_days",
+  "longest_reading_streak",
   "reading_rounds",
   "reading_minutes",
   "avg_round_minutes",
@@ -233,6 +246,9 @@ async function buildUsersCsv() {
       last_active_date: dates[dates.length - 1] || "",
       last_active_day_index: dates.length ? daysBetween(thaiDate(u.created_at), dates[dates.length - 1]) : "",
       reading_days: [...days.values()].filter((d) => d.reading_rounds > 0).length,
+      longest_reading_streak: longestStreak(
+        dates.filter((date) => days.get(date).reading_seconds >= STREAK_MIN_SECONDS)
+      ),
       reading_rounds: sessions.length,
       reading_minutes: round1(readSeconds / 60),
       avg_round_minutes: sessions.length ? round1(readSeconds / 60 / sessions.length) : "",

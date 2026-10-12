@@ -2,27 +2,17 @@ const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { grantLevelUpAiBonus } = require("../services/aiQuota");
+const {
+  STAT_TIMESTAMP_COLUMN,
+  LONELY_HAPPINESS_CAP,
+  applyDecay,
+  getReadingStreak,
+} = require("../services/petCare");
 
 const router = express.Router();
 
 const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
 const MAX_PET_NAME_LENGTH = 30;
-
-const STATS = ["hunger", "cleanliness", "happiness", "energy"];
-
-const DECAY_MINUTES_PER_POINT = {
-  hunger: 1,
-  happiness: 1.5,
-  cleanliness: 2,
-  energy: 3,
-};
-
-const STAT_TIMESTAMP_COLUMN = {
-  hunger: "hunger_updated_at",
-  cleanliness: "cleanliness_updated_at",
-  happiness: "happiness_updated_at",
-  energy: "energy_updated_at",
-};
 
 const ACTION_STAT = {
   feed: "hunger",
@@ -48,38 +38,6 @@ const ACTION_GAIN = {
 const MAX_LEVEL = 50;
 const LEVEL_XP_TARGET = 250;
 
-function toSqliteDatetime(ms) {
-  return new Date(ms).toISOString().slice(0, 19).replace("T", " ");
-}
-
-async function applyDecay(pet) {
-  const now = Date.now();
-  const updated = { ...pet };
-  const timestampUpdates = {};
-
-  for (const stat of STATS) {
-    const col = STAT_TIMESTAMP_COLUMN[stat];
-    const lastMs = new Date(pet[col] + "Z").getTime();
-    const rateMinutes = DECAY_MINUTES_PER_POINT[stat];
-    const elapsedMinutes = Math.max(0, (now - lastMs) / 60000);
-    const decayPoints = Math.floor(elapsedMinutes / rateMinutes);
-
-    if (decayPoints > 0) {
-      updated[stat] = Math.max(0, pet[stat] - decayPoints);
-      timestampUpdates[col] = toSqliteDatetime(lastMs + decayPoints * rateMinutes * 60000);
-    }
-  }
-
-  if (Object.keys(timestampUpdates).length === 0) return pet;
-
-  const setClauses = [...STATS.map((stat) => `${stat} = ?`), ...Object.keys(timestampUpdates).map((col) => `${col} = ?`)];
-  const values = [...STATS.map((stat) => updated[stat]), ...Object.values(timestampUpdates)];
-
-  await db.prepare(`UPDATE pets SET ${setClauses.join(", ")} WHERE user_id = ?`).run(...values, pet.user_id);
-
-  return { ...updated, ...timestampUpdates };
-}
-
 function serializePet(pet) {
   return {
     breed: pet.breed,
@@ -94,14 +52,26 @@ function serializePet(pet) {
   };
 }
 
+// ความสุขสูงสุดที่ลูบหัว/ของเล่นเติมให้ได้ตอนนี้ — ไม่ได้อ่านหลายวัน (เหงา) เติมได้ไม่เกินครึ่ง แต่ไม่ลดของที่มีอยู่
+function happinessLimit(streak, current) {
+  return streak.lonely ? Math.max(current, LONELY_HAPPINESS_CAP) : 100;
+}
+
+function lonelyMessage(petName, streak) {
+  return `${petName}ยังเหงาอยู่ เพราะไม่ได้อ่านหนังสือด้วยกันมา ${streak.daysSinceRead} วันแล้ว 🥺 ` +
+    `ลูบหัว/ของเล่นช่วยได้ไม่เกิน ${LONELY_HAPPINESS_CAP}% ไปอ่านหนังสือด้วยกันน้องจะหายเหงานะ`;
+}
+
 // ---------- GET /api/pet ----------
+// คืนสถานะน้องหมา + streak การอ่าน (อ่านติดกันกี่วัน / ไม่ได้อ่านมากี่วัน / อารมณ์น้อง)
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     let pet = await db.prepare("SELECT * FROM pets WHERE user_id = ?").get(req.user.id);
     if (!pet) return res.json({ pet: null });
 
     pet = await applyDecay(pet);
-    return res.json({ pet: serializePet(pet) });
+    const streak = await getReadingStreak(req.user.id);
+    return res.json({ pet: serializePet(pet), streak });
   } catch (err) {
     next(err);
   }
@@ -207,11 +177,13 @@ router.post("/action", requireAuth, async (req, res) => {
     }
 
     pet = await applyDecay(pet);
+    const streak = await getReadingStreak(req.user.id);
 
     const before = pet[stat];
     const totalGain = ACTION_GAIN[type] * petCount;
-    const after = Math.min(100, before + totalGain);
-    const actualGain = after - before;
+    const after = Math.min(happinessLimit(streak, before), before + totalGain);
+    const actualGain = Math.max(0, after - before);
+    const cappedByLoneliness = streak.lonely && before + totalGain > after && after < 100;
 
     let carePoints = pet.care_points;
     let levelProgress = pet.level_progress;
@@ -244,7 +216,13 @@ router.post("/action", requireAuth, async (req, res) => {
     const updatedPet = { ...pet, [stat]: after, care_points: carePoints, level_progress: levelProgress };
 
     return res.json({
-      message: leveledUp ? levelUpMessage(pet.name, carePoints, aiBonusGained) : "ทำกิจกรรมสำเร็จ",
+      message: leveledUp
+        ? levelUpMessage(pet.name, carePoints, aiBonusGained)
+        : cappedByLoneliness
+        ? lonelyMessage(pet.name, streak)
+        : "ทำกิจกรรมสำเร็จ",
+      lonely: streak.lonely,
+      lonelyCapped: cappedByLoneliness,
       pet: serializePet(updatedPet),
       leveledUp,
       aiBonusGained,
@@ -288,12 +266,18 @@ router.post("/use-item", requireAuth, async (req, res) => {
     }
 
     pet = await applyDecay(pet);
+    const streak = await getReadingStreak(req.user.id);
 
     const stat = ACTION_STAT[product.pet_action];
     const before = pet[stat];
-    const after = Math.min(100, before + product.stat_gain);
+    const limit = stat === "happiness" ? happinessLimit(streak, before) : 100;
+    const after = Math.min(limit, before + product.stat_gain);
     const actualGain = after - before;
 
+    // เหงาอยู่: ของเล่นเติมความสุขได้แค่ครึ่งเดียว (ไม่เสียไอเทม)
+    if (actualGain <= 0 && limit < 100) {
+      return res.status(400).json({ message: lonelyMessage(pet.name, streak), lonely: true });
+    }
     if (actualGain <= 0) {
       return res.status(400).json({
         message: `${STAT_FULL_LABEL[stat]}ของ${pet.name}เต็มอยู่แล้ว เก็บ${product.name}ไว้ใช้ทีหลังดีกว่านะ`,

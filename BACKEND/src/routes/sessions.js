@@ -3,6 +3,7 @@ const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { NORMAL_RULES, getReadingRules, dailyTimeCoinCap, coinsPerRound, timeCoinsToday } = require("../services/readingRules");
 const tests = require("../services/chapterTests");
+const { boostHappinessForReading, getReadingStreak } = require("../services/petCare");
 
 const router = express.Router();
 
@@ -87,9 +88,15 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "เซสชันนี้จบไปแล้ว หรือถูกยกเลิกไปแล้ว" });
     }
 
-    const [user, progress] = await Promise.all([
+    // อ่านจบรอบ (ถึงเกณฑ์วันอ่าน) → น้องหมาดีใจ + นับ streak วันนี้
+    const petHappinessGained = await boostHappinessForReading(req.user.id, effectiveElapsedSeconds).catch((err) => {
+      console.error("Boost pet happiness error:", err);
+      return 0;
+    });
+    const [user, progress, streak] = await Promise.all([
       db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id),
       tests.chapterProgress(req.user.id, session.chapter_id),
+      getReadingStreak(req.user.id),
     ]);
     const roundsUsed = cap === null ? null : Math.min(rules.dailyCoinRounds, Math.floor((usedToday + coinsEarned) / coinsPerRound(rules)));
 
@@ -109,6 +116,8 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       roundsCap: cap === null ? null : rules.dailyCoinRounds,
       totalCoins: user.coins,
       progress,
+      petHappinessGained,
+      streak,
     });
   } catch (err) {
     console.error("Complete reading session error:", err);

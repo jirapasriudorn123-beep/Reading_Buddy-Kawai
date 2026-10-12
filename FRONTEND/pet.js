@@ -49,8 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const path = window.location.pathname;
 
   try {
-    const { pet } = await apiFetch("/pet");
+    const { pet, streak } = await apiFetch("/pet");
     currentPet = pet;
+    currentStreak = streak || null;
 
     await loadUserCoins();
 
@@ -81,10 +82,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function refreshPetStats() {
   try {
-    const { pet } = await apiFetch("/pet");
+    const { pet, streak } = await apiFetch("/pet");
     if (!pet) return;
     currentPet = pet;
+    currentStreak = streak || null;
     updatePetUI(currentPet);
+    renderStreak();
+    refreshPetMood();
   } catch (err) {
     console.error("รีเฟรชสถานะสัตว์เลี้ยงไม่สำเร็จ:", err);
   }
@@ -203,7 +207,53 @@ function renderPetPage(pet) {
   setPetImage(pet.breed);
   updatePetUI(pet);
   applyEquippedOverlays(); // วางเสื้อผ้าที่ user เคยใส่ไว้ (persist ใน localStorage)
-  showSpeech("เจ้านาย มาเล่นด้วยกันเถอะ");
+  renderStreak();
+  refreshPetMood();
+  showSpeech(moodSpeech(currentStreak), 4500);
+}
+
+// ================== ความต่อเนื่องในการอ่าน (streak) → อารมณ์น้องหมา ==================
+// server คำนวณจากรอบอ่านที่จบแล้ว: happy (อ่านวันนี้แล้ว) | waiting (วันนี้ยังไม่ได้อ่าน) | lonely (ไม่ได้อ่าน 2-3 วัน)
+// | very_lonely (4 วันขึ้นไป) | new (ยังไม่เคยอ่าน) — ตอนเหงาน้องจะทำท่าเศร้า และลูบหัว/ของเล่นช่วยได้ไม่เกินครึ่ง
+
+let currentStreak = null;
+
+function streakText(streak) {
+  if (!streak) return "";
+  switch (streak.mood) {
+    case "happy":
+      return `🔥 อ่านติดกัน ${streak.current} วัน · วันนี้อ่านด้วยกันแล้ว`;
+    case "waiting":
+      return `🔥 อ่านติดกัน ${streak.current} วัน · วันนี้ยังไม่ได้อ่าน น้องรออยู่นะ`;
+    case "lonely":
+    case "very_lonely":
+      return `💤 ไม่ได้อ่านด้วยกันมา ${streak.daysSinceRead} วันแล้ว น้องเหงา`;
+    default:
+      return "📖 ยังไม่เคยอ่านหนังสือด้วยกันเลย ไปอ่านบทแรกกัน!";
+  }
+}
+
+function moodSpeech(streak) {
+  if (!streak) return "เจ้านาย มาเล่นด้วยกันเถอะ";
+  switch (streak.mood) {
+    case "happy":
+      return "วันนี้อ่านหนังสือด้วยกันแล้ว ดีใจที่สุดเลย! 🐾";
+    case "waiting":
+      return "วันนี้ไปอ่านหนังสือด้วยกันไหมเจ้านาย? 📖";
+    case "lonely":
+      return `เหงาจัง... ไม่ได้อ่านหนังสือด้วยกันมา ${streak.daysSinceRead} วันแล้ว 🥺`;
+    case "very_lonely":
+      return "เจ้านายหายไปไหนมา... คิดถึงมากเลย 😢 กลับมาอ่านหนังสือด้วยกันนะ";
+    default:
+      return "เจ้านาย มาอ่านหนังสือด้วยกันเถอะ! 📖";
+  }
+}
+
+function renderStreak() {
+  const el = document.getElementById("petStreak");
+  if (!el) return;
+  el.textContent = streakText(currentStreak);
+  el.dataset.mood = currentStreak ? currentStreak.mood : "";
 }
 
 // โชว์ข้อความในบับเบิลแค่ชั่วครู่แล้วหายไปเอง (ไม่ค้างจอทั้งวัน)
@@ -275,9 +325,10 @@ function showPetPose(poseKey, revertAfterMs) {
 function refreshPetMood() {
   if (!currentPet || showingTemporaryPose) return;
 
-  // ท่าเศร้า (low) โชว์เฉพาะตอน "ความสุข" ต่ำกว่าเกณฑ์เท่านั้น (ไม่ใช่สถานะไหนก็ได้)
+  // ท่าเศร้า (low) โชว์ตอน "ความสุข" ต่ำกว่าเกณฑ์ หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
   const happinessLow = (currentPet.happiness ?? 100) < STAT_LOW_THRESHOLD;
-  if (happinessLow) {
+  const lonely = !!(currentStreak && currentStreak.lonely);
+  if (happinessLow || lonely) {
     const lowFrames = getPoseFrames(currentPet.breed, "low");
     if (lowFrames && lowFrames.length) {
       applyPetImageSrc(lowFrames[0], currentPet.breed);
@@ -703,7 +754,8 @@ function setupPetting() {
       });
       currentPet = { ...currentPet, ...result.pet };
       updatePetUI(currentPet);
-      showSpeech(speeches.happiness);
+      // เหงาอยู่ (ไม่ได้อ่านหลายวัน) ลูบหัวเติมความสุขได้ไม่เกินครึ่ง — น้องบอกให้ไปอ่านหนังสือด้วยกัน
+      showSpeech(result.lonelyCapped ? result.message : speeches.happiness, result.lonelyCapped ? 4500 : 2200);
 
       if (result.leveledUp) {
         showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่า happiness ปกติ เลยแสดงแทน

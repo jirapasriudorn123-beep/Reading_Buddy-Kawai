@@ -257,3 +257,40 @@ html.dark-mode body .level-badge-number {
 html.dark-mode body .pet-pet-hint {
     color: #767d74;
 }
+
+/* ---- streak การอ่าน (ใต้ชื่อน้อง) ---- */
+.pet-streak {
+  margin: 4px auto 0;
+  padding: 3px 12px;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  background: #fff4e0;
+  border: 1px solid #f0b23d;
+  color: #8a5a0b;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.pet-streak:empty {
+  display: none;
+}
+
+.pet-streak[data-mood="lonely"],
+.pet-streak[data-mood="very_lonely"] {
+  background: #e8edf5;
+  border-color: #8a9bb8;
+  color: #3d4d6a;
+}
+
+html.dark-mode body .pet-streak {
+  background: #3a2f1c;
+  color: #f3d49b;
+}
+
+html.dark-mode body .pet-streak[data-mood="lonely"],
+html.dark-mode body .pet-streak[data-mood="very_lonely"] {
+  background: #252d3a;
+  color: #c3d0e6;
+}

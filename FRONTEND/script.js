@@ -564,6 +564,8 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
     if (result.capped) lines.push(`(ครบโควต้าวันละ ${result.roundsCap} รอบพอดี คอยน์รอบนี้เลยได้ไม่เต็ม)`);
   }
   if (result.roundsCap) lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${result.roundsUsed}/${result.roundsCap} รอบ`);
+  if (result.petHappinessGained > 0) lines.push(`🐶 น้องหมาดีใจที่ได้อ่านด้วยกัน ความสุข +${result.petHappinessGained}%`);
+  if (result.streak && result.streak.readToday) lines.push(`🔥 อ่านติดกัน ${result.streak.current} วันแล้ว!`);
   if (result.awaySeconds >= AWAY_NOTICE_MIN_SECONDS) {
     lines.push(`ไม่นับเวลาที่ออกจากหน้าอ่าน ${formatAwayDuration(result.awaySeconds)}`);
   }
