@@ -81,7 +81,7 @@ function matchChapterNumber(message, chapters) {
   }
 
   const detail = chapter.detail ? `\n\n${chapter.detail}` : "";
-  return `Chapter ${chapter.chapter_number}: ${chapter.title} ครับ 📖${detail}\n\nอ่านจบแล้วได้เหรียญตามเวลาที่อ่านจริงเลยนะครับ (10 เหรียญต่อทุกๆ 5 นาที)`;
+  return `Chapter ${chapter.chapter_number}: ${chapter.title} ครับ 📖${detail}\n\nอ่านจบแล้วทำแบบทดสอบหลังอ่าน จะได้เหรียญตามเวลาที่อ่านจริงเลยนะครับ (10 เหรียญต่อทุกๆ 5 นาที)`;
 }
 
 // ---- คลังคำตอบที่แอดมินกรอกไว้ (ตาราง chat_answers) ----

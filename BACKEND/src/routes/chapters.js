@@ -7,6 +7,7 @@ const router = express.Router();
 
 const MAX_MINUTES = 120;
 const MAX_SECONDS = 59;
+const QUIZ_QUESTIONS_PER_SESSION = 3; // แบบทดสอบก่อน/หลังอ่าน รอบละ 3 ข้อ
 
 function toSeconds(minutes, seconds) {
   return Number(minutes) * 60 + Number(seconds);
@@ -63,28 +64,53 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
     }
     const plannedBreakSeconds = toSeconds(breakMinutes, breakSeconds);
 
-    // ---- เซสชันเก่าที่ค้าง in_progress (รีเฟรช/ปิดหน้าระหว่างอ่าน หน้าเว็บเลยไม่รู้จักแล้ว จบหรือยกเลิกเองไม่ได้) ----
+    // ---- แบบทดสอบก่อนอ่าน: สุ่มคำถามของบทนี้ (ชุดเดียวกับมินิเกม) ข้อเดิมจะถูกถามซ้ำหลังอ่าน ----
+    // บทที่ยังไม่มีคำถามเลย ข้ามแบบทดสอบไปเริ่มอ่านทันที (แอดมินควรเพิ่มคำถามให้ครบทุกบท)
+    const questions = await db
+      .prepare(
+        `SELECT id, question, option_1, option_2, option_3, option_4
+         FROM quiz_questions WHERE chapter_id = ? AND enabled = 1
+         ORDER BY RANDOM() LIMIT ?`
+      )
+      .all(chapterId, QUIZ_QUESTIONS_PER_SESSION);
+    const status = questions.length > 0 ? "pre_test" : "in_progress";
+
+    // ---- เซสชันเก่าที่ค้างอยู่ (รีเฟรช/ปิดหน้าระหว่างทำแบบทดสอบหรืออ่าน หน้าเว็บเลยไม่รู้จักแล้ว จบหรือยกเลิกเองไม่ได้) ----
     // ยกเลิกทิ้งแล้วเริ่มอันใหม่แทน (ไม่ให้เหรียญของอันเก่า กันเปิดค้างไว้เฉยๆ แล้วมาเก็บเหรียญทีหลัง)
     const result = await db.tx(async (t) => {
       await t.prepare(
         `UPDATE reading_sessions SET status = 'cancelled', ended_at = datetime('now')
-         WHERE user_id = ? AND status = 'in_progress'`
+         WHERE user_id = ? AND status IN ('pre_test', 'in_progress', 'post_test')`
       ).run(req.user.id);
-      return t.prepare(
-        `INSERT INTO reading_sessions (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status, minutes_per_block)
-         VALUES (?, ?, ?, ?, 'in_progress', ?)`
-      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, rules.minutesPerBlock);
+      const inserted = await t.prepare(
+        `INSERT INTO reading_sessions
+           (user_id, chapter_id, planned_read_seconds, planned_break_seconds, status, minutes_per_block, quiz_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, status, rules.minutesPerBlock, questions.length);
+      for (const [i, q] of questions.entries()) {
+        await t.prepare(
+          "INSERT INTO reading_session_questions (session_id, position, question_id) VALUES (?, ?, ?)"
+        ).run(inserted.lastInsertRowid, i + 1, q.id);
+      }
+      return inserted;
     });
 
     return res.status(201).json({
-      message: "เริ่มจับเวลาอ่านแล้ว",
+      message: status === "pre_test" ? "ทำแบบทดสอบก่อนอ่าน แล้วเริ่มจับเวลาอ่าน" : "เริ่มจับเวลาอ่านแล้ว",
       session: {
         id: result.lastInsertRowid,
         chapterId,
         chapterTitle: chapter.title,
         plannedReadSeconds,
         plannedBreakSeconds,
+        status,
       },
+      // ไม่ส่งเฉลยมา — server ตรวจเองตอนส่งคำตอบ
+      preTest: questions.map((q, i) => ({
+        position: i + 1,
+        question: q.question,
+        options: [q.option_1, q.option_2, q.option_3, q.option_4],
+      })),
     });
   } catch (err) {
     console.error("Start reading session error:", err);

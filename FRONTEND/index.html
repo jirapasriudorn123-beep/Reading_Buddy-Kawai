@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261003">
+    <link rel="stylesheet" href="style.css?v=20261012">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css">
@@ -131,6 +131,21 @@
     </div>
 </div>
 
+<!-- แบบทดสอบก่อนอ่าน/หลังอ่าน (เนื้อหาสร้างด้วย JS ใน script.js) -->
+<div id="quizModal" class="modal-overlay">
+    <div class="timer-modal-content quiz-modal-content" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
+        <p class="quiz-kicker" id="quizKicker"></p>
+        <h2 class="quiz-title" id="quizTitle"></h2>
+        <p class="quiz-hint" id="quizHint"></p>
+        <div id="quizBody"></div>
+        <p class="gentle-error" id="quizError" style="display:none;"></p>
+        <div class="timer-action-group">
+            <button type="button" id="quizPrimaryBtn" class="timer-btn-confirm" style="display:none;">ตกลง</button>
+            <button type="button" id="quizSecondaryBtn" class="quiz-secondary-btn"></button>
+        </div>
+    </div>
+</div>
+
 <div id="readerView" class="reader-view" style="display:none;">
     <div class="reader-toolbar">
         <div class="reader-timer-group">
@@ -167,7 +182,7 @@
 </div>
 <script src="config.js"></script>
 <script src="notifications.js"></script>
-<script src="script.js?v=20261003"></script>
+<script src="script.js?v=20261012"></script>
 <script src="theme.js"></script>
 <script src="chat.js"></script>
     <script src="cursor.js"></script>
