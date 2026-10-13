@@ -717,6 +717,23 @@ await client.execute(`
     )
   `);
 
+  // ---- ตาราง reading_summaries (สรุปการอ่าน 7 วันในหน้าแดชบอร์ด วันละ 1 ฉบับต่อคน) ----
+  // source: ai (AI เรียบเรียง ผ่านการตรวจตัวเลขแล้ว) | template (ข้อความจากระบบ)
+  // validation: passed | numbers_mismatch (AI ใส่ตัวเลขที่ไม่มีในข้อมูล → ใช้เทมเพลต) | too_long | empty | ai_error | no_activity
+  // → ใช้รายงานความเที่ยงตรงของ AI ในเล่ม (ข้อ 12) | stats_json = ตัวเลขที่ใช้สรุป (ตรวจย้อนหลังได้)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS reading_summaries (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      day TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      source TEXT NOT NULL,
+      validation TEXT NOT NULL,
+      stats_json TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, day)
+    )
+  `);
+
   // ---- ตาราง site_meta ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS site_meta (

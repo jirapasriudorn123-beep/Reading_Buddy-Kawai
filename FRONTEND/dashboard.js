@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await Promise.all([
       loadUserInfo(),
       loadTodayProgress(),
+      loadWeeklySummary(),
       loadWeeklyProgress(),
       loadFocusChart(),
       loadTrendChart(),
@@ -72,6 +73,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadUserInfo() {
   const { user } = await apiFetch("/auth/me");
   document.getElementById("coinAmount").textContent = user.coins;
+}
+
+// ================== สรุปการอ่าน 7 วัน (ข้อความจาก server — AI เรียบเรียง หรือเทมเพลตถ้า AI ไม่ผ่านการตรวจ) ==================
+
+async function loadWeeklySummary() {
+  const box = document.getElementById("weeklySummary");
+  const note = document.getElementById("weeklySummaryNote");
+  try {
+    const data = await apiFetch("/analytics/weekly-summary");
+    const lines = data.summary.split("\n").map((l) => l.trim()).filter(Boolean);
+    const bullets = lines.filter((l) => !l.startsWith("💡")).map((l) => l.replace(/^[-•*]\s*/, ""));
+    const tips = lines.filter((l) => l.startsWith("💡"));
+    box.innerHTML =
+      (bullets.length ? `<ul>${bullets.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>` : "") +
+      tips.map((l) => `<p class="weekly-summary-tip">${escapeHtml(l)}</p>`).join("");
+    note.textContent =
+      data.source === "ai"
+        ? "เรียบเรียงโดย AI จากข้อมูลการอ่านจริงของคุณ (ตรวจตัวเลขแล้ว) · อัปเดตวันละครั้ง"
+        : "สรุปจากข้อมูลการอ่านจริงของคุณ · อัปเดตวันละครั้ง";
+  } catch (err) {
+    console.error("โหลดสรุปการอ่านไม่สำเร็จ:", err);
+    box.textContent = "ยังสรุปไม่ได้ตอนนี้ ลองใหม่อีกครั้งนะ";
+  }
 }
 
 // ================== เป้าหมายวันนี้ (progress bar + กราฟเปรียบเทียบ) ==================

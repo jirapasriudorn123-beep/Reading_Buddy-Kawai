@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { getDailySummary, SUMMARY_DAYS } = require("../services/readingSummary");
 
 const router = express.Router();
 
@@ -132,6 +133,23 @@ router.get("/trend", requireAuth, async (req, res, next) => {
     }
 
     return res.json({ trend });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- GET /api/analytics/weekly-summary ----------
+// สรุปการอ่าน 7 วันที่ผ่านมา (ตัวเลขจากระบบ ให้ AI เรียบเรียง + ตรวจตัวเลข) วันละครั้งต่อคน ไม่หักโควต้าถาม AI
+router.get("/weekly-summary", requireAuth, async (req, res, next) => {
+  try {
+    const result = await getDailySummary(req.user.id);
+    return res.json({
+      summary: result.summary,
+      source: result.source,
+      validation: result.validation,
+      day: result.day,
+      periodDays: SUMMARY_DAYS,
+    });
   } catch (err) {
     next(err);
   }

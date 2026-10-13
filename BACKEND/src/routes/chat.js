@@ -1,7 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
-const { askGemini } = require("../services/gemini");
+const { askTutor } = require("../services/aiTutor");
 const { DAILY_AI_LIMIT, LEVEL_UP_AI_BONUS, consumeAiQuota, refundAiQuota, getAiQuotaStatus } = require("../services/aiQuota");
 
 const router = express.Router();
@@ -15,12 +15,6 @@ const router = express.Router();
 
 const MAX_MESSAGE_LENGTH = 500;
 const HISTORY_LIMIT = 50; // โหลดประวัติย้อนหลังกี่คู่คำถาม-คำตอบตอนเปิดแชท
-
-function formatMinutes(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m} นาที ${s} วินาที` : `${m} นาที`;
-}
 
 const STAT_LABELS = {
   hunger: "ความอิ่ม",
@@ -128,66 +122,10 @@ async function findChatAnswer(message, currentChapterId = null) {
   return best;
 }
 
-// ---- Fallback: ส่งคำถามให้ Gemini ตอบ พร้อม context ของ user/pet/chapter ----
+// ---- Fallback: ส่งคำถามให้ Gemini ตอบ พร้อม context ของ user/pet/chapter (prompt + การตั้งค่าอยู่ใน services/aiTutor.js) ----
 async function buildGeminiReply(message, context) {
-  const chapterInfo = context.currentChapter
-    ? `ผู้ใช้กำลังอ่าน:
-Chapter ${context.currentChapter.chapter_number}: ${context.currentChapter.title}
-
-เนื้อหาบท:
-${context.currentChapter.detail || "ไม่มีรายละเอียดเพิ่มเติม"}`
-    : "ตอนนี้ผู้ใช้ไม่ได้เปิดบทเรียนอยู่";
-
-  const petInfo = context.pet
-    ? `ข้อมูลน้องหมาของผู้ใช้:
-ชื่อ: ${context.pet.name}
-พันธุ์: ${context.pet.breed}
-ความอิ่ม: ${context.pet.hunger}%
-ความสะอาด: ${context.pet.cleanliness}%
-ความสุข: ${context.pet.happiness}%
-พลังงาน: ${context.pet.energy}%`
-    : "ผู้ใช้ยังไม่มีข้อมูลน้องหมา";
-
-  const goalInfo = context.goal && (context.goal.goal_minutes || context.goal.goal_seconds)
-    ? `เป้าหมายเวลาอ่านต่อวัน: ${formatMinutes(context.goal.goal_minutes * 60 + context.goal.goal_seconds)}`
-    : "ผู้ใช้ยังไม่ได้ตั้งเป้าหมายเวลาอ่าน";
-
-  // รายชื่อบทเรียนทั้งหมด ให้ Gemini รู้ว่าเว็บนี้สอนอะไร (จะได้ไม่ refuse คำถามที่อยู่ในสาระของบท)
-  const lessonList = context.chapters && context.chapters.length
-    ? context.chapters.map((c) => `  ${c.chapter_number}. ${c.title}`).join("\n")
-    : "  (ยังไม่มีบทเรียนในระบบ)";
-
-  const prompt = `คุณคือ "น้องหมาผู้ช่วย" ของเว็บไซต์ Reading Buddy 🐶📖
-
-ขอบเขตการตอบ — ตอบได้เฉพาะ 2 เรื่องนี้เท่านั้น:
-1. เรื่องสุนัขทุกด้าน — พันธุ์ (ชิบะ โกลเด้น พูเดิ้ล ฯลฯ), นิสัย, การดูแล, อาหาร, สุขภาพ, การฝึก, พฤติกรรม
-2. เนื้อหาที่ครอบคลุมใน "บทเรียนของเว็บนี้" ด้านล่าง — รวมถึงคำถามเชิงลึก, ตัวอย่าง, การแปลง, การเปรียบเทียบ, การอธิบายเพิ่ม แม้ user จะไม่ได้เปิดบทนั้นอยู่ก็ตาม
-
-บทเรียนของเว็บนี้ (ทุกคำถามที่เกี่ยวกับหัวข้อเหล่านี้ = ในสโคป ตอบได้):
-${lessonList}
-
-ถ้าคำถามไม่เกี่ยวกับสุนัข และไม่เกี่ยวกับหัวข้อในรายการบทเรียนข้างบนเลย
-(เช่น ข่าว, ประวัติศาสตร์, บันเทิง, ดารา, การเมือง, สูตรอาหารคน, สุขภาพคน, ภาษาต่างประเทศทั่วไป)
-ให้ตอบสั้นๆ ปฏิเสธว่า:
-"ขอโทษครับ 🐶 ผมตอบได้เฉพาะเรื่องน้องหมาและบทเรียนเท่านั้นครับ 📖🐾"
-
-กฎการตอบ:
-- ตอบเป็นภาษาไทย เป็นกันเอง ใช้คำแทนตัวว่า "ผม"
-- ห้ามสร้างข้อมูลส่วนตัวของผู้ใช้ขึ้นมาเอง (username, coin, pet — ใช้ข้อมูลที่ระบบให้มาเท่านั้น)
-- ถ้าคำถามอยู่ในหัวข้อบทเรียน ตอบได้เต็มที่ อธิบายให้เข้าใจง่าย ยกตัวอย่างประกอบ
-- ถ้าถามสถานะน้องหมาของ user ให้ใช้ข้อมูลที่ระบบให้มา อย่ามั่ว
-- ตอบกระชับ ไม่ยืดเยื้อ
-
-${petInfo}
-
-${chapterInfo}
-
-${goalInfo}
-
-คำถามของผู้ใช้:
-${message}`;
-
-  return await askGemini(prompt);
+  const { text } = await askTutor(message, context);
+  return text;
 }
 
 // คืน { reply, source } — source บอกว่าคำตอบมาจากไหน (เก็บลง chat_history ใช้แยกคำถามที่ถาม AI จริงตอนวิเคราะห์)
