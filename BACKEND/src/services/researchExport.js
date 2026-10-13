@@ -8,7 +8,8 @@ const db = require("../db/database");
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
 
 const TZ_MS = 7 * 60 * 60 * 1000;
-const STREAK_MIN_SECONDS = 10 * 60; // ตรงกับ services/petCare.js: วันที่อ่านรวม ≥ 10 นาที นับเป็นวันอ่าน
+const STREAK_MIN_SECONDS = 10 * 60;
+const PAGE_VIEWED_MIN_SECONDS = 5; // ตรงกับ routes/sessions.js: เปิดหน้านั้น ≥ 5 วินาที นับว่าเปิดอ่าน // ตรงกับ services/petCare.js: วันที่อ่านรวม ≥ 10 นาที นับเป็นวันอ่าน
 const PASS_RATIO = 0.6;
 
 function thaiDateTime(sqliteDatetime) {
@@ -73,7 +74,7 @@ function groupBy(rows, key) {
 // ---------- ดึงข้อมูลดิบทั้งหมดของผู้ใช้ทั่วไป ----------
 async function loadRaw() {
   const nonAdmin = "user_id IN (SELECT id FROM users WHERE is_admin = 0)";
-  const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons] =
+  const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime] =
     await Promise.all([
       db.prepare("SELECT id, created_at, coins FROM users WHERE is_admin = 0 ORDER BY id").all(),
       db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
@@ -81,7 +82,7 @@ async function loadRaw() {
       db
         .prepare(
           `SELECT id, user_id, chapter_id, chapter_test_id, planned_read_seconds, read_seconds, away_seconds,
-                  coins_earned, coins_pending, started_at, ended_at
+                  coins_earned, coins_pending, started_at, ended_at, pdf_total_pages
            FROM reading_sessions WHERE status = 'completed' AND ${nonAdmin} ORDER BY started_at`
         )
         .all(),
@@ -99,8 +100,9 @@ async function loadRaw() {
       db.prepare(`SELECT user_id, category, correct, created_at FROM quiz_answer_log WHERE ${nonAdmin}`).all(),
       db.prepare(`SELECT user_id, price, purchased_at AS created_at FROM purchase_log WHERE ${nonAdmin}`).all(),
       db.prepare(`SELECT user_id, COUNT(*) AS n FROM user_coupons WHERE ${nonAdmin} GROUP BY user_id`).all(),
+      db.prepare("SELECT session_id, page, seconds FROM reading_page_time").all(),
     ]);
-  return { users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons };
+  return { users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime };
 }
 
 // นับกิจกรรมรายวันของแต่ละคน: Map(userId → Map(date → counters))
@@ -346,6 +348,11 @@ const SESSION_COLUMNS = [
   "coins_paid",
   "ai_questions_during",
   "chat_messages_during",
+  "pdf_total_pages",
+  "pages_viewed",
+  "first_page_viewed",
+  "last_page_viewed",
+  "page_seconds_tracked",
   "chapter_pre_score",
   "chapter_post_score",
   "chapter_total",
@@ -356,6 +363,7 @@ async function buildSessionsCsv() {
   const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
   const testById = new Map(raw.tests.map((t) => [t.id, t]));
   const registeredBy = new Map(raw.users.map((u) => [u.id, thaiDate(u.created_at)]));
+  const pagesBySession = groupBy(raw.pageTime, "session_id");
   const chatsBySession = groupBy(
     raw.chats.filter((c) => c.reading_session_id),
     "reading_session_id"
@@ -368,6 +376,8 @@ async function buildSessionsCsv() {
       const date = started.slice(0, 10);
       const test = s.chapter_test_id ? testById.get(s.chapter_test_id) : null;
       const chats = chatsBySession.get(s.id) || [];
+      const pageRows = pagesBySession.get(s.id) || [];
+      const viewedPages = pageRows.filter((p) => p.seconds >= PAGE_VIEWED_MIN_SECONDS).map((p) => p.page);
       return {
         user_code: userCode(s.user_id),
         session_id: s.id,
@@ -386,6 +396,11 @@ async function buildSessionsCsv() {
         coins_paid: s.coins_pending ? 0 : 1,
         ai_questions_during: chats.filter((c) => c.source === "gemini").length,
         chat_messages_during: chats.length,
+        pdf_total_pages: s.pdf_total_pages ?? "",
+        pages_viewed: viewedPages.length,
+        first_page_viewed: viewedPages.length ? Math.min(...viewedPages) : "",
+        last_page_viewed: viewedPages.length ? Math.max(...viewedPages) : "",
+        page_seconds_tracked: pageRows.reduce((a, p) => a + p.seconds, 0),
         chapter_pre_score: test && test.pre_score !== null ? test.pre_score : "",
         chapter_post_score: test && test.status === "completed" ? test.post_score : "",
         chapter_total: test ? test.total : "",

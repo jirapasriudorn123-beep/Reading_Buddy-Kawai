@@ -332,7 +332,8 @@ async function startReadingRound(chapter) {
   };
   document.getElementById("chapterModal").style.display = "none";
   sessionPhase = "reading";
-  openReaderView(chapter);
+  openReaderView(chapter, result.session.resumePage);
+  startPageTracking();
   updateBreakClockDisplay(activeSession.plannedBreakSeconds); // โชว์เวลาพักของรอบนี้ไว้ล่วงหน้า (นับถอยหลังหลังอ่านจบ)
   startCountdown(activeSession.plannedReadSeconds);
   keepScreenOn(); // กันจอดับระหว่างอ่าน (จอดับ = ถูกนับเป็นเวลาที่ออกจากหน้าอ่าน)
@@ -348,11 +349,11 @@ function startPostTestFromModal() {
 
 // ---- ขั้น 2: หน้าจออ่าน PDF พร้อมนาฬิกานับถอยหลัง (แทนที่การ์ด chapter ในหน้าเดิม เปิดหลังกด "เริ่มจับเวลา" แล้วเท่านั้น) ----
 
-function openReaderView(chapter) {
+function openReaderView(chapter, resumePage) {
   window.currentReadingChapterTitle = `CHAPTER ${chapter.chapter_number}: ${chapter.title}`;
   window.currentReadingChapterId = chapter.id;
 
-  loadReaderPdf(chapter);
+  loadReaderPdf(chapter, resumePage);
   document.getElementById("readerError").style.display = "none";
 
   onBreak = false;
@@ -372,15 +373,25 @@ function closeReaderView() {
   document.getElementById("chapterScrollWrapper").style.display = "";
 }
 
-// เช็คก่อนว่ามีไฟล์ PDF ของบทนี้จริงไหม ถ้ายังไม่มี (บทที่ยังไม่ได้อัปโหลด) จะโชว์ข้อความแจ้งเตือนแทนหน้าจอ error ของเบราว์เซอร์
-// หมายเหตุ: เช็คด้วย fetch() ได้เฉพาะตอนเปิดผ่าน http/https เท่านั้น เพราะเบราว์เซอร์ (เช่น Chrome) บล็อก fetch() ไปยัง file://
-async function loadReaderPdf(chapter) {
+// URL ไฟล์ PDF ของบท: แอดมินอัปโหลดไว้ (Cloudinary = URL เต็ม / ไฟล์ใน backend = path) ไม่งั้นใช้ไฟล์ตามเลขบทในเว็บ
+function chapterPdfUrl(chapter) {
+  if (!chapter.pdf_url) return `pdf/chapter-${chapter.chapter_number}.pdf`;
+  if (/^https?:\/\//i.test(chapter.pdf_url)) return chapter.pdf_url;
+  return `${API_BASE_URL.replace(/\/api\/?$/, "")}${chapter.pdf_url}`;
+}
+
+function showPdfMode(mode) {
+  document.getElementById("readerPdfViewer").style.display = mode === "viewer" ? "" : "none";
+  document.getElementById("pdfToolbar").style.display = mode === "viewer" ? "" : "none";
+  document.getElementById("readerPdfFrame").style.display = mode === "frame" ? "block" : "none";
+  document.getElementById("readerPdfPlaceholder").style.display = mode === "missing" ? "flex" : "none";
+}
+
+// เปิด PDF ของบทด้วย PDF.js (เปิดต่อจากหน้าเดิมของครั้งก่อน) — ไลบรารีโหลดไม่ได้/เปิดไฟล์ไม่ได้ กลับไปใช้ตัวแสดงของเบราว์เซอร์ (iframe)
+// เช็คก่อนว่ามีไฟล์จริงไหม (บทที่ยังไม่ได้อัปโหลด โชว์ข้อความแทนหน้าจอ error) — fetch ใช้ได้เฉพาะตอนเปิดผ่าน http/https
+async function loadReaderPdf(chapter, resumePage) {
   const frame = document.getElementById("readerPdfFrame");
-  const placeholder = document.getElementById("readerPdfPlaceholder");
-  // ถ้าแอดมินอัปโหลด PDF ไว้ใน backend ให้ใช้อันนั้นก่อน ไม่งั้น fallback ไปหาไฟล์ตามชื่อ chapter เดิม
-  const pdfPath = chapter.pdf_url
-    ? `${API_BASE_URL.replace(/\/api\/?$/, "")}${chapter.pdf_url}`
-    : `pdf/chapter-${chapter.chapter_number}.pdf`;
+  const pdfPath = chapterPdfUrl(chapter);
 
   let available = true;
   if (location.protocol !== "file:") {
@@ -391,10 +402,67 @@ async function loadReaderPdf(chapter) {
       available = false;
     }
   }
+  if (!available) {
+    pdfTotalPages = 0;
+    frame.src = "";
+    showPdfMode("missing");
+    return;
+  }
 
-  frame.src = available ? pdfPath : "";
-  frame.style.display = available ? "block" : "none";
-  placeholder.style.display = available ? "none" : "flex";
+  if (pdfReaderAvailable()) {
+    try {
+      showPdfMode("viewer");
+      frame.src = "";
+      pdfTotalPages = await openPdfReader(pdfPath, { startPage: resumePage || 1 });
+      return;
+    } catch (err) {
+      console.warn("เปิด PDF ด้วย PDF.js ไม่สำเร็จ ใช้ตัวแสดงของเบราว์เซอร์แทน:", err);
+      closePdfReader();
+    }
+  }
+  pdfTotalPages = 0; // ตัวแสดงของเบราว์เซอร์บอกไม่ได้ว่าอยู่หน้าไหน — ไม่นับเวลาต่อหน้า
+  frame.src = pdfPath;
+  showPdfMode("frame");
+}
+
+// ================== นับเวลาที่เปิดแต่ละหน้า (หลักฐานเสริมว่าอ่าน ไม่มีผลกับคอยน์) ==================
+// นับเฉพาะตอนจับเวลาอ่านอยู่และหน้าเว็บแสดงอยู่ | ส่งยอดสะสมให้ server ทุก 30 วินาที ตอนสลับแท็บ และตอนจบรอบ
+
+const PAGE_FLUSH_SECONDS = 30;
+let pdfTotalPages = 0;
+let pageTime = {};
+let pageTickTimer = null;
+let pageFlushTimer = null;
+
+function startPageTracking() {
+  stopPageTracking();
+  pageTime = {};
+  pageTickTimer = setInterval(() => {
+    if (!activeSession || sessionPhase !== "reading" || document.hidden || !pdfTotalPages) return;
+    const page = currentPdfPage();
+    if (page) pageTime[page] = (pageTime[page] || 0) + 1;
+  }, 1000);
+  pageFlushTimer = setInterval(() => flushPageTime(false), PAGE_FLUSH_SECONDS * 1000);
+}
+
+function stopPageTracking() {
+  clearInterval(pageTickTimer);
+  clearInterval(pageFlushTimer);
+  pageTickTimer = null;
+  pageFlushTimer = null;
+}
+
+async function flushPageTime(keepalive) {
+  if (!activeSession || !pdfTotalPages || !Object.keys(pageTime).length) return;
+  try {
+    await apiFetch(`/sessions/${activeSession.id}/pages`, {
+      method: "POST",
+      keepalive,
+      body: JSON.stringify({ totalPages: pdfTotalPages, currentPage: currentPdfPage(), pages: pageTime }),
+    });
+  } catch (err) {
+    console.warn("บันทึกเวลาที่อ่านแต่ละหน้าไม่สำเร็จ:", err);
+  }
 }
 
 // readerStartStopBtn ทำหน้าที่ต่างกันตามช่วง: ระหว่างอ่าน = "หยุด" (จบรอบก่อนเวลา คิดคอยน์ตามเวลาที่อ่านจริง), ระหว่างพัก = "ข้ามพัก"
@@ -501,6 +569,8 @@ async function completeReadingSession(enterBreakAfter) {
 
   clearInterval(countdownInterval);
   sessionPhase = null; // กันนับถอยหลังต่อตอนสลับแท็บกลับมา ระหว่างรอผล
+  stopPageTracking();
+  await flushPageTime(false); // ส่งเวลาต่อหน้าครั้งสุดท้ายก่อนปิดรอบ
 
   let result;
   try {
@@ -571,6 +641,11 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
     if (result.capped) lines.push(`(ครบโควต้าวันละ ${result.roundsCap} รอบพอดี คอยน์รอบนี้เลยได้ไม่เต็ม)`);
   }
   if (result.roundsCap) lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${result.roundsUsed}/${result.roundsCap} รอบ`);
+  const pages = result.pages;
+  if (pages && pages.totalPages && pages.pagesViewed > 0) {
+    const range = pages.firstPage === pages.lastPage ? `หน้า ${pages.firstPage}` : `หน้า ${pages.firstPage}–${pages.lastPage}`;
+    lines.push(`📄 รอบนี้เปิดอ่าน ${pages.pagesViewed} หน้า (${range} จาก ${pages.totalPages} หน้า)`);
+  }
   if (result.petHappinessGained > 0) lines.push(`🐶 น้องหมาดีใจที่ได้อ่านด้วยกัน ความสุข +${result.petHappinessGained}%`);
   if (result.streak && result.streak.readToday) lines.push(`🔥 อ่านติดกัน ${result.streak.current} วันแล้ว!`);
   if (result.awaySeconds >= AWAY_NOTICE_MIN_SECONDS) {
@@ -935,9 +1010,12 @@ function resetReaderTimerState() {
   stopBreakMusic();
   allowScreenOff();
   stopTitleBlink();
+  stopPageTracking();
 
   closeReaderView();
   document.getElementById("readerPdfFrame").src = "";
+  if (pdfReaderAvailable()) closePdfReader();
+  pdfTotalPages = 0;
   // อัปเดตป้ายสถานะบนการ์ดบท (เวลาที่อ่านสะสม / พร้อมทำแบบทดสอบ)
   loadChapters().catch((err) => console.error("Reload chapters error:", err));
   window.currentReadingChapterTitle = null;
@@ -1011,6 +1089,7 @@ function bindStaticEventListeners() {
         awayStartedAt = Date.now();
         // keepalive ให้ request ส่งออกไปได้แม้เบราว์เซอร์กำลังพักแท็บ/ปิดหน้า
         apiFetch(`/sessions/${activeSession.id}/away`, { method: "POST", keepalive: true }).catch(() => {});
+        flushPageTime(true);
       }
     } else {
       if (reading) {

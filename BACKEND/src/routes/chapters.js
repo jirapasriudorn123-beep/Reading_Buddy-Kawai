@@ -78,6 +78,15 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
       ).run(req.user.id, chapterId, plannedReadSeconds, plannedBreakSeconds, rules.minutesPerBlock, test.id);
     });
 
+    // อ่านต่อจากหน้าที่เปิดค้างไว้ครั้งก่อนของบทนี้ (ตัวแสดง PDF จะเปิดที่หน้านี้)
+    const last = await db
+      .prepare(
+        `SELECT last_page FROM reading_sessions
+         WHERE user_id = ? AND chapter_id = ? AND last_page IS NOT NULL AND id != ?
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(req.user.id, chapterId, result.lastInsertRowid);
+
     return res.status(201).json({
       message: "เริ่มจับเวลาอ่านแล้ว",
       session: {
@@ -86,6 +95,7 @@ router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
         chapterTitle: chapter.title,
         plannedReadSeconds,
         plannedBreakSeconds,
+        resumePage: last ? last.last_page : null,
       },
     });
   } catch (err) {

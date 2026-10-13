@@ -16,6 +16,71 @@ function secondsSince(sqliteDatetime) {
   return Math.max(0, Math.floor((Date.now() - new Date(sqliteDatetime + "Z").getTime()) / 1000));
 }
 
+// ================== เวลาที่เปิดแต่ละหน้าของ PDF (หลักฐานเสริม ไม่มีผลกับคอยน์) ==================
+const PAGE_VIEWED_MIN_SECONDS = 5; // เปิดหน้านั้นอย่างน้อยเท่านี้ ถึงนับว่า "เปิดอ่าน" (เลื่อนผ่านเร็วๆ ไม่นับ)
+const MAX_PDF_PAGES = 2000;
+
+// สรุปหน้าที่เปิดอ่านของรอบนี้ (โชว์ตอนจบรอบ + ใช้ในไฟล์ส่งออก)
+async function pageSummary(sessionId) {
+  const rows = await db
+    .prepare("SELECT page, seconds FROM reading_page_time WHERE session_id = ? ORDER BY page ASC")
+    .all(sessionId);
+  const viewed = rows.filter((r) => r.seconds >= PAGE_VIEWED_MIN_SECONDS);
+  const session = await db.prepare("SELECT pdf_total_pages FROM reading_sessions WHERE id = ?").get(sessionId);
+  return {
+    totalPages: session ? session.pdf_total_pages : null,
+    pagesViewed: viewed.length,
+    firstPage: viewed.length ? viewed[0].page : null,
+    lastPage: viewed.length ? viewed[viewed.length - 1].page : null,
+    trackedSeconds: rows.reduce((a, r) => a + r.seconds, 0),
+  };
+}
+
+// ---------- POST /api/sessions/:sessionId/pages ----------
+// หน้าเว็บส่งเวลาสะสมของแต่ละหน้าในรอบนี้มาเป็นระยะ — body: { totalPages, currentPage, pages: { "1": 30, "2": 45 } }
+// เก็บค่าที่มากที่สุดของแต่ละหน้า (ส่งซ้ำ/ส่งยอดเดิมไม่นับซ้ำ) และแต่ละหน้าไม่เกินเวลาที่ผ่านไปจริงตั้งแต่เริ่มรอบ
+router.post("/:sessionId/pages", requireAuth, async (req, res, next) => {
+  try {
+    const sessionId = Number(req.params.sessionId);
+    const session = await db
+      .prepare("SELECT user_id, status, started_at FROM reading_sessions WHERE id = ?")
+      .get(sessionId);
+    if (!session || session.user_id !== req.user.id) {
+      return res.status(404).json({ message: "ไม่พบเซสชันการอ่านนี้" });
+    }
+    if (session.status !== "in_progress") return res.json({ ok: false });
+
+    const totalPages = Number(req.body.totalPages);
+    const currentPage = Number(req.body.currentPage);
+    const pages = req.body.pages && typeof req.body.pages === "object" ? req.body.pages : {};
+    if (!Number.isInteger(totalPages) || totalPages < 1 || totalPages > MAX_PDF_PAGES) {
+      return res.status(400).json({ message: "จำนวนหน้าไม่ถูกต้อง" });
+    }
+    const maxSeconds = secondsSince(session.started_at) + 5;
+    const entries = Object.entries(pages)
+      .map(([page, seconds]) => [Number(page), Math.floor(Number(seconds))])
+      .filter(([page, seconds]) => Number.isInteger(page) && page >= 1 && page <= totalPages && seconds > 0)
+      .map(([page, seconds]) => [page, Math.min(seconds, maxSeconds)]);
+
+    await db.tx(async (t) => {
+      for (const [page, seconds] of entries) {
+        await t.prepare(
+          `INSERT INTO reading_page_time (session_id, page, seconds) VALUES (?, ?, ?)
+           ON CONFLICT(session_id, page) DO UPDATE SET seconds = MAX(seconds, excluded.seconds)`
+        ).run(sessionId, page, seconds);
+      }
+      await t.prepare("UPDATE reading_sessions SET pdf_total_pages = ?, last_page = ? WHERE id = ?").run(
+        totalPages,
+        Number.isInteger(currentPage) && currentPage >= 1 && currentPage <= totalPages ? currentPage : null,
+        sessionId
+      );
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- POST /api/sessions/:sessionId/complete ----------
 // จบรอบอ่าน (อ่านครบเวลาหรือกด "หยุด") — คิดเวลาที่อ่านจริงและคอยน์ของรอบนี้
 // คอยน์ยังไม่เข้า: ค้างไว้จนกว่าจะทำแบบทดสอบหลังอ่านของบทนี้ (ไม่ทำ post = ไม่ได้คอยน์)
@@ -118,6 +183,7 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       progress,
       petHappinessGained,
       streak,
+      pages: await pageSummary(sessionId),
     });
   } catch (err) {
     console.error("Complete reading session error:", err);

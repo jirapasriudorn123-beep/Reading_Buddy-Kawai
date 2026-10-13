@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261013">
+    <link rel="stylesheet" href="style.css?v=20261014">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/web/pdf_viewer.css">
 </head>
 <body>
 <div class="container">
@@ -152,7 +153,38 @@
     </div>
     <p class="reader-error" id="readerError" style="display:none;"></p>
 
-    <iframe id="readerPdfFrame" class="reader-pdf-frame" title="เนื้อหาบทเรียน"></iframe>
+    <!-- ตัวแสดง PDF (PDF.js): แถบเปลี่ยนหน้า/ซูม + หน้ากระดาษ — โหลดไลบรารีไม่ได้จะใช้ iframe ข้างล่างแทน -->
+    <div class="pdf-toolbar" id="pdfToolbar" style="display:none;">
+        <div class="pdf-toolbar-group">
+            <button type="button" id="pdfPrevBtn" class="pdf-tool-btn" aria-label="หน้าก่อนหน้า">‹</button>
+            <label class="pdf-page-label">หน้า
+                <input type="number" id="pdfPageInput" class="pdf-page-input" min="1" inputmode="numeric" aria-label="ไปที่หน้า">
+                / <span id="pdfPageCount">-</span>
+            </label>
+            <button type="button" id="pdfNextBtn" class="pdf-tool-btn" aria-label="หน้าถัดไป">›</button>
+        </div>
+        <div class="pdf-toolbar-group">
+            <button type="button" id="pdfZoomOutBtn" class="pdf-tool-btn" aria-label="ย่อ">−</button>
+            <select id="pdfZoomSelect" class="pdf-zoom-select" aria-label="ขนาดการแสดงผล">
+                <option value="page-width">พอดีความกว้าง</option>
+                <option value="page-fit">ทั้งหน้า</option>
+                <option value="0.75">75%</option>
+                <option value="1">100%</option>
+                <option value="1.25">125%</option>
+                <option value="1.5">150%</option>
+                <option value="2">200%</option>
+                <option value="custom" data-custom="1" hidden></option>
+            </select>
+            <button type="button" id="pdfZoomInBtn" class="pdf-tool-btn" aria-label="ขยาย">+</button>
+        </div>
+    </div>
+    <div id="readerPdfViewer" class="reader-pdf-frame reader-pdf-viewer" style="display:none;">
+        <div id="readerPdfContainer" class="reader-pdf-container">
+            <div id="readerPdfPages" class="pdfViewer"></div>
+        </div>
+    </div>
+
+    <iframe id="readerPdfFrame" class="reader-pdf-frame" title="เนื้อหาบทเรียน" style="display:none;"></iframe>
     <div id="readerPdfPlaceholder" class="reader-pdf-frame reader-pdf-placeholder" style="display:none;">
         ยังไม่มีไฟล์ PDF สำหรับบทนี้<br>กำลังเตรียมให้เร็วๆ นี้ 📄
     </div>
@@ -169,8 +201,11 @@
 </div>
 <script src="config.js"></script>
 <script src="notifications.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/web/pdf_viewer.js"></script>
+<script src="pdf-reader.js?v=20261014b"></script>
 <script src="reading-aids.js?v=20261014"></script>
-<script src="script.js?v=20261014"></script>
+<script src="script.js?v=20261014b"></script>
 <script src="theme.js"></script>
 <script src="chat.js"></script>
     <script src="cursor.js"></script>

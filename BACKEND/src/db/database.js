@@ -207,6 +207,9 @@ async function initDatabase() {
     // รอบนี้อ่านบทในแบบทดสอบรายบทชุดไหน (chapter_tests.id) | coins_pending = 1: คอยน์ของรอบนี้ยังไม่เข้า รอทำ post ของบท
     ["chapter_test_id", "ALTER TABLE reading_sessions ADD COLUMN chapter_test_id INTEGER"],
     ["coins_pending", "ALTER TABLE reading_sessions ADD COLUMN coins_pending INTEGER NOT NULL DEFAULT 0"],
+    // ตัวแสดง PDF (PDF.js): บทนี้มีกี่หน้า + หน้าที่เปิดอยู่ล่าสุด (เปิดบทครั้งหน้าจะไปต่อหน้านี้)
+    ["pdf_total_pages", "ALTER TABLE reading_sessions ADD COLUMN pdf_total_pages INTEGER"],
+    ["last_page", "ALTER TABLE reading_sessions ADD COLUMN last_page INTEGER"],
   ];
   for (const [col, sql] of sessionColumnMigrations) {
     if (!sessionColumns.includes(col)) await client.execute(sql);
@@ -217,6 +220,17 @@ async function initDatabase() {
     SET read_seconds = MIN(planned_read_seconds,
                            MAX(0, CAST(ROUND((julianday(ended_at) - julianday(started_at)) * 86400) AS INTEGER)))
     WHERE status = 'completed' AND read_seconds IS NULL AND ended_at IS NOT NULL
+  `);
+
+  // ---- ตาราง reading_page_time (หลักฐานเสริม: แต่ละรอบอ่านเปิดหน้าไหนของ PDF นานกี่วินาที) ----
+  // นับเฉพาะตอนจับเวลาอ่านอยู่และหน้าเว็บแสดงอยู่ | หน้าเว็บส่งยอดสะสมของรอบนั้นมา server เก็บค่าที่มากที่สุด (ส่งซ้ำไม่นับซ้ำ)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS reading_page_time (
+      session_id INTEGER NOT NULL REFERENCES reading_sessions(id) ON DELETE CASCADE,
+      page INTEGER NOT NULL,
+      seconds INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (session_id, page)
+    )
   `);
 
   // ---- ตาราง pets ----
