@@ -48,6 +48,10 @@ let countdownInterval = null;
 let remainingSeconds = 0;
 let onBreak = false; // true ระหว่างช่วงพักหลังอ่านจบ (session จบไปแล้ว รอนับเวลาพักอย่างเดียว)
 let breakCountdownInterval = null;
+let breakEndsAt = 0; // เวลาที่พักครบ (นับตามนาฬิกาจริง พักต่อแม้สลับแท็บ)
+// บทที่อ่านรอบล่าสุด + streak ล่าสุด (ใช้ตอนพักครบ: ปุ่ม "อ่านรอบต่อไป" และสรุปวันนี้)
+let lastRoundChapter = null;
+let lastRoundStreak = null;
 // 'reading' ระหว่างนับเวลาอ่าน | null = ไม่ได้อ่านอยู่ (แบบทดสอบก่อน/หลังอ่านแยกไปอยู่ในตัวแปร quiz)
 let sessionPhase = null;
 
@@ -331,6 +335,7 @@ async function startReadingRound(chapter) {
   openReaderView(chapter);
   updateBreakClockDisplay(activeSession.plannedBreakSeconds); // โชว์เวลาพักของรอบนี้ไว้ล่วงหน้า (นับถอยหลังหลังอ่านจบ)
   startCountdown(activeSession.plannedReadSeconds);
+  keepScreenOn(); // กันจอดับระหว่างอ่าน (จอดับ = ถูกนับเป็นเวลาที่ออกจากหน้าอ่าน)
 }
 
 // ปุ่ม "ทำแบบทดสอบหลังอ่าน" ในป๊อปอัพบท (อ่านครบเวลาขั้นต่ำของบทแล้ว)
@@ -556,6 +561,8 @@ function closeQuizPanel() {
 // สรุปหลังจบรอบอ่าน: คอยน์รอปลดล็อก + ความคืบหน้าของบท + ปุ่มไปทำแบบทดสอบหลังอ่าน (ถ้าอ่านครบเวลาของบทแล้ว)
 function showRoundSummary(result, chapter, enterBreakAfter) {
   const progress = result.progress || {};
+  lastRoundChapter = chapter || null;
+  lastRoundStreak = result.streak || null;
   const lines = [];
   if (result.capped && result.coinsEarned === 0) {
     lines.push(`วันนี้ได้คอยน์จากการอ่านครบ ${result.roundsCap} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖`);
@@ -829,37 +836,85 @@ function startBreakCountdown(totalSeconds) {
   btn.classList.remove("is-running");
   btn.classList.add("on-break");
 
-  remainingSeconds = totalSeconds;
-  updateBreakClockDisplay(remainingSeconds);
-  resumeBreakCountdown();
-}
-
-function resumeBreakCountdown() {
+  // ช่วงพักนับตามนาฬิกาจริง สลับแท็บก็นับต่อ (ช่วงพักไม่เกี่ยวกับคอยน์) แล้วแจ้งเตือนตอนพักครบ
+  breakEndsAt = Date.now() + totalSeconds * 1000;
+  askNotificationPermission(); // เรียกจากการกดปุ่มของผู้ใช้ (เบราว์เซอร์ให้ขอสิทธิ์ได้เฉพาะตอนนี้)
+  startBreakMusic();
+  keepScreenOn();
+  tickBreak();
   clearInterval(breakCountdownInterval);
-  breakCountdownInterval = setInterval(() => {
-    remainingSeconds -= 1;
-    updateBreakClockDisplay(Math.max(0, remainingSeconds));
-    // ไม่เล่นเสียงเตือนตอนพักใกล้หมด (เฉพาะเวลาอ่านใกล้หมดเท่านั้น — user ตั้งใจให้เตือนแค่ตอนอ่าน)
-
-    if (remainingSeconds <= 0) {
-      finishBreak(true);
-    }
-  }, 1000);
+  breakCountdownInterval = setInterval(tickBreak, 1000);
 }
 
-function pauseBreakCountdown() {
-  clearInterval(breakCountdownInterval);
+function tickBreak() {
+  if (!onBreak) return;
+  const left = Math.max(0, Math.ceil((breakEndsAt - Date.now()) / 1000));
+  updateBreakClockDisplay(left);
+  fadeBreakMusic(left);
+  if (left <= 0) finishBreak(true);
 }
 
+// พักครบ (completedNaturally) หรือกด "ข้ามพัก" → ปิดเพลง แล้วถามว่าจะอ่านรอบต่อไปไหม
 function finishBreak(completedNaturally) {
   clearInterval(breakCountdownInterval);
   onBreak = false;
+  stopBreakMusic();
 
   if (completedNaturally) {
-    alert("พักครบเวลาแล้ว พร้อมกลับไปอ่านบทต่อไปได้เลย! 💪");
+    playBreakEndChime();
+    if (document.hidden) {
+      notifyBreakOver(); // กดที่แจ้งเตือนแล้วกลับมาหน้านี้
+      startTitleBlink("⏰ พักครบแล้ว!");
+    }
+  }
+  showBreakOverPanel(completedNaturally);
+}
+
+// ป๊อปอัพหลังพัก: สรุปวันนี้ + ปุ่มอ่านรอบต่อไป (บทเดิม รอบเวลาเดิม) / พอแค่นี้
+function showBreakOverPanel(completedNaturally) {
+  const chapter = lastRoundChapter && chaptersData.find((c) => c.id === lastRoundChapter.id);
+  const progress = chapter && chapter.progress;
+  const lines = [];
+  if (readingRules.roundsCap) {
+    lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${readingRules.roundsUsed}/${readingRules.roundsCap} รอบ`);
+  }
+  if (lastRoundStreak && lastRoundStreak.readToday) lines.push(`🔥 อ่านติดกัน ${lastRoundStreak.current} วัน`);
+  if (progress && progress.status === "reading") {
+    lines.push(`บทนี้อ่านแล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)}`);
+    if (progress.canPostTest) lines.push("📝 อ่านครบเวลาของบทนี้แล้ว ทำแบบทดสอบหลังอ่านได้ที่หน้าเลือกบท");
   }
 
-  resetReaderTimerState();
+  openQuizPanel({
+    kicker: completedNaturally ? "พักครบแล้ว" : "ข้ามพัก",
+    title: "พร้อมอ่านรอบต่อไปไหม? 📖",
+    hint: "",
+  });
+  document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
+    .map((l) => `<p>${escapeHtml(l)}</p>`)
+    .join("")}</div>`;
+
+  const done = () => {
+    closeQuizPanel();
+    resetReaderTimerState();
+  };
+  const canContinue = chapter && progress && progress.status !== "post_test" && progress.status !== "pre_test";
+  setQuizButtons(
+    canContinue
+      ? {
+          label: "📖 อ่านรอบต่อไป",
+          onClick: async () => {
+            closeQuizPanel();
+            try {
+              await startReadingRound(chapter);
+            } catch (err) {
+              alert(err.message);
+              resetReaderTimerState();
+            }
+          },
+        }
+      : { label: "ตกลง", onClick: done },
+    canContinue ? { label: "พอแค่นี้", onClick: done } : null
+  );
 }
 
 // เคลียร์ session + ปิดหน้าจออ่าน PDF กลับไปหน้า Dashboard ปกติ (เรียกตอนอ่านจบไม่มีพัก, ตอนพักครบ/ข้ามพัก, และตอนหยุดก่อนเวลา)
@@ -877,6 +932,9 @@ function resetReaderTimerState() {
   sessionPhase = null;
   remainingSeconds = 0;
   onBreak = false;
+  stopBreakMusic();
+  allowScreenOff();
+  stopTitleBlink();
 
   closeReaderView();
   document.getElementById("readerPdfFrame").src = "";
@@ -912,6 +970,8 @@ function bindStaticEventListeners() {
 
   document.getElementById("postTestBtn").addEventListener("click", startPostTestFromModal);
   document.getElementById("readerStartStopBtn").addEventListener("click", stopReading);
+  document.getElementById("breakMusicBtn").addEventListener("click", toggleBreakMusic);
+  registerReadingServiceWorker();
   document.addEventListener("visibilitychange", onTestVisibilityChange);
 
   document.getElementById("logoutBtn").addEventListener("click", (e) => {
@@ -939,7 +999,7 @@ function bindStaticEventListeners() {
     }
   });
 
-  // สลับแท็บ/ย่อหน้าต่างระหว่างจับเวลา: หยุดนับถอยหลังไว้ก่อน แล้วนับต่อจากเดิมตอนกลับมาที่แท็บนี้
+  // สลับแท็บ/ย่อหน้าต่างระหว่างอ่าน: หยุดนับถอยหลังไว้ก่อน แล้วนับต่อจากเดิมตอนกลับมาที่แท็บนี้ (ช่วงพักนับต่อ)
   // ระหว่างอ่าน แจ้ง server ด้วย เพื่อไม่ให้ช่วงที่ออกไปถูกนับเป็นเวลาอ่านตอนคิดเหรียญ
   let awayStartedAt = null;
   document.addEventListener("visibilitychange", () => {
@@ -952,7 +1012,6 @@ function bindStaticEventListeners() {
         // keepalive ให้ request ส่งออกไปได้แม้เบราว์เซอร์กำลังพักแท็บ/ปิดหน้า
         apiFetch(`/sessions/${activeSession.id}/away`, { method: "POST", keepalive: true }).catch(() => {});
       }
-      if (onBreak) pauseBreakCountdown();
     } else {
       if (reading) {
         const awaySeconds = awayStartedAt ? Math.round((Date.now() - awayStartedAt) / 1000) : 0;
@@ -963,7 +1022,7 @@ function bindStaticEventListeners() {
         }
         resumeCountdown();
       }
-      if (onBreak) resumeBreakCountdown();
+      if (onBreak) tickBreak(); // พักนับต่อตอนอยู่แท็บอื่น — กลับมาแล้วอัปเดตนาฬิกาทันที
     }
   });
 }
