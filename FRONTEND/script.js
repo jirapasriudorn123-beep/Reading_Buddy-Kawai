@@ -42,7 +42,7 @@ async function apiFetch(path, options = {}) {
 let currentGoal = { goal_minutes: 0, goal_seconds: 0 };
 let chaptersData = []; // บทเรียน + สถานะการอ่าน/แบบทดสอบของผู้ใช้ (progress) จาก /chapters
 let selectedChapter = null; // chapter ที่กำลังเปิด modal เลือกรอบอ่านอยู่
-let selectedPresetId = null; // รอบ Pomodoro ที่เลือก ("25" = อ่าน 25 พัก 5, "50" = อ่าน 50 พัก 10)
+let selectedPresetId = null; // รอบ Pomodoro ที่ใช้ ("25" = อ่าน 25 พัก 5 — มีแบบเดียว ถ้าเพิ่มแบบอื่นใน readingRules จะขึ้นให้เลือก)
 let activeSession = null; // { id, chapterId, plannedReadSeconds, plannedBreakSeconds }
 let countdownInterval = null;
 let remainingSeconds = 0;
@@ -224,6 +224,15 @@ function chapterStatusLines(progress) {
 
 function renderPresetButtons() {
   const group = document.getElementById("presetGroup");
+  const label = document.getElementById("presetLabel");
+  // มีรอบเวลาแบบเดียว: โชว์เป็นข้อความ ไม่ต้องให้เลือก
+  if (readingRules.presets.length === 1) {
+    const p = readingRules.presets[0];
+    label.textContent = `รอบอ่านแบบ Pomodoro: อ่าน ${p.readMinutes} นาที · พัก ${p.breakMinutes} นาที`;
+    group.innerHTML = "";
+    return;
+  }
+  label.textContent = "เลือกรอบอ่านแบบ Pomodoro";
   group.innerHTML = readingRules.presets
     .map(
       (p) => `
@@ -272,7 +281,7 @@ function openChapterTimeModal(chapter) {
     const full = readingRules.roundsUsed >= readingRules.roundsCap;
     roundsNote.textContent = full
       ? `วันนี้ได้คอยน์จากการอ่านครบ ${readingRules.roundsCap}/${readingRules.roundsCap} รอบแล้ว อ่านต่อได้ แต่รอบต่อไปจะไม่ได้คอยน์ (พรุ่งนี้ได้ใหม่)`
-      : `วันนี้ได้คอยน์จากการอ่านแล้ว ${readingRules.roundsUsed}/${readingRules.roundsCap} รอบ (รอบ 50 นาทีนับเป็น 2 รอบ)`;
+      : `วันนี้ได้คอยน์จากการอ่านแล้ว ${readingRules.roundsUsed}/${readingRules.roundsCap} รอบ`;
     roundsNote.style.display = "";
   } else {
     roundsNote.style.display = "none";
@@ -281,6 +290,7 @@ function openChapterTimeModal(chapter) {
   const busyWithPost = progress && progress.status === "post_test";
   document.getElementById("startReadingBtn").disabled = busyWithPost;
   document.getElementById("presetGroup").style.display = busyWithPost ? "none" : "";
+  document.getElementById("presetLabel").style.display = busyWithPost ? "none" : "";
   const postBtn = document.getElementById("postTestBtn");
   postBtn.style.display = progress && progress.canPostTest ? "" : "none";
   postBtn.textContent = busyWithPost ? "📝 ทำแบบทดสอบหลังอ่านต่อ" : "📝 ทำแบบทดสอบหลังอ่าน";

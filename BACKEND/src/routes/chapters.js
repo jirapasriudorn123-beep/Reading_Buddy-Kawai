@@ -37,7 +37,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 });
 
 // ---------- POST /api/chapters/:chapterId/sessions ----------
-// เริ่มอ่าน 1 รอบ Pomodoro — body: { presetId } ("25" = อ่าน 25 พัก 5, "50" = อ่าน 50 พัก 10)
+// เริ่มอ่าน 1 รอบ Pomodoro — body: { presetId } ("25" = อ่าน 25 พัก 5 | โหมดสาธิต "demo1" = อ่าน 1 พัก 1)
 // บทที่ยังไม่ได้ทำแบบทดสอบก่อนอ่าน ตอบ 409 PRE_TEST_REQUIRED ให้หน้าเว็บพาไปทำก่อน
 router.post("/:chapterId/sessions", requireAuth, async (req, res) => {
   try {
