@@ -294,3 +294,136 @@ html.dark-mode body .pet-streak[data-mood="very_lonely"] {
   background: #252d3a;
   color: #c3d0e6;
 }
+
+/* ================== ฉลองเลเวลอัพ + โบนัสถาม AI ================== */
+.levelup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: radial-gradient(circle at 50% 40%, rgba(255, 236, 170, 0.35), rgba(20, 24, 30, 0.72) 70%);
+    animation: levelup-fade 0.25s ease-out;
+}
+.levelup-overlay.closing { animation: levelup-fade 0.25s ease-in reverse forwards; }
+.levelup-fireworks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.levelup-card {
+    position: relative;
+    width: min(380px, 100%);
+    padding: 34px 22px 22px;
+    border-radius: 26px;
+    background: #fffaf0;
+    border: 4px solid #97bc62;
+    box-shadow: 0 10px 0 #6f9440, 0 24px 60px rgba(0, 0, 0, 0.35);
+    text-align: center;
+    font-family: "Kanit", sans-serif;
+    color: #3b3b3b;
+    animation: levelup-pop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.levelup-ribbon {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-3deg);
+    padding: 6px 22px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff8fab, #ffd166);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    animation: levelup-wiggle 1.6s ease-in-out infinite;
+}
+.levelup-dog-wrap {
+    position: relative;
+    width: 170px;
+    height: 170px;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.levelup-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #ffd16655, #ff8fab55, #97bc6255, #7bdff255, #ffd16655);
+    filter: blur(6px);
+    animation: levelup-spin 6s linear infinite;
+}
+.levelup-dog {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    image-rendering: auto;
+    animation: levelup-bounce 0.9s ease-in-out infinite;
+}
+.levelup-dog-emoji { font-size: 96px; line-height: 150px; }
+.levelup-title {
+    margin: 4px 0 14px;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.levelup-title span { color: #e07a00; font-size: 26px; }
+.levelup-bonus {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+    background: linear-gradient(110deg, #eef7e3 30%, #ffffff 50%, #eef7e3 70%);
+    background-size: 250% 100%;
+    border: 2px dashed #97bc62;
+    text-align: left;
+    animation: levelup-shimmer 2.4s linear infinite;
+}
+.levelup-bonus-icon { font-size: 34px; animation: levelup-bounce 1.2s ease-in-out infinite; }
+.levelup-bonus strong { display: block; font-size: 18px; color: #4f7a24; }
+.levelup-bonus small { display: block; font-size: 13px; opacity: 0.75; }
+.levelup-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.levelup-btn {
+    flex: 1 1 140px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 14px;
+    background: #97bc62;
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #6f9440;
+    transition: transform 0.1s;
+}
+.levelup-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #6f9440; }
+.levelup-btn-ghost { background: #fff; color: #4f7a24; border: 2px solid #97bc62; box-shadow: 0 4px 0 #cfe0b8; }
+
+@keyframes levelup-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes levelup-pop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes levelup-wiggle { 0%, 100% { transform: translateX(-50%) rotate(-3deg); } 50% { transform: translateX(-50%) rotate(3deg) scale(1.05); } }
+@keyframes levelup-spin { to { transform: rotate(360deg); } }
+@keyframes levelup-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes levelup-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .levelup-overlay, .levelup-card, .levelup-ribbon, .levelup-glow, .levelup-dog, .levelup-bonus, .levelup-bonus-icon { animation: none; }
+}
+
+html.dark-mode body .levelup-card { background: #23282d; color: #eee; border-color: #6f9440; }
+html.dark-mode body .levelup-bonus { background: linear-gradient(110deg, #2c3a22 30%, #3a4a2d 50%, #2c3a22 70%); background-size: 250% 100%; }
+html.dark-mode body .levelup-bonus strong { color: #b8dc8a; }
+html.dark-mode body .levelup-btn-ghost { background: transparent; color: #b8dc8a; }

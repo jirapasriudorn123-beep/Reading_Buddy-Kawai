@@ -703,7 +703,7 @@ async function useItem(productId) {
 
     if (result.leveledUp) {
       showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่ากิจกรรมปกติ เลยแสดงแทน
-      alert(result.message);
+      showLevelUpCelebration(result);
     } else {
       showPetPose(bagKey, 3000); // โชว์ท่ากิจกรรมชั่วคราว 3 วิ ถ้ามีไฟล์ท่านั้น (ไม่มีก็เงียบๆ ไม่ทำอะไร)
     }
@@ -761,7 +761,7 @@ function setupPetting() {
 
       if (result.leveledUp) {
         showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่า happiness ปกติ เลยแสดงแทน
-        alert(result.message);
+        showLevelUpCelebration(result);
       } else {
         showPetPose("happiness", 3000);
       }
@@ -774,6 +774,135 @@ function setupPetting() {
   character.addEventListener("pointerup", stopPetting);
   character.addEventListener("pointerleave", stopPetting);
   character.addEventListener("pointercancel", stopPetting);
+}
+
+// ================== ฉลองเลเวลอัพ + โบนัสถาม AI (ป้ายใหญ่ + พลุ + ท่าดีใจของน้องหมาเรา) ==================
+
+function showLevelUpCelebration(result) {
+  document.querySelector(".levelup-overlay")?.remove();
+  const pet = result.pet || currentPet;
+  const frames = getPoseFrames(pet.breed, "levelUp") || getPoseFrames(pet.breed, "happiness") || getPoseFrames(pet.breed, "idle");
+  const dogHtml = frames
+    ? `<img class="levelup-dog" src="${frames[0]}" alt="">`
+    : `<div class="levelup-dog levelup-dog-emoji">${BREED_EMOJI[pet.breed] || "🐶"}</div>`;
+  const bonus = result.aiBonusGained || 0;
+
+  const overlay = document.createElement("div");
+  overlay.className = "levelup-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "levelupTitle");
+  overlay.innerHTML = `
+    <canvas class="levelup-fireworks" aria-hidden="true"></canvas>
+    <div class="levelup-card">
+      <div class="levelup-ribbon">LEVEL UP!</div>
+      <div class="levelup-dog-wrap">
+        <div class="levelup-glow" aria-hidden="true"></div>
+        ${dogHtml}
+      </div>
+      <h2 class="levelup-title" id="levelupTitle">${escapeHtml(pet.name)}เลเวลอัพเป็นเลเวล <span>${pet.level}</span> แล้ว!</h2>
+      ${bonus > 0 ? `
+      <div class="levelup-bonus">
+        <span class="levelup-bonus-icon" aria-hidden="true">🤖</span>
+        <span><strong>ได้สิทธิ์ถาม AI ฟรี +${bonus} ข้อ</strong><small>ถามน้องหมาผู้ช่วยได้เลย ใช้ได้หลังโควต้ารายวันหมด</small></span>
+      </div>` : ""}
+      <div class="levelup-actions">
+        ${bonus > 0 ? `<button type="button" class="levelup-btn levelup-btn-ghost" data-act="chat">ไปถาม AI</button>` : ""}
+        <button type="button" class="levelup-btn" data-act="close">เย้! เยี่ยมเลย 🐾</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const stopFireworks = launchFireworks(overlay.querySelector(".levelup-fireworks"));
+  const close = () => {
+    stopFireworks();
+    overlay.classList.add("closing");
+    setTimeout(() => overlay.remove(), 250);
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  overlay.addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "chat") {
+      close();
+      document.getElementById("chatBubbleBtn")?.click();
+    } else if (act === "close" || e.target === overlay) {
+      close();
+    }
+  });
+  overlay.querySelector('[data-act="close"]').focus();
+}
+
+// พลุ: ยิงเป็นชุดๆ ราว 3 วินาทีแรก แล้วปล่อยให้ประกายจางหายเอง | ผู้ใช้ที่ตั้งลดการเคลื่อนไหวไว้ ไม่ยิงพลุ
+function launchFireworks(canvas) {
+  if (!canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return () => {};
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const resize = () => {
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  resize();
+  window.addEventListener("resize", resize);
+
+  const COLORS = ["#ffd166", "#ff8fab", "#97bc62", "#7bdff2", "#ffffff", "#f4a261", "#cdb4db"];
+  const particles = [];
+  const burst = (x, y) => {
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const count = 46;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.2;
+      const speed = 2.2 + Math.random() * 3.2;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.011 + Math.random() * 0.01,
+        size: 2 + Math.random() * 2.5,
+        color: Math.random() < 0.25 ? "#ffffff" : color,
+      });
+    }
+  };
+
+  const started = performance.now();
+  let nextBurst = 0;
+  let raf = 0;
+  const frame = (now) => {
+    const t = now - started;
+    if (t < 3200 && t >= nextBurst) {
+      burst(innerWidth * (0.15 + Math.random() * 0.7), innerHeight * (0.12 + Math.random() * 0.4));
+      nextBurst = t + 260 + Math.random() * 260;
+    }
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vx *= 0.985;
+      p.vy = p.vy * 0.985 + 0.05;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= p.decay;
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.6 + p.life * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (t < 3200 || particles.length) raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+
+  return () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener("resize", resize);
+  };
 }
 
 function petAction(type) {
