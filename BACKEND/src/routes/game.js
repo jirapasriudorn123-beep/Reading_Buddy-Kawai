@@ -181,7 +181,8 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
 });
 
 // ---------- POST /api/game/battle/:battleId/answer ----------
-// ตอบข้อปัจจุบันของการต่อสู้ (server รู้เองว่าข้อไหน) — ชนะเมื่อตอบถูกครบ, แพ้เมื่อผิดครบ 3 ข้อหรือหมดเวลา
+// ตอบข้อปัจจุบันของการต่อสู้ (server รู้เองว่าข้อไหน) — ชนะเมื่อตอบถูกครบก่อนผิดครบ 3 ข้อ
+// ผิดครบ 3 ข้อ (หัวใจหมด) = แพ้ แต่ยังตอบต่อได้จนทุกข้อของรอบนี้ถูกถามครบ เพื่อทบทวน (ไม่ได้ดาว/คอยน์) | หมดเวลา = แพ้
 router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
   try {
     const battleId = Number(req.params.battleId);
@@ -221,9 +222,10 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
     const correctCount = battle.correct_count + (correct ? 1 : 0);
     const wrongCount = battle.wrong_count + (correct ? 0 : 1);
     const totalAnswered = correctCount + wrongCount;
+    const outOfHearts = wrongCount >= BATTLE_MAX_WRONG;
     let status = "in_progress";
-    if (correctCount >= battle.required_correct) status = "won";
-    else if (wrongCount >= BATTLE_MAX_WRONG) status = "lost";
+    if (!outOfHearts && correctCount >= battle.required_correct) status = "won";
+    else if (outOfHearts && totalAnswered >= questionIds.length) status = "lost";
 
     const scorePercent = Math.round((correctCount / totalAnswered) * 100);
     const stars = starsFor(status, wrongCount);
@@ -297,6 +299,8 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
       stars,
       correctCount,
       totalAnswered,
+      outOfHearts,
+      questionsLeft: status === "in_progress" && outOfHearts ? questionIds.length - totalAnswered : null,
       coinsEarned: outcome.coinsAwarded,
       alreadyRewarded: outcome.alreadyRewarded,
     };

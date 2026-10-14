@@ -836,20 +836,39 @@ async function answerQuiz(picked, wrap) {
     flashHit("battleEnemy");
   } else {
     buttons[picked].classList.add("wrong");
-    playerHearts -= 1;
+    playerHearts = Math.max(0, playerHearts - 1);
     renderHearts();
     flashHit("battleDog");
   }
+  // หัวใจหมด = รอบนี้แพ้แล้ว (ไม่ได้ดาว/คอยน์) แต่ตอบต่อจนครบทุกข้อเพื่อทบทวน
+  setReviewModeNote(result);
 
   // แพ้/ชนะ ยึดตามที่ server ตัดสิน (server เป็นคนให้เหรียญโบนัส)
   if (result.status !== "in_progress") battleReward = result;
 
   setTimeout(() => {
     if (result.status === "won") return endBattle(true, "ตัวร้ายพ่ายแพ้แล้ว!");
-    if (result.status === "lost") return endBattle(false, "หัวใจหมดแล้ว ลองใหม่อีกครั้งนะ");
+    if (result.status === "lost") return endBattle(false, "ตอบครบทุกข้อแล้ว 👏 แต่ผิดเกิน 2 ข้อ รอบนี้เลยไม่ผ่าน ลองใหม่อีกครั้งนะ");
     battleQuizIndex += 1;
     renderQuizQuestion();
   }, 900);
+}
+
+function setReviewModeNote(result) {
+  let note = document.getElementById("battleReviewNote");
+  if (!result || !result.outOfHearts || result.status !== "in_progress") {
+    if (note) note.hidden = true;
+    return;
+  }
+  if (!note) {
+    note = document.createElement("div");
+    note.id = "battleReviewNote";
+    note.className = "battle-review-note";
+    note.setAttribute("role", "status");
+    document.querySelector(".battle-hud").appendChild(note);
+  }
+  note.textContent = `💔 หัวใจหมดแล้ว รอบนี้ไม่ได้คอยน์ · ตอบต่ออีก ${result.questionsLeft} ข้อให้ครบเพื่อทบทวนนะ 💪`;
+  note.hidden = false;
 }
 
 // ตัวแดงแล้วเด้ง (ใช้ทั้งตอนตัวร้ายโดนตีและตอนน้องหมาตอบผิด)
@@ -901,6 +920,7 @@ function renderResultStars(stars) {
 function endBattle(won, message) {
   clearInterval(battleTimerId);
   battleActive = false;
+  setReviewModeNote(null);
 
   const box = document.getElementById("battleResult");
   document.getElementById("battleResultTitle").textContent = won ? "ผ่านด่าน!" : "แพ้แล้ว";

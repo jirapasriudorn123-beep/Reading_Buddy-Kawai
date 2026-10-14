@@ -1127,3 +1127,24 @@ html, body {
 .map-stage-info.kind-dog { background: #e0892f; }
 .map-stage-info .map-stage-no { opacity: 0.85; margin-right: 4px; }
 .map-stage-info[hidden] { display: none; }
+
+/* ---------- หัวใจหมด: ตอบต่อจนครบเพื่อทบทวน (ไม่ได้ดาว/คอยน์) ---------- */
+.battle-review-note {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 92vw;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff4c2;
+  border: 2px solid #e0a800;
+  color: #5a4300;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  z-index: 30;
+}
+.battle-review-note[hidden] { display: none; }
