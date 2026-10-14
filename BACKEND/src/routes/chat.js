@@ -61,6 +61,27 @@ const BASIC_RULES = [
   },
 ];
 
+// ---- ถามจำนวนเหรียญของตัวเอง → ตอบจากฐานข้อมูลจริง (ไม่ต้องให้ AI เดา และไม่เปลืองโควต้า) ----
+const COIN_WORDS = /เหรียญ|คอยน์|coin/i;
+const AMOUNT_WORDS = /กี่|เท่าไร|เท่าไหร่|เหลือ|ตอนนี้มี|how many|balance/i;
+
+async function coinBalanceReply(message, context, userId) {
+  if (!COIN_WORDS.test(message) || !AMOUNT_WORDS.test(message)) return null;
+  const pending = await db
+    .prepare(
+      `SELECT COALESCE(SUM(coins_earned), 0) AS coins FROM reading_sessions
+       WHERE user_id = ? AND status = 'completed' AND coins_pending = 1`
+    )
+    .get(userId);
+  const pendingText = pending.coins > 0
+    ? `
+มีอีก ${pending.coins} เหรียญจากเวลาอ่านที่รอปลดล็อก ทำแบบทดสอบหลังอ่านบทนั้นแล้วจะได้เลย (ตอบถูกได้โบนัสเพิ่มด้วย)`
+    : "";
+  return `ตอนนี้คุณมี ${context.user.coins} เหรียญครับ 🪙${pendingText}
+
+ใช้ซื้อของให้น้องหมาหรือแลกคูปองได้ที่หน้าร้านค้านะครับ 🐾`;
+}
+
 // ถามถึงบทเรียนด้วยเลขบท เช่น "บทที่ 3" / "chapter 5"
 function matchChapterNumber(message, chapters) {
   const hasChapterWord = /บท|chapter|ch\./i.test(message);
@@ -135,6 +156,10 @@ async function buildReply(message, context, userId) {
   // 1) กฎทักทาย/ขอบคุณ (ตอบสั้นๆ ไม่ต้องเปลือง Gemini)
   const basicRule = BASIC_RULES.find((r) => r.keywords.some((k) => lower.includes(k.toLowerCase())));
   if (basicRule) return { reply: basicRule.reply(context), source: "rule" };
+
+  // 1.5) ถามจำนวนเหรียญของตัวเอง → ตอบจากข้อมูลจริง
+  const coinReply = await coinBalanceReply(message, context, userId);
+  if (coinReply) return { reply: coinReply, source: "rule" };
 
   // 2) คำตอบที่แอดมินกรอกไว้ (ตอบก่อน Gemini เพราะเป็นเนื้อหาที่คนคุมเนื้อหาตั้งใจใส่มา)
   const authored = await findChatAnswer(
