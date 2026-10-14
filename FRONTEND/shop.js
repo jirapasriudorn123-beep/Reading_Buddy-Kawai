@@ -75,6 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("โหลดข้อมูลร้านค้าไม่สำเร็จ:", err);
   }
+  startPageTour("shop"); // คำแนะนำการใช้งาน (ครั้งแรกที่เข้าหน้านี้)
 });
 
 // ================== เหรียญผู้ใช้ ==================

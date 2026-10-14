@@ -4124,3 +4124,168 @@ html.dark-mode body .weekly-summary-tip {
 html.dark-mode body .weekly-summary-note {
     color: #aaa;
 }
+
+/* ================== คำแนะนำการใช้งานแบบชี้ปุ่ม (tour.js) ================== */
+/* อยู่เหนือทุกอย่างในหน้า รวมถึงปุ่มแชทบอทและป๊อปอัพ */
+.tour-dim {
+    position: fixed;
+    z-index: 2147483000;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.tour-spot {
+    position: fixed;
+    z-index: 2147483000;
+    border-radius: 14px;
+    outline: 3px solid #f8b133;
+    outline-offset: 2px;
+    pointer-events: none;
+}
+
+.tour-tip {
+    position: fixed;
+    z-index: 2147483001;
+    width: min(340px, calc(100vw - 32px));
+    box-sizing: border-box;
+    padding: 16px 18px 14px;
+    background: #fdfaf0;
+    border: 2px solid #000;
+    border-radius: 16px;
+    box-shadow: 4px 4px 0 #000;
+    font-family: 'Kanit', sans-serif;
+    color: #222;
+    text-align: left;
+}
+
+.tour-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    color: #3f6b1c;
+    text-align: left;
+}
+
+.tour-text {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.tour-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tour-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.tour-count {
+    font-size: 12px;
+    color: #777;
+}
+
+.tour-skip {
+    background: none;
+    border: none;
+    padding: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    color: #777;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.tour-next {
+    padding: 7px 18px;
+    background: #8db755;
+    border: 1px solid #000;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    cursor: pointer;
+}
+
+.tour-arrow {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #fdfaf0;
+    border: 2px solid #000;
+    transform: rotate(45deg);
+}
+
+.tour-tip.below .tour-arrow {
+    top: -10px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.tour-tip.above .tour-arrow {
+    bottom: -10px;
+    border-left: none;
+    border-top: none;
+}
+
+/* วางเหนือปุ่มแชทบอท (มุมขวาล่าง 60px) ไม่ทับเมนูด้านซ้าย */
+.tour-help-btn {
+    position: fixed;
+    right: 34px;
+    bottom: 96px;
+    z-index: 100000;
+    width: 40px;
+    height: 40px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    background: #fce883;
+    box-shadow: 2px 2px 0 #000;
+    font-family: 'Kanit', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #000;
+    cursor: pointer;
+}
+
+.tour-help-btn:hover {
+    background: #f5d84f;
+}
+
+@media (max-width: 600px) {
+    .tour-tip {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        width: auto;
+    }
+
+    .tour-tip.sheet-top {
+        top: 16px;
+        bottom: auto;
+    }
+
+    .tour-tip .tour-arrow {
+        display: none;
+    }
+}
+
+html.dark-mode body .tour-tip,
+html.dark-mode body .tour-arrow {
+    background: #1f2328;
+    border-color: #888;
+    color: #e8e8e8;
+}
+
+html.dark-mode body .tour-title {
+    color: #a6d27a;
+}
+
+html.dark-mode body .tour-count,
+html.dark-mode body .tour-skip {
+    color: #aaa;
+}

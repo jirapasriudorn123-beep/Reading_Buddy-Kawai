@@ -74,6 +74,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   bindStaticEventListeners();
+  // คำแนะนำการใช้งาน (ครั้งแรกที่เข้าหน้านี้) — รอปุ่มแชทบอท (chat.js) สร้างเสร็จก่อน
+  // ปุ่ม ? ระหว่างเปิดหน้าอ่านอยู่ ให้เปิดคำแนะนำของหน้าอ่าน
+  setTourKeyResolver(() => (document.getElementById("readerView").style.display === "none" ? "home" : "reader"));
+  setTimeout(() => startPageTour("home"), 300);
 });
 
 // ================== ผู้ใช้ + เหรียญ ==================
@@ -342,7 +346,8 @@ async function startReadingRound(chapter) {
   };
   document.getElementById("chapterModal").style.display = "none";
   sessionPhase = "reading";
-  openReaderView(chapter, result.session.resumePage);
+  // คำแนะนำหน้าอ่าน (ครั้งแรกที่อ่าน) — รอตัวแสดง PDF โหลดเสร็จ แถบเปลี่ยนหน้า/ซูมจะได้ขึ้นแล้ว
+  openReaderView(chapter, result.session.resumePage).then(() => startPageTour("reader"));
   startPageTracking();
   updateBreakClockDisplay(activeSession.plannedBreakSeconds); // โชว์เวลาพักของรอบนี้ไว้ล่วงหน้า (นับถอยหลังหลังอ่านจบ)
   startCountdown(activeSession.plannedReadSeconds);
@@ -359,11 +364,12 @@ function startPostTestFromModal() {
 
 // ---- ขั้น 2: หน้าจออ่าน PDF พร้อมนาฬิกานับถอยหลัง (แทนที่การ์ด chapter ในหน้าเดิม เปิดหลังกด "เริ่มจับเวลา" แล้วเท่านั้น) ----
 
+// คืน promise ที่เสร็จเมื่อโหลด PDF เสร็จ
 function openReaderView(chapter, resumePage) {
   window.currentReadingChapterTitle = `CHAPTER ${chapter.chapter_number}: ${chapter.title}`;
   window.currentReadingChapterId = chapter.id;
 
-  loadReaderPdf(chapter, resumePage);
+  const pdfReady = loadReaderPdf(chapter, resumePage);
   document.getElementById("readerError").style.display = "none";
 
   onBreak = false;
@@ -375,6 +381,7 @@ function openReaderView(chapter, resumePage) {
   document.querySelector(".main-title").style.display = "none";
   document.getElementById("chapterScrollWrapper").style.display = "none";
   document.getElementById("readerView").style.display = "flex";
+  return pdfReady;
 }
 
 function closeReaderView() {

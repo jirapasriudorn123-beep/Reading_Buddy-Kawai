@@ -69,6 +69,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       renderPetPage(pet);
       setupPetting();
+      // คำแนะนำการใช้งาน (ครั้งแรกที่เข้าหน้านี้) — รอรูปน้องหมาโหลดก่อน ตำแหน่งจะได้ไม่ขยับ
+      setTimeout(() => startPageTour("pet"), 600);
       // ข้อมูลวิจัย: นับการเข้ามาหาน้องหมา (server นับไม่เกิน 1 ครั้งต่อ 30 นาที) ไม่สำเร็จก็ไม่เป็นไร
       apiFetch("/pet/visit", { method: "POST" }).catch(() => {});
       await loadInventory(); // ของในกระเป๋ามาจากที่ซื้อไว้จริงในร้าน

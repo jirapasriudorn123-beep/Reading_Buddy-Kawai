@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("โหลดข้อมูล Dashboard ไม่สำเร็จ:", err);
   }
+  startPageTour("dashboard"); // คำแนะนำการใช้งาน (ครั้งแรกที่เข้าหน้านี้)
 });
 
 // ================== ผู้ใช้ + เหรียญ ==================
