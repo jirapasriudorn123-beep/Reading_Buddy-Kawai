@@ -1061,3 +1061,23 @@ html, body {
   font-size: clamp(9px, 1.2vw, 14px);
   font-weight: 700;
 }
+
+/* ---------- ทบทวนแบบเว้นระยะ: ป้ายจำนวนข้อที่ถึงรอบทบทวนบนการ์ดโลก ---------- */
+/* วางใต้เกาะของโลกนั้น (การ์ดสูงเต็มแถบ เกาะอยู่ช่วงกลาง) */
+.world-card .review-due-badge {
+  position: absolute;
+  top: 74%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 3;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff4c2;
+  color: #5a4300;
+  border: 2px solid #e0a800;
+  font-size: clamp(12px, 1.5vw, 16px);
+  font-weight: 700;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}

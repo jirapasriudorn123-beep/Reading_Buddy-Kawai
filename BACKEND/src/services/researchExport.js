@@ -1,10 +1,12 @@
 const db = require("../db/database");
+const { INTERVAL_DAYS, MASTERED_STAGE } = require("./spacedReview");
 
 // ================== ส่งออกข้อมูลวิจัย (Learning Analytics) เป็น CSV ==================
 // 3 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน
 //   users    — 1 แถว = ผู้ใช้ 1 คน (เทียบระหว่างคน เช่น ดูแลหมาบ่อย vs อ่านนาน)
 //   days     — 1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้ (retention, เทียบวันที่ดูแลหมากับวันที่ไม่ได้ดูแลในคนเดียวกัน)
 //   sessions — 1 แถว = รอบอ่าน 1 รอบที่อ่านจบ (ช่วงเวลาที่อ่าน, ความยาวรอบ, รอบที่ถาม AI vs ไม่ได้ถาม)
+//   reviews  — 1 แถว = ตอบคำถามบทเรียน 1 ครั้งใน post/เกม พร้อมขั้นทบทวน (จำได้แค่ไหนเมื่อเว้นไป 1/3/7/14 วัน)
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
 
 const TZ_MS = 7 * 60 * 60 * 1000;
@@ -74,7 +76,7 @@ function groupBy(rows, key) {
 // ---------- ดึงข้อมูลดิบทั้งหมดของผู้ใช้ทั่วไป ----------
 async function loadRaw() {
   const nonAdmin = "user_id IN (SELECT id FROM users WHERE is_admin = 0)";
-  const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime] =
+  const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime, reviewItems, reviewLog] =
     await Promise.all([
       db.prepare("SELECT id, created_at, coins FROM users WHERE is_admin = 0 ORDER BY id").all(),
       db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
@@ -101,8 +103,10 @@ async function loadRaw() {
       db.prepare(`SELECT user_id, price, purchased_at AS created_at FROM purchase_log WHERE ${nonAdmin}`).all(),
       db.prepare(`SELECT user_id, COUNT(*) AS n FROM user_coupons WHERE ${nonAdmin} GROUP BY user_id`).all(),
       db.prepare("SELECT session_id, page, seconds FROM reading_page_time").all(),
+      db.prepare(`SELECT user_id, stage FROM review_items WHERE ${nonAdmin}`).all(),
+      db.prepare(`SELECT * FROM review_log WHERE ${nonAdmin} ORDER BY id`).all(),
     ]);
-  return { users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime };
+  return { users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime, reviewItems, reviewLog };
 }
 
 // นับกิจกรรมรายวันของแต่ละคน: Map(userId → Map(date → counters))
@@ -192,6 +196,10 @@ const USER_COLUMNS = [
   "game_battles_won",
   "game_subject_answers",
   "game_subject_correct_pct",
+  "review_items",
+  "review_mastered",
+  "review_due_answers",
+  "review_due_correct_pct",
   "coins_from_reading",
   "coins_post_bonus",
   "coins_now",
@@ -209,6 +217,8 @@ async function buildUsersCsv() {
   const purchasesByUser = groupBy(raw.purchases, "user_id");
   const petByUser = new Map(raw.pets.map((p) => [p.user_id, p]));
   const couponsByUser = new Map(raw.coupons.map((c) => [c.user_id, c.n]));
+  const reviewItemsByUser = groupBy(raw.reviewItems, "user_id");
+  const reviewLogByUser = groupBy(raw.reviewLog, "user_id");
 
   const rows = raw.users.map((u) => {
     const days = daily.get(u.id) || new Map();
@@ -238,6 +248,8 @@ async function buildUsersCsv() {
     const battles = battlesByUser.get(u.id) || [];
     const purchases = purchasesByUser.get(u.id) || [];
     const pet = petByUser.get(u.id);
+    const reviewItems = reviewItemsByUser.get(u.id) || [];
+    const dueReviews = (reviewLogByUser.get(u.id) || []).filter((r) => r.was_due && r.stage_before > 0);
     const fmt = (v) => (v === null ? "" : round1(v));
 
     return {
@@ -275,6 +287,10 @@ async function buildUsersCsv() {
       game_battles_won: battles.filter((b) => b.status === "won").length,
       game_subject_answers: totals.game_subject_answers || 0,
       game_subject_correct_pct: pct(totals.game_subject_correct || 0, totals.game_subject_answers || 0),
+      review_items: reviewItems.length,
+      review_mastered: reviewItems.filter((r) => r.stage >= MASTERED_STAGE).length,
+      review_due_answers: dueReviews.length,
+      review_due_correct_pct: pct(dueReviews.filter((r) => r.correct).length, dueReviews.length),
       coins_from_reading: sessions.filter((s) => !s.coins_pending).reduce((a, s) => a + (s.coins_earned || 0), 0),
       coins_post_bonus: tests.reduce((a, t) => a + (t.coins_bonus || 0), 0),
       coins_now: u.coins,
@@ -410,6 +426,41 @@ async function buildSessionsCsv() {
   return toCsv(SESSION_COLUMNS, rows);
 }
 
-const EXPORTS = { users: buildUsersCsv, days: buildDaysCsv, sessions: buildSessionsCsv };
+// ---------- reviews.csv ----------
+// stage_before: ขั้นก่อนตอบ (ว่าง = ยังไม่มีนัด, 0 = เพิ่งตอบผิด, 1-4 = นัดหลังตอบถูกครั้งก่อน interval_days วัน, 5 = จำได้แล้ว)
+// was_due: ตอบตอนถึงรอบทบทวนแล้ว — ดู % ถูกของแถว was_due=1 แยกตาม interval_days = ความจำเมื่อเว้นไป 1/3/7/14 วัน
+const REVIEW_COLUMNS = [
+  "user_code",
+  "answered_at",
+  "chapter_number",
+  "question_id",
+  "source",
+  "stage_before",
+  "interval_days",
+  "was_due",
+  "correct",
+  "stage_after",
+];
+
+async function buildReviewsCsv() {
+  const raw = await loadRaw();
+  const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
+  const intervalOf = (stage) => (stage >= 1 && stage <= INTERVAL_DAYS.length ? INTERVAL_DAYS[stage - 1] : "");
+  const rows = raw.reviewLog.map((r) => ({
+    user_code: userCode(r.user_id),
+    answered_at: thaiDateTime(r.created_at),
+    chapter_number: chapterNumber.get(r.chapter_id) ?? "",
+    question_id: r.question_id,
+    source: r.source,
+    stage_before: r.stage_before ?? "",
+    interval_days: intervalOf(r.stage_before),
+    was_due: r.was_due,
+    correct: r.correct,
+    stage_after: r.stage_after ?? "",
+  }));
+  return toCsv(REVIEW_COLUMNS, rows);
+}
+
+const EXPORTS = { users: buildUsersCsv, days: buildDaysCsv, sessions: buildSessionsCsv, reviews: buildReviewsCsv };
 
 module.exports = { EXPORTS };

@@ -1,7 +1,9 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
-const { completedChapterNumbers, reviewQuestionIds, MIN_STARS_FOR_WORLD_CLEAR } = require("../services/chapterTests");
+const { completedChapterNumbers, MIN_STARS_FOR_WORLD_CLEAR } = require("../services/chapterTests");
+const { getReadingRules } = require("../services/readingRules");
+const { recordReview, dueQuestionIds, reviewStatus } = require("../services/spacedReview");
 
 const router = express.Router();
 
@@ -13,10 +15,11 @@ const router = express.Router();
 // ---------- GET /api/game/progress ----------
 router.get("/progress", requireAuth, async (req, res, next) => {
   try {
-    const [chapters, done, clears] = await Promise.all([
+    const [chapters, done, clears, review] = await Promise.all([
       db.prepare("SELECT chapter_number, title FROM chapters ORDER BY chapter_number ASC").all(),
       completedChapterNumbers(req.user.id),
       db.prepare("SELECT world, stage, best_stars FROM game_stage_clears WHERE user_id = ?").all(req.user.id),
+      reviewStatus(req.user.id),
     ]);
     const worlds = [];
     for (let w = 1; w <= GAME_WORLDS; w++) {
@@ -28,9 +31,20 @@ router.get("/progress", requireAuth, async (req, res, next) => {
         unlocked: done.has(w),
         clearedStages: stageClears.map((c) => ({ stage: c.stage, stars: c.best_stars })),
         cleared: stageClears.some((c) => c.stage % 2 === 1 && c.best_stars >= MIN_STARS_FOR_WORLD_CLEAR),
+        reviewDue: (review.chapters.find((c) => c.chapterNumber === w) || {}).due || 0,
       });
     }
     return res.json({ worlds, stagesPerWorld: GAME_STAGES_PER_WORLD, minStarsForWorldClear: MIN_STARS_FOR_WORLD_CLEAR });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- GET /api/game/review ----------
+// ทบทวนแบบเว้นระยะ: วันนี้ถึงรอบกี่ข้อ แยกตามบท (หน้าแรกใช้ขึ้นป้าย "มีข้อรอทบทวน")
+router.get("/review", requireAuth, async (req, res, next) => {
+  try {
+    return res.json(await reviewStatus(req.user.id));
   } catch (err) {
     next(err);
   }
@@ -121,9 +135,9 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
            WHERE c.chapter_number = ? AND q.enabled = 1`
         )
         .all(world);
-      // ทบทวน: ข้อที่ตอบผิดใน post ครั้งล่าสุดของบทนี้ (และยังไม่เคยตอบถูกในเกมหลังจากนั้น) เอามาถามก่อน
+      // ทบทวนแบบเว้นระยะ: ข้อของบทนี้ที่ถึงรอบแล้ว (ตอบผิด / ครบ 1-3-7-14 วัน) เอามาถามก่อน
       const chapter = await db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(world);
-      if (chapter) reviewIds = await reviewQuestionIds(req.user.id, chapter.id);
+      if (chapter) reviewIds = await dueQuestionIds(req.user.id, chapter.id);
     }
 
     if (!rows.length) {
@@ -196,7 +210,9 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
     const questionId = questionIds[answered % questionIds.length];
     const src = ANSWER_SOURCES[battle.source];
 
-    const question = await db.prepare(`SELECT correct_option FROM ${src.table} WHERE id = ?`).get(questionId);
+    const question = await db
+      .prepare(`SELECT correct_option${battle.source === "chapter" ? ", chapter_id" : ""} FROM ${src.table} WHERE id = ?`)
+      .get(questionId);
     if (!question) {
       return res.status(404).json({ message: "ไม่พบคำถามนี้ (อาจถูกลบไปแล้ว) ลองเริ่มด่านใหม่นะ" });
     }
@@ -216,6 +232,7 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
       coinsEarned = wrongCount === 0 ? REWARD_COINS_PERFECT : REWARD_COINS;
     }
 
+    const rules = battle.source === "chapter" ? await getReadingRules() : null;
     const outcome = await db.tx(async (t) => {
       // guard ด้วยจำนวนที่ตอบไปแล้ว กันกดตอบรัวๆ / หลายแท็บ แล้วนับข้อเดียวกันซ้ำ
       const update = await t.prepare(
@@ -231,6 +248,15 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
         correct ? 1 : 0,
         questionId
       );
+      if (battle.source === "chapter") {
+        await recordReview(t, rules, {
+          userId: req.user.id,
+          questionId,
+          chapterId: question.chapter_id,
+          correct,
+          source: "game",
+        });
+      }
 
       if (status === "won") {
         await t.prepare(

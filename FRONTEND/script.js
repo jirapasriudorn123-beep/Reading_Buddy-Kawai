@@ -147,6 +147,30 @@ async function loadChapters() {
   if (data.readingRules) readingRules = data.readingRules;
   chaptersData = data.chapters;
   renderChapters(data.chapters);
+  loadReviewBanner();
+}
+
+// ทบทวนแบบเว้นระยะ: วันนี้มีข้อถึงรอบกี่ข้อ (ข้อที่ตอบผิด / ครบ 1-3-7-14 วันหลังตอบถูก) → ป้ายชวนไปทบทวนในเกม
+async function loadReviewBanner() {
+  const banner = document.getElementById("reviewBanner");
+  if (!banner) return;
+  try {
+    const review = await apiFetch("/game/review");
+    const due = review.chapters.filter((c) => c.due > 0);
+    if (!review.dueTotal) {
+      banner.style.display = "none";
+      return;
+    }
+    const detail = due.map((c) => `บทที่ ${c.chapterNumber}: ${c.due} ข้อ`).join(" · ");
+    banner.innerHTML =
+      `<span class="review-banner-icon">🔁</span>` +
+      `<span class="review-banner-text"><strong>วันนี้มี ${review.dueTotal} ข้อถึงรอบทบทวน</strong>` +
+      `<small>${escapeHtml(detail)}</small></span>` +
+      `<span class="review-banner-go">ไปทบทวนในเกม ›</span>`;
+    banner.style.display = "";
+  } catch (err) {
+    banner.style.display = "none";
+  }
 }
 
 // ป้ายสถานะบนการ์ดบท

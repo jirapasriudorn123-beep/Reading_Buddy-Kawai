@@ -734,6 +734,61 @@ await client.execute(`
     )
   `);
 
+  // ---- ตาราง review_items / review_log (ทบทวนแบบเว้นระยะ 1/3/7/14 วัน ดู services/spacedReview.js) ----
+  // review_items: 1 แถว = ผู้ใช้ 1 คน × คำถามบทเรียน 1 ข้อ | stage 0-4 = ขั้นทบทวน, 5 = จำได้แล้ว (due_at NULL)
+  // review_log: ทุกครั้งที่ตอบข้อบทเรียนใน post/เกม — stage_before + was_due ใช้วัดความจำเมื่อเว้นระยะต่างกัน
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS review_items (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      question_id INTEGER NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
+      chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+      stage INTEGER NOT NULL,
+      due_at TEXT,
+      lapses INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, question_id)
+    )
+  `);
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_review_items_due ON review_items (user_id, chapter_id, due_at)");
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS review_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      question_id INTEGER NOT NULL,
+      chapter_id INTEGER NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('post', 'game')),
+      stage_before INTEGER,
+      was_due INTEGER NOT NULL,
+      correct INTEGER NOT NULL,
+      stage_after INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ครั้งแรกที่มีตาราง: ข้อที่ตอบผิดใน post ล่าสุดของแต่ละบท (และยังไม่เคยตอบถูกในเกมหลังจากนั้น) → ถึงรอบทบทวนทันที
+  // ข้อที่ตอบถูกใน post → นัดวันถัดไปหลังทำ post (เหมือนทำ post หลังมีระบบนี้) | INSERT OR IGNORE ไม่ทับของที่มีอยู่
+  await client.execute(`
+    INSERT OR IGNORE INTO review_items (user_id, question_id, chapter_id, stage, due_at, lapses)
+    SELECT t.user_id, q.question_id, t.chapter_id,
+           CASE WHEN q.post_correct = 1 OR EXISTS (
+                  SELECT 1 FROM quiz_answer_log l WHERE l.user_id = t.user_id AND l.question_id = q.question_id
+                    AND l.category = 'subject' AND l.correct = 1 AND l.created_at >= t.completed_at)
+                THEN 1 ELSE 0 END,
+           CASE WHEN q.post_correct = 1 OR EXISTS (
+                  SELECT 1 FROM quiz_answer_log l WHERE l.user_id = t.user_id AND l.question_id = q.question_id
+                    AND l.category = 'subject' AND l.correct = 1 AND l.created_at >= t.completed_at)
+                THEN datetime(date(t.completed_at, '+7 hours', '+1 day'), '-7 hours') ELSE datetime('now') END,
+           CASE WHEN q.post_correct = 1 THEN 0 ELSE 1 END
+    FROM chapter_tests t
+    JOIN chapter_test_questions q ON q.test_id = t.id AND q.post_order IS NOT NULL
+    JOIN quiz_questions qq ON qq.id = q.question_id
+    WHERE t.status = 'completed'
+      AND t.id = (SELECT id FROM chapter_tests t2 WHERE t2.user_id = t.user_id AND t2.chapter_id = t.chapter_id
+                    AND t2.status = 'completed' ORDER BY attempt DESC LIMIT 1)
+      AND NOT EXISTS (SELECT 1 FROM review_log rl WHERE rl.user_id = t.user_id)
+  `);
+
   // ---- ตาราง site_meta ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS site_meta (

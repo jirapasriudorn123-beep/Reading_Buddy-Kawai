@@ -38,6 +38,31 @@ const ACTION_GAIN = {
 const MAX_LEVEL = 50;
 const LEVEL_XP_TARGET = 250;
 
+// ลูบหัว (ฟรี) ได้ XP แค่ครึ่งหนึ่งของความสุขที่เพิ่ม ส่วนไอเท็ม (ซื้อด้วยคอยน์จากการอ่าน) ได้ XP เต็ม
+// เลเวลอัพยังได้เครดิตถาม AI เหมือนเดิม แต่จะได้มาจากการอ่าน (คอยน์ → ไอเท็ม) มากกว่าการลูบหัวอย่างเดียว
+const PET_XP_RATIO = 0.5;
+
+function addXp(carePoints, levelProgress, xp) {
+  if (xp <= 0 || carePoints >= MAX_LEVEL) return { carePoints, levelProgress };
+  levelProgress += xp;
+  while (levelProgress >= LEVEL_XP_TARGET && carePoints < MAX_LEVEL) {
+    levelProgress -= LEVEL_XP_TARGET;
+    carePoints += 1;
+  }
+  if (carePoints >= MAX_LEVEL) return { carePoints: MAX_LEVEL, levelProgress: 0 };
+  return { carePoints, levelProgress };
+}
+
+// XP จากการลูบหัวครั้งนี้ — คิดจากความสุขที่ลูบหัวได้สะสมทั้งหมด จะได้ไม่ปัดเศษทิ้ง (ลูบทีละ 1 ก็ได้ XP ทุก 2 ครั้ง)
+async function pettingXp(userId, happinessGain) {
+  if (happinessGain <= 0) return 0;
+  const row = await db
+    .prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM pet_action_log WHERE user_id = ? AND action = 'pet'")
+    .get(userId);
+  const before = row.total || 0;
+  return Math.floor((before + happinessGain) * PET_XP_RATIO) - Math.floor(before * PET_XP_RATIO);
+}
+
 function serializePet(pet) {
   return {
     breed: pet.breed,
@@ -185,19 +210,8 @@ router.post("/action", requireAuth, async (req, res) => {
     const actualGain = Math.max(0, after - before);
     const cappedByLoneliness = streak.lonely && before + totalGain > after && after < 100;
 
-    let carePoints = pet.care_points;
-    let levelProgress = pet.level_progress;
-    if (actualGain > 0 && carePoints < MAX_LEVEL) {
-      levelProgress += actualGain;
-      while (levelProgress >= LEVEL_XP_TARGET && carePoints < MAX_LEVEL) {
-        levelProgress -= LEVEL_XP_TARGET;
-        carePoints += 1;
-      }
-      if (carePoints >= MAX_LEVEL) {
-        carePoints = MAX_LEVEL;
-        levelProgress = 0;
-      }
-    }
+    const xpGained = await pettingXp(req.user.id, actualGain);
+    const { carePoints, levelProgress } = addXp(pet.care_points, pet.level_progress, xpGained);
     const leveledUp = carePoints !== pet.care_points;
 
     // guard ด้วยค่าเลเวลเดิม: ยิงพร้อมกันหลาย request ตอนใกล้เลเวลอัพ จะได้ไม่เลเวลอัพ (และได้โบนัส AI) ซ้ำ
@@ -228,6 +242,7 @@ router.post("/action", requireAuth, async (req, res) => {
       aiBonusGained,
       statGained: stat,
       amountGained: actualGain,
+      xpGained: pet.care_points >= MAX_LEVEL ? 0 : xpGained,
     });
   } catch (err) {
     console.error("Pet action error:", err);
@@ -284,19 +299,7 @@ router.post("/use-item", requireAuth, async (req, res) => {
       });
     }
 
-    let carePoints = pet.care_points;
-    let levelProgress = pet.level_progress;
-    if (carePoints < MAX_LEVEL) {
-      levelProgress += actualGain;
-      while (levelProgress >= LEVEL_XP_TARGET && carePoints < MAX_LEVEL) {
-        levelProgress -= LEVEL_XP_TARGET;
-        carePoints += 1;
-      }
-      if (carePoints >= MAX_LEVEL) {
-        carePoints = MAX_LEVEL;
-        levelProgress = 0;
-      }
-    }
+    const { carePoints, levelProgress } = addXp(pet.care_points, pet.level_progress, actualGain);
     const leveledUp = carePoints !== pet.care_points;
 
     await db.tx(async (t) => {
@@ -334,6 +337,7 @@ router.post("/use-item", requireAuth, async (req, res) => {
       aiBonusGained,
       statGained: stat,
       amountGained: actualGain,
+      xpGained: pet.care_points >= MAX_LEVEL ? 0 : actualGain,
       itemUsed: { id: product.id, name: product.name },
       remainingCount: remaining ? remaining.count : 0,
     });

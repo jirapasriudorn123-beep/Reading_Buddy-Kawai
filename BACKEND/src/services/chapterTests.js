@@ -1,5 +1,6 @@
 const db = require("../db/database");
 const { getReadingRules } = require("./readingRules");
+const { recordReview } = require("./spacedReview");
 
 // ================== แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท ==================
 // pre 5 ข้อ ตอนเริ่มอ่านบทครั้งแรก → อ่านกี่รอบก็ได้ (คอยน์จากเวลาค้างไว้) → อ่านครบเวลาขั้นต่ำของบท → post 5 ข้อเดิม
@@ -346,6 +347,7 @@ async function finishPhase(userId, test, phase) {
 async function finishPostTest(userId, test) {
   const questions = await phaseQuestions(test.id, "post");
   const postScore = questions.filter((q) => q.post_correct === 1).length;
+  const rules = await getReadingRules();
 
   const result = await db.tx(async (t) => {
     const closed = await t.prepare(
@@ -353,6 +355,17 @@ async function finishPostTest(userId, test) {
        WHERE id = ? AND status = 'post_test'`
     ).run(postScore, test.id);
     if (closed.changes === 0) return null; // อีกแท็บปิดไปแล้ว
+
+    // นัดทบทวนแบบเว้นระยะ: ข้อผิดถึงรอบทันที ข้อถูกนัดพรุ่งนี้ (ดู services/spacedReview.js)
+    for (const q of questions) {
+      await recordReview(t, rules, {
+        userId,
+        questionId: q.question_id,
+        chapterId: test.chapter_id,
+        correct: q.post_correct === 1,
+        source: "post",
+      });
+    }
 
     let bonusCount = 0;
     for (const q of questions) {
@@ -440,24 +453,6 @@ async function clearedWorldCount(userId) {
   return row.n || 0;
 }
 
-// ข้อที่ตอบผิดใน post ครั้งล่าสุดของบท และยังไม่เคยตอบถูกในเกมหลังจากนั้น — เกมเอามาถามเป็นข้อแรกๆ
-async function reviewQuestionIds(userId, chapterId) {
-  const rows = await db
-    .prepare(
-      `SELECT q.question_id AS id FROM chapter_test_questions q
-       JOIN chapter_tests t ON t.id = q.test_id
-       WHERE t.id = (SELECT id FROM chapter_tests WHERE user_id = ? AND chapter_id = ? AND status = 'completed'
-                     ORDER BY attempt DESC LIMIT 1)
-         AND q.post_correct = 0
-         AND NOT EXISTS (SELECT 1 FROM quiz_answer_log l
-                         WHERE l.user_id = ? AND l.question_id = q.question_id AND l.correct = 1
-                           AND l.created_at >= t.completed_at)
-       ORDER BY q.post_order ASC`
-    )
-    .all(userId, chapterId, userId);
-  return rows.map((r) => r.id);
-}
-
 module.exports = {
   QUESTIONS_PER_TEST,
   SECONDS_PER_QUESTION,
@@ -472,7 +467,6 @@ module.exports = {
   chapterProgress,
   completedChapterNumbers,
   passedChapterCount,
-  reviewQuestionIds,
   MIN_STARS_FOR_WORLD_CLEAR,
   clearedWorldCount,
 };

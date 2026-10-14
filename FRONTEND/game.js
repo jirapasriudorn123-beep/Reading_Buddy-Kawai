@@ -242,6 +242,15 @@ function initWorldMap() {
       art.appendChild(dogMarker);
     }
 
+    // ทบทวนแบบเว้นระยะ: บทนี้มีข้อถึงรอบทบทวนกี่ข้อ (จะถูกถามก่อนในด่านบทเรียนของโลกนี้)
+    const reviewDue = isWorldUnlocked(i) ? worldProgress[i].reviewDue || 0 : 0;
+    if (reviewDue > 0) {
+      const badge = document.createElement("div");
+      badge.className = "review-due-badge";
+      badge.textContent = `🔁 ถึงรอบทบทวน ${reviewDue} ข้อ`;
+      card.appendChild(badge);
+    }
+
     if (!isWorldUnlocked(i)) {
       card.classList.add("locked");
       const hint = document.createElement("div");
@@ -763,7 +772,7 @@ function renderEnemyHp() {
 function renderQuizQuestion() {
   const item = battleQuiz[battleQuizIndex % battleQuiz.length];
   document.getElementById("quizQuestion").textContent = item.q;
-  const reviewTag = battleQuizIndex < battleReviewCount ? " · 🔁 ทบทวนข้อที่เคยตอบผิด" : "";
+  const reviewTag = battleQuizIndex < battleReviewCount ? " · 🔁 ถึงรอบทบทวน" : "";
   document.getElementById("quizTopic").textContent = `คำถามที่ ${battleQuizIndex + 1} : ${battleTopic}${reviewTag}`;
 
   const wrap = document.getElementById("quizOptions");
