@@ -156,19 +156,18 @@ const BREED_EMOJI = { golden: "🦮", shiba: "🐕", siberian: "🐺", thairidge
 //   holdPet   = Chasing ตอนกำลังลูบหัวค้างอยู่
 //   happiness = ตอนปล่อยมือหลังลูบหัวเสร็จ / กดปุ่มเล่นด้วยกัน
 //   sleep     = ท่านอน
-//   low       = ความสุขต่ำกว่า 25% เท่านั้น
+//   low       = ท่าเศร้า: ความสุขต่ำกว่า 25% หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
 const PET_POSES = {
   thairidgeback: {
     feed: ["img/pets/thairidgeback-baby-feed-1.gif", "img/pets/thairidgeback-baby-feed-2.gif"],
     happiness: ["img/pets/thairidgeback-baby-happiness.gif"],
-    low: ["img/pets/thairidgeback-baby-low.gif"], // เฉพาะความสุขต่ำกว่า 25%
+    low: ["img/pets/thairidgeback-baby-low.gif"],
     idle: ["img/pets/thairidgeback-baby-idle.gif"],
     levelUp: ["img/pets/thairidgeback-baby-levelup.gif"],
     bath: ["img/pets/thairidgeback-baby-bath.gif"],
     holdPet: ["img/pets/thairidgeback-baby-holdpet.gif"],
     sleep: ["img/pets/thairidgeback-baby-sleep.png"],
   },
-  // 3 พันธุ์นี้ยังไม่มีท่าเศร้า (low) → ใช้ท่า idle แทนอัตโนมัติ
   golden: {
     idle: ["img/pets/golden/09_golden_happy_normal_wag.gif"],
     feed: ["img/pets/golden/golden_eating.gif"],
@@ -177,6 +176,7 @@ const PET_POSES = {
     bath: ["img/pets/golden/golden_bath.gif", "img/pets/golden/golden_bath_shaking fur.gif"],
     holdPet: ["img/pets/golden/08_golden_happy_fast_wag.gif"],
     sleep: ["img/pets/golden/golden_sleeping.gif"],
+    low: ["img/pets/golden/golden_sad.webp"],
   },
   shiba: {
     idle: ["img/pets/shiba/shiba_stand.gif"],
@@ -186,6 +186,7 @@ const PET_POSES = {
     bath: ["img/pets/shiba/shiba_bath.gif"],
     holdPet: ["img/pets/shiba/shiba_tail_blink_ear_120f.gif"],
     sleep: ["img/pets/shiba/shiba_sleeping.gif"],
+    low: ["img/pets/shiba/shiba_sad.webp"],
   },
   siberian: {
     idle: ["img/pets/siberian/husky_sit_tail_tongue_blink.gif"],
@@ -195,6 +196,7 @@ const PET_POSES = {
     bath: ["img/pets/siberian/husky_bath.gif"],
     holdPet: ["img/pets/siberian/husky_tail_blink_ear.gif"],
     sleep: ["img/pets/siberian/husky_puppy_sleeping_zzz.gif", "img/pets/siberian/husky_adult_sleeping_zzz.gif"],
+    low: ["img/pets/siberian/husky_sad.webp"],
   },
 };
 
