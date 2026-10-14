@@ -158,6 +158,7 @@ const BREED_EMOJI = { golden: "🦮", shiba: "🐕", siberian: "🐺", thairidge
 //   sleep     = ท่านอน
 //   low       = ท่าเศร้า: ความสุขต่ำกว่า 25% หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
 //   reading   = ท่าอ่านหนังสือ: อ่านติดกันตั้งแต่ READING_POSE_STREAK_DAYS วัน สลับกับท่า idle (ดู refreshPetMood)
+//   glow      = ท่าเปล่งแสง: วันที่ streak ครบ 3/7/14/30 วัน (สลับกับท่า idle) และตอนค่าสถานะเต็มทุกช่อง (ขึ้นแป๊บเดียว)
 const PET_POSES = {
   thairidgeback: {
     feed: ["img/pets/thairidgeback-baby-feed-1.gif", "img/pets/thairidgeback-baby-feed-2.gif"],
@@ -179,6 +180,7 @@ const PET_POSES = {
     sleep: ["img/pets/golden/golden_sleeping.gif"],
     low: ["img/pets/golden/golden_sad.webp"],
     reading: ["img/pets/golden/golden_reading.webp"],
+    glow: ["img/pets/golden/golden_glow.webp"],
   },
   shiba: {
     idle: ["img/pets/shiba/shiba_stand.gif"],
@@ -190,6 +192,7 @@ const PET_POSES = {
     sleep: ["img/pets/shiba/shiba_sleeping.gif"],
     low: ["img/pets/shiba/shiba_sad.webp"],
     reading: ["img/pets/shiba/shiba_reading.webp"],
+    glow: ["img/pets/shiba/shiba_glow.webp"],
   },
   siberian: {
     idle: ["img/pets/siberian/husky_sit_tail_tongue_blink.gif"],
@@ -201,6 +204,7 @@ const PET_POSES = {
     sleep: ["img/pets/siberian/husky_puppy_sleeping_zzz.gif", "img/pets/siberian/husky_adult_sleeping_zzz.gif"],
     low: ["img/pets/siberian/husky_sad.webp"],
     reading: ["img/pets/siberian/husky_reading.webp"],
+    glow: ["img/pets/siberian/husky_glow.webp"],
   },
 };
 
@@ -218,6 +222,7 @@ function renderPetPage(pet) {
   renderStreak();
   refreshPetMood();
   showSpeech(moodSpeech(currentStreak), 4500);
+  if (allStatsFull(pet)) showPetPose("glow", 4000);
 }
 
 // ================== ความต่อเนื่องในการอ่าน (streak) → อารมณ์น้องหมา ==================
@@ -245,6 +250,9 @@ function moodSpeech(streak) {
   if (!streak) return "เจ้านาย มาเล่นด้วยกันเถอะ";
   switch (streak.mood) {
     case "happy":
+      if (STREAK_MILESTONES.includes(streak.current)) {
+        return `🔥 อ่านติดกันครบ ${streak.current} วันแล้ว! เก่งมากเลยเจ้านาย ✨`;
+      }
       return streak.current >= READING_POSE_STREAK_DAYS
         ? `อ่านด้วยกันติดกัน ${streak.current} วันแล้ว ผมขยันอ่านตามเจ้านายเลย 🤓📖`
         : "วันนี้อ่านหนังสือด้วยกันแล้ว ดีใจที่สุดเลย! 🐾";
@@ -330,30 +338,63 @@ function showPetPose(poseKey, revertAfterMs) {
   }
 }
 
-// อ่านติดกันตั้งแต่ 3 วัน: น้องหมาสลับระหว่างท่าอ่านหนังสือกับท่ายืนปกติ (ข้อ 7 — น้องสะท้อนการอ่านของผู้ใช้)
+// ข้อ 7 — น้องสะท้อนการอ่านของผู้ใช้:
+// อ่านติดกันตั้งแต่ 3 วัน สลับท่าอ่านหนังสือกับท่ายืนปกติ | วันที่ streak ครบ 3/7/14/30 วัน เพิ่มท่าเปล่งแสงเข้าไปในวงสลับด้วย
+// ลำดับวน: ท่าพิเศษ → idle → ท่าพิเศษถัดไป → idle ...
 const READING_POSE_STREAK_DAYS = 3;
-const READING_POSE_MS = 12000;
+const STREAK_MILESTONES = [3, 7, 14, 30];
+const SPECIAL_POSE_MS = 12000;
 const IDLE_POSE_MS = 8000;
-let readingPhase = true;
-let readingPoseTimer = null;
+let poseCycleStep = 0;
+let poseCycleTimer = null;
 
 function readingStreakActive() {
   return !!(currentStreak && !currentStreak.lonely && currentStreak.current >= READING_POSE_STREAK_DAYS);
 }
 
-function scheduleReadingPoseCycle() {
-  clearTimeout(readingPoseTimer);
-  if (!currentPet || !readingStreakActive() || !getPoseFrames(currentPet.breed, "reading")) return;
-  readingPoseTimer = setTimeout(() => {
-    readingPhase = !readingPhase;
+function streakMilestoneToday() {
+  return readingStreakActive() && STREAK_MILESTONES.includes(currentStreak.current);
+}
+
+// ท่าพิเศษที่วนโชว์ตอนนี้ (เฉพาะท่าที่พันธุ์นั้นมีรูป)
+function specialPoseCycle() {
+  if (!currentPet || !readingStreakActive()) return [];
+  const keys = streakMilestoneToday() ? ["glow", "reading"] : ["reading"];
+  return keys.filter((k) => getPoseFrames(currentPet.breed, k));
+}
+
+// คืน key ของท่าพิเศษในจังหวะนี้ หรือ null = จังหวะท่า idle
+function currentCyclePose() {
+  const special = specialPoseCycle();
+  if (!special.length || poseCycleStep % 2 === 1) return null;
+  return special[(poseCycleStep / 2) % special.length];
+}
+
+function schedulePoseCycle() {
+  clearTimeout(poseCycleTimer);
+  if (!specialPoseCycle().length) return;
+  poseCycleTimer = setTimeout(() => {
+    poseCycleStep += 1;
     refreshPetMood();
-  }, readingPhase ? READING_POSE_MS : IDLE_POSE_MS);
+  }, currentCyclePose() ? SPECIAL_POSE_MS : IDLE_POSE_MS);
+}
+
+function allStatsFull(pet) {
+  return !!pet && ["hunger", "cleanliness", "happiness", "energy"].every((k) => (pet[k] ?? 0) >= 100);
+}
+
+// หลังดูแลน้องจนค่าสถานะเต็มทุกช่อง: ท่าเปล่งแสงแป๊บนึง แทนท่ากิจกรรม
+function celebrateIfAllFull(before, after) {
+  if (!allStatsFull(after) || allStatsFull(before) || !getPoseFrames(after.breed, "glow")) return false;
+  showPetPose("glow", 4000);
+  showSpeech("ทุกอย่างเต็มหมดเลย สบายที่สุด ขอบคุณนะเจ้านาย ✨", 3500);
+  return true;
 }
 
 // เช็คว่ามีสถานะไหนต่ำกว่าเกณฑ์ไหม ถ้ามีโชว์ท่าเศร้าค้างไว้ อ่านติดกันหลายวันสลับท่าอ่านหนังสือ ไม่งั้นท่า idle ปกติ
 // (ไม่ทำอะไรถ้ากำลังโชว์ท่ากิจกรรมชั่วคราวอยู่ กันแย่งกันโชว์)
 function refreshPetMood() {
-  scheduleReadingPoseCycle();
+  schedulePoseCycle();
   if (!currentPet || showingTemporaryPose) return;
 
   // ท่าเศร้า (low) โชว์ตอน "ความสุข" ต่ำกว่าเกณฑ์ หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
@@ -367,9 +408,9 @@ function refreshPetMood() {
     }
   }
 
-  const readingFrames = getPoseFrames(currentPet.breed, "reading");
-  if (readingPhase && readingStreakActive() && readingFrames && readingFrames.length) {
-    applyPetImageSrc(readingFrames[0], currentPet.breed);
+  const cyclePose = currentCyclePose();
+  if (cyclePose) {
+    applyPetImageSrc(getPoseFrames(currentPet.breed, cyclePose)[0], currentPet.breed);
     return;
   }
 
@@ -730,6 +771,7 @@ async function useItem(productId) {
     item.count = result.remainingCount;
 
     showSpeech(speeches[bagKey]);
+    const petBefore = currentPet;
     currentPet = { ...currentPet, ...result.pet };
     updatePetUI(currentPet);
     bounceCharacter();
@@ -739,7 +781,7 @@ async function useItem(productId) {
     if (result.leveledUp) {
       showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่ากิจกรรมปกติ เลยแสดงแทน
       showLevelUpCelebration(result);
-    } else {
+    } else if (!celebrateIfAllFull(petBefore, currentPet)) {
       showPetPose(bagKey, 3000); // โชว์ท่ากิจกรรมชั่วคราว 3 วิ ถ้ามีไฟล์ท่านั้น (ไม่มีก็เงียบๆ ไม่ทำอะไร)
     }
   } catch (err) {
@@ -789,6 +831,7 @@ function setupPetting() {
         method: "POST",
         body: JSON.stringify({ type: "happiness", petCount: count }),
       });
+      const petBefore = currentPet;
       currentPet = { ...currentPet, ...result.pet };
       updatePetUI(currentPet);
       // เหงาอยู่ (ไม่ได้อ่านหลายวัน) ลูบหัวเติมความสุขได้ไม่เกินครึ่ง — น้องบอกให้ไปอ่านหนังสือด้วยกัน
@@ -797,7 +840,7 @@ function setupPetting() {
       if (result.leveledUp) {
         showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่า happiness ปกติ เลยแสดงแทน
         showLevelUpCelebration(result);
-      } else {
+      } else if (!celebrateIfAllFull(petBefore, currentPet)) {
         showPetPose("happiness", 3000);
       }
     } catch (err) {
