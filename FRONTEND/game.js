@@ -221,11 +221,13 @@ function initWorldMap() {
       stages.forEach((pos, si) => {
         const node = document.createElement("div");
         node.className = "stage-node";
+        // ไอคอนบอกชนิดด่าน: 📖 คำถามบทเรียน (ด่านคี่) | 🐾 คำถามเรื่องสุนัข (ด่านคู่)
+        const kind = stageKind(si + 1);
+        node.classList.add(`kind-${kind.key}`);
+        node.innerHTML = `<span class="stage-kind" aria-hidden="true">${kind.icon}</span>`;
         const stars = stageClearStars(i, si + 1);
-        if (stars) {
-          node.classList.add("cleared");
-          node.title = `ผ่านแล้ว ${stars} ดาว`;
-        }
+        node.title = `ด่าน ${si + 1} · ${kind.label}: ${stageTopic(i, si + 1)}${stars ? ` · ผ่านแล้ว ${stars} ดาว` : ""}`;
+        if (stars) node.classList.add("cleared");
         node.style.left = (pos.x / WORLD_ART_SOURCE_W) * 100 + "%";
         node.style.top = (pos.y / WORLD_ART_SOURCE_H) * 100 + "%";
         node.addEventListener("click", (ev) => {
@@ -320,6 +322,22 @@ function updateMapView(animate) {
 function updateMapPlayBtn() {
   const playBtn = document.getElementById("mapPlayBtn");
   playBtn.disabled = !isWorldUnlocked(worldIdx);
+  updateMapStageInfo();
+}
+
+// ป้ายเหนือปุ่มเล่น: ด่านที่น้องหมายืนอยู่เป็นคำถามบทเรียนหรือเรื่องสุนัข
+function updateMapStageInfo() {
+  const info = document.getElementById("mapStageInfo");
+  if (!info) return;
+  if (!isWorldUnlocked(worldIdx)) {
+    info.hidden = true;
+    return;
+  }
+  const stageNo = currentStageNo();
+  const kind = stageKind(stageNo);
+  info.className = `map-stage-info kind-${kind.key}`;
+  info.innerHTML = `<span class="map-stage-no">ด่าน ${stageNo}</span> ${kind.icon} ${kind.label}: <strong>${escapeHtml(stageTopic(worldIdx, stageNo))}</strong>`;
+  info.hidden = false;
 }
 
 function enterFocusedWorld(e) {
@@ -377,6 +395,7 @@ function walkDogTo(worldI, targetStageIdx) {
     cur += dir;
     positionDogMarker(marker, stages[cur]);
     currentStageIdxByWorld[worldI] = cur;
+    if (worldI === worldIdx) updateMapStageInfo();
     if (cur !== targetStageIdx) {
       dogWalkTimer = setTimeout(step, 380);
     }
@@ -641,6 +660,13 @@ let battleTimerId = null;
 // ================== คำถามควิซ (server สุ่มให้ทีละการต่อสู้ ผ่าน /api/game/battle/...) ==================
 // แอดมินแก้ไขคำถามได้ที่ admingame-edit.html (รายบท) / admingame-dogs.html (รายพันธุ์สุนัข)
 // server เป็นคนสุ่มคำถาม นับถูก/ผิด และให้เหรียญโบนัสเอง หน้าเว็บส่งไปแค่ข้อที่เลือก (ปลอมคะแนนไม่ได้)
+
+// ชนิดด่าน: ด่านคี่ = คำถามบทเรียน | ด่านคู่ = คำถามเรื่องสุนัข (ตรงกับฝั่ง server ใน routes/game.js)
+function stageKind(stageNo) {
+  return stageNo % 2 === 0
+    ? { key: "dog", icon: "🐾", label: "เรื่องสุนัข" }
+    : { key: "lesson", icon: "📖", label: "บทเรียน" };
+}
 
 // หัวข้อคำถามตามด่าน: ด่าน 1,3,5 = บทเรียนของโลกนั้น | ด่าน 2,4 = พันธุ์สุนัขที่เลือก (stageNo นับเริ่มที่ 1)
 function stageTopic(worldI, stageNo) {

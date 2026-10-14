@@ -1081,3 +1081,49 @@ html, body {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
   pointer-events: none;
 }
+
+/* ---------- ชนิดด่าน: 📖 คำถามบทเรียน | 🐾 คำถามเรื่องสุนัข ---------- */
+.stage-node .stage-kind {
+  position: absolute;
+  top: -14%;
+  left: -14%;
+  width: 46%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  font-size: clamp(9px, 1.1vw, 14px);
+  line-height: 1;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+.stage-node.kind-lesson .stage-kind { background: #4f7fd1; }
+.stage-node.kind-dog .stage-kind { background: #e0892f; }
+
+.map-stage-info {
+  position: absolute;
+  left: 50%;
+  bottom: calc(6vh + var(--map-btn-width) * 190 / 540 + 10px);
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: clamp(12px, 1.5vw, 16px);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+.map-stage-info.kind-lesson { background: #4f7fd1; }
+.map-stage-info.kind-dog { background: #e0892f; }
+.map-stage-info .map-stage-no { opacity: 0.85; margin-right: 4px; }
+.map-stage-info[hidden] { display: none; }
