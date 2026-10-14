@@ -173,14 +173,12 @@ async function loadReviewBanner() {
   }
 }
 
-// ป้ายสถานะบนการ์ดบท
+// ป้ายสถานะใต้รูปบนการ์ดบท: อ่านค้างไว้ (เริ่มชุดแล้วแต่ยังไม่ทำแบบทดสอบหลังอ่าน) | อ่านไปแล้ว (ทำแบบทดสอบหลังอ่านจบอย่างน้อย 1 ครั้ง)
+// อ่านซ้ำบทที่อ่านไปแล้วจนเปิดชุดใหม่ = อ่านค้างไว้ (ชุดล่าสุดยังไม่จบ) | รายละเอียด (พร้อมทำแบบทดสอบ ฯลฯ) อยู่ในป๊อปอัพตอนกดการ์ด
 function chapterBadge(progress) {
-  if (!progress) return "";
-  if (progress.status === "post_test" || (progress.status === "reading" && progress.canPostTest)) return "📝 พร้อมทำแบบทดสอบ";
-  if (progress.status === "reading" || progress.status === "pre_test") return "📖 กำลังอ่าน";
-  if (progress.passed) return "✅ ผ่านแล้ว";
-  if (progress.completedCount > 0) return "🔁 อ่านซ้ำได้";
-  return "";
+  if (!progress || progress.status === "none") return null;
+  if (progress.status === "completed") return { text: "✅ อ่านไปแล้ว", kind: "done" };
+  return { text: "📖 อ่านค้างไว้", kind: "in-progress" };
 }
 
 function renderChapters(chapters) {
@@ -204,12 +202,13 @@ function renderChapters(chapters) {
     >
     `; 
       
+    const badge = chapterBadge(chapter.progress);
     card.innerHTML = `
       <div class="card-inner">
-        ${chapterBadge(chapter.progress) ? `<div class="chapter-badge">${chapterBadge(chapter.progress)}</div>` : ""}
         <div class="chapter-label">CHAPTER ${chapter.chapter_number}</div>
         <p class="chapter-desc">${escapeHtml(chapter.title)}</p>
         <div class="card-icon">${iconHtml}</div>
+        ${badge ? `<div class="chapter-badge ${badge.kind}">${badge.text}</div>` : ""}
       </div>
     `;
     card.addEventListener("click", () => openChapterTimeModal(chapter));

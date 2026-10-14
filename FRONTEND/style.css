@@ -3842,11 +3842,11 @@ html.dark-mode body .quiz-result-answer {
 }
 
 .chapter-badge {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 2px 10px;
+    /* อยู่ใต้รูปบท (เดิมลอยอยู่เหนือหัวการ์ด) */
+    position: static;
+    width: max-content;
+    margin: 14px auto 0;
+    padding: 4px 14px;
     background: #fff;
     border: 1px solid #000;
     border-radius: 999px;
@@ -3941,6 +3941,17 @@ html.dark-mode body .quiz-timer-text {
 html.dark-mode body .post-test-btn,
 html.dark-mode body .chapter-badge {
     color: #1a1a1a;
+}
+
+.chapter-badge.done {
+    background: #e6f4d7;
+    border-color: #4f7a24;
+    color: #2f5212;
+}
+.chapter-badge.in-progress {
+    background: #fff4c2;
+    border-color: #b98a00;
+    color: #5a4300;
 }
 
 html.dark-mode body .quiz-timer-bar {
