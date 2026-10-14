@@ -710,6 +710,7 @@ router.get("/scores/tests", requireAdmin, async (req, res, next) => {
     const chapterRows = chapters.map((c) => {
       const ct = tests.filter((t) => t.chapter_id === c.id);
       return {
+        id: c.id,
         chapterNumber: c.chapter_number,
         title: c.title,
         ...summarizeTests(ct),
@@ -1258,6 +1259,91 @@ router.get("/game-progress", requireAdmin, async (req, res, next) => {
       .all();
 
     return res.json({ players, totalPlayers: players.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== การอ่านรายหน้า (PDF) — หลักฐานเสริมว่าอ่านจริง ==================
+// GET /api/admin/reading-pages/:chapterId — เวลาที่เปิดแต่ละหน้าของบทนั้น รวมทุกรอบอ่าน แยกรายคน (ผู้ใช้ทั่วไปเท่านั้น)
+// นับเฉพาะตอนจับเวลาอ่านอยู่และหน้าเว็บแสดงอยู่ (ดู reading_page_time ใน database.js) | หน้าที่เปิด ≥ 5 วินาที = เปิดอ่าน
+const PAGE_VIEWED_MIN_SECONDS = 5;
+router.get("/reading-pages/:chapterId", requireAdmin, async (req, res, next) => {
+  try {
+    const chapterId = Number(req.params.chapterId);
+    const chapter = await db.prepare("SELECT id, chapter_number, title FROM chapters WHERE id = ?").get(chapterId);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทนี้" });
+
+    const nonAdmin = "s.user_id IN (SELECT id FROM users WHERE is_admin = 0)";
+    const [pageRows, totals, firstTests] = await Promise.all([
+      db
+        .prepare(
+          `SELECT s.user_id AS userId, u.username, p.page, SUM(p.seconds) AS seconds
+           FROM reading_page_time p
+           JOIN reading_sessions s ON s.id = p.session_id
+           JOIN users u ON u.id = s.user_id
+           WHERE s.chapter_id = ? AND ${nonAdmin}
+           GROUP BY s.user_id, p.page`
+        )
+        .all(chapterId),
+      db
+        .prepare(`SELECT MAX(s.pdf_total_pages) AS totalPages FROM reading_sessions s WHERE s.chapter_id = ? AND ${nonAdmin}`)
+        .get(chapterId),
+      db
+        .prepare(
+          `SELECT t.user_id AS userId, t.pre_score AS preScore, t.post_score AS postScore, t.total
+           FROM chapter_tests t
+           WHERE t.chapter_id = ? AND t.attempt = 1 AND t.status = 'completed'
+             AND t.user_id IN (SELECT id FROM users WHERE is_admin = 0)`
+        )
+        .all(chapterId),
+    ]);
+
+    const totalPages = totals.totalPages || pageRows.reduce((m, r) => Math.max(m, r.page), 0);
+    const testByUser = new Map(firstTests.map((t) => [t.userId, t]));
+
+    const users = new Map();
+    for (const r of pageRows) {
+      if (!users.has(r.userId)) users.set(r.userId, { id: r.userId, username: r.username, pages: {} });
+      users.get(r.userId).pages[r.page] = r.seconds;
+    }
+
+    const pages = [];
+    for (let page = 1; page <= totalPages; page++) {
+      const viewed = [...users.values()].map((u) => u.pages[page] || 0).filter((sec) => sec >= PAGE_VIEWED_MIN_SECONDS);
+      pages.push({
+        page,
+        readers: viewed.length,
+        avgSeconds: viewed.length ? Math.round(viewed.reduce((a, b) => a + b, 0) / viewed.length) : 0,
+      });
+    }
+
+    const userRows = [...users.values()]
+      .map((u) => {
+        const viewedPages = Object.entries(u.pages)
+          .filter(([, sec]) => sec >= PAGE_VIEWED_MIN_SECONDS)
+          .map(([page]) => Number(page));
+        const test = testByUser.get(u.id);
+        return {
+          id: u.id,
+          username: u.username,
+          pagesViewed: viewedPages.length,
+          coveragePct: totalPages ? Math.round((viewedPages.length / totalPages) * 100) : null,
+          lastPage: viewedPages.length ? Math.max(...viewedPages) : null,
+          minutes: Math.round((Object.values(u.pages).reduce((a, b) => a + b, 0) / 60) * 10) / 10,
+          prePct: test && test.total ? Math.round((test.preScore / test.total) * 100) : null,
+          postPct: test && test.total ? Math.round((test.postScore / test.total) * 100) : null,
+          pages: u.pages,
+        };
+      })
+      .sort((a, b) => b.pagesViewed - a.pagesViewed || b.minutes - a.minutes);
+
+    return res.json({
+      chapter: { id: chapter.id, chapterNumber: chapter.chapter_number, title: chapter.title, totalPages },
+      viewedMinSeconds: PAGE_VIEWED_MIN_SECONDS,
+      pages,
+      users: userRows,
+    });
   } catch (err) {
     next(err);
   }

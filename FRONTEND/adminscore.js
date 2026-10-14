@@ -78,6 +78,7 @@ async function loadTestScores() {
       )
       .join("");
     renderTestUserTable();
+    fillReadingPageChapters(data.chapters);
   } catch (err) {
     console.error("โหลดคะแนนแบบทดสอบไม่สำเร็จ:", err);
     document.getElementById("testChapterBody").innerHTML =
@@ -319,6 +320,166 @@ function openScoreDetail(userId) {
 
 function closeScoreDetailModal() {
   document.getElementById("scoreDetailModal").classList.remove("active");
+}
+
+// ================== การอ่านรายหน้า (PDF) ==================
+// กราฟแท่ง = เวลาเฉลี่ยที่เปิดหน้านั้น (เฉลี่ยจากคนที่เปิดอ่านหน้านั้น) | เส้น = จำนวนคนที่เปิดอ่านหน้านั้น
+// เลือกผู้ใช้ 1 คน = เวลาที่คนนั้นเปิดแต่ละหน้า (รวมทุกรอบอ่านของบทนี้)
+let readingPagesData = null;
+let readingPagesChart = null;
+
+function fillReadingPageChapters(chapters) {
+  const select = document.getElementById("rpChapter");
+  if (!select || select.options.length) return;
+  select.innerHTML = chapters
+    .map((c) => `<option value="${c.id}">บทที่ ${c.chapterNumber} ${escapeHtml(c.title)}</option>`)
+    .join("");
+  loadReadingPages();
+}
+
+function formatSeconds(sec) {
+  if (!sec) return "0 วินาที";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m ? `${m} นาที${s ? ` ${s} วินาที` : ""}` : `${s} วินาที`;
+}
+
+async function loadReadingPages() {
+  const chapterId = document.getElementById("rpChapter").value;
+  if (!chapterId) return;
+  const body = document.getElementById("rpUserBody");
+  try {
+    readingPagesData = await adminApiFetch(`/admin/reading-pages/${chapterId}`);
+  } catch (err) {
+    console.error("โหลดการอ่านรายหน้าไม่สำเร็จ:", err);
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#d9534f;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+    return;
+  }
+  const d = readingPagesData;
+  document.getElementById("rpMinSeconds").textContent = d.viewedMinSeconds;
+
+  const userSelect = document.getElementById("rpUser");
+  userSelect.innerHTML =
+    '<option value="">ทุกคน (เฉลี่ย)</option>' +
+    d.users.map((u) => `<option value="${u.id}">${escapeHtml(u.username)}</option>`).join("");
+
+  body.innerHTML = d.users.length
+    ? d.users
+        .map(
+          (u) => `
+        <tr>
+          <td>${escapeHtml(u.username)}</td>
+          <td>${u.pagesViewed} / ${d.chapter.totalPages || "-"} หน้า${u.coveragePct != null ? ` <span class="rp-coverage">(${u.coveragePct}%)</span>` : ""}</td>
+          <td>${u.lastPage ?? "-"}</td>
+          <td>${u.minutes} นาที</td>
+          <td>${fmtPct(u.prePct)}</td>
+          <td>${fmtPct(u.postPct)}</td>
+          <td>
+            <button class="qs-detail-btn" onclick="showReadingPagesFor(${u.id})" title="ดูกราฟรายหน้าของคนนี้">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="14"/>
+              </svg>
+            </button>
+          </td>
+        </tr>`
+        )
+        .join("")
+    : '<tr><td colspan="7" style="text-align:center;color:#999;">ยังไม่มีใครอ่านบทนี้ผ่าน PDF</td></tr>';
+
+  renderReadingPagesChart();
+}
+
+function showReadingPagesFor(userId) {
+  document.getElementById("rpUser").value = String(userId);
+  renderReadingPagesChart();
+  document.querySelector(".rp-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderReadingPagesChart() {
+  const d = readingPagesData;
+  if (!d) return;
+  const userId = Number(document.getElementById("rpUser").value) || null;
+  const user = userId ? d.users.find((u) => u.id === userId) : null;
+  const empty = !d.pages.length || !d.users.length;
+  document.getElementById("rpEmpty").hidden = !empty;
+  document.querySelector(".rp-chart-wrap").hidden = empty;
+
+  const summary = document.getElementById("rpSummary");
+  if (empty) {
+    summary.textContent = "";
+  } else if (user) {
+    summary.textContent = `${user.username}: เปิดอ่าน ${user.pagesViewed}/${d.chapter.totalPages} หน้า · ${user.minutes} นาที`;
+  } else {
+    const avgPages = d.users.reduce((a, u) => a + u.pagesViewed, 0) / d.users.length;
+    summary.textContent = `อ่านแล้ว ${d.users.length} คน · เปิดอ่านเฉลี่ย ${avgPages.toFixed(1)}/${d.chapter.totalPages} หน้า`;
+  }
+
+  if (readingPagesChart) {
+    readingPagesChart.destroy();
+    readingPagesChart = null;
+  }
+  if (empty || typeof Chart === "undefined") return;
+
+  const labels = d.pages.map((p) => p.page);
+  const seconds = user ? d.pages.map((p) => user.pages[p.page] || 0) : d.pages.map((p) => p.avgSeconds);
+  const datasets = [
+    {
+      type: "bar",
+      label: user ? `เวลาที่ ${user.username} เปิดหน้านี้ (วินาที)` : "เวลาเฉลี่ยต่อหน้า (วินาที)",
+      data: seconds,
+      backgroundColor: "rgba(151, 188, 98, 0.75)",
+      borderRadius: 4,
+      yAxisID: "y",
+    },
+  ];
+  if (!user) {
+    datasets.push({
+      type: "line",
+      label: "จำนวนคนที่เปิดอ่านหน้านี้",
+      data: d.pages.map((p) => p.readers),
+      borderColor: "#e0892f",
+      backgroundColor: "#e0892f",
+      pointRadius: 2,
+      tension: 0.25,
+      yAxisID: "y1",
+    });
+  }
+
+  readingPagesChart = new Chart(document.getElementById("rpChart"), {
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            title: (items) => `หน้า ${items[0].label}`,
+            label: (item) =>
+              item.dataset.yAxisID === "y"
+                ? `${item.dataset.label.replace(" (วินาที)", "")}: ${formatSeconds(item.raw)}`
+                : `${item.dataset.label}: ${item.raw} คน`,
+          },
+        },
+      },
+      scales: {
+        x: { title: { display: true, text: "หน้า" } },
+        y: { beginAtZero: true, title: { display: true, text: "วินาที" } },
+        ...(user
+          ? {}
+          : {
+              y1: {
+                beginAtZero: true,
+                position: "right",
+                grid: { drawOnChartArea: false },
+                ticks: { precision: 0 },
+                title: { display: true, text: "คน" },
+              },
+            }),
+      },
+    },
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
