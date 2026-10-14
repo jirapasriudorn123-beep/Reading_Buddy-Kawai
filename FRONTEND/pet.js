@@ -157,6 +157,7 @@ const BREED_EMOJI = { golden: "🦮", shiba: "🐕", siberian: "🐺", thairidge
 //   happiness = ตอนปล่อยมือหลังลูบหัวเสร็จ / กดปุ่มเล่นด้วยกัน
 //   sleep     = ท่านอน
 //   low       = ท่าเศร้า: ความสุขต่ำกว่า 25% หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
+//   reading   = ท่าอ่านหนังสือ: อ่านติดกันตั้งแต่ READING_POSE_STREAK_DAYS วัน สลับกับท่า idle (ดู refreshPetMood)
 const PET_POSES = {
   thairidgeback: {
     feed: ["img/pets/thairidgeback-baby-feed-1.gif", "img/pets/thairidgeback-baby-feed-2.gif"],
@@ -177,6 +178,7 @@ const PET_POSES = {
     holdPet: ["img/pets/golden/08_golden_happy_fast_wag.gif"],
     sleep: ["img/pets/golden/golden_sleeping.gif"],
     low: ["img/pets/golden/golden_sad.webp"],
+    reading: ["img/pets/golden/golden_reading.webp"],
   },
   shiba: {
     idle: ["img/pets/shiba/shiba_stand.gif"],
@@ -187,6 +189,7 @@ const PET_POSES = {
     holdPet: ["img/pets/shiba/shiba_tail_blink_ear_120f.gif"],
     sleep: ["img/pets/shiba/shiba_sleeping.gif"],
     low: ["img/pets/shiba/shiba_sad.webp"],
+    reading: ["img/pets/shiba/shiba_reading.webp"],
   },
   siberian: {
     idle: ["img/pets/siberian/husky_sit_tail_tongue_blink.gif"],
@@ -197,6 +200,7 @@ const PET_POSES = {
     holdPet: ["img/pets/siberian/husky_tail_blink_ear.gif"],
     sleep: ["img/pets/siberian/husky_puppy_sleeping_zzz.gif", "img/pets/siberian/husky_adult_sleeping_zzz.gif"],
     low: ["img/pets/siberian/husky_sad.webp"],
+    reading: ["img/pets/siberian/husky_reading.webp"],
   },
 };
 
@@ -241,7 +245,9 @@ function moodSpeech(streak) {
   if (!streak) return "เจ้านาย มาเล่นด้วยกันเถอะ";
   switch (streak.mood) {
     case "happy":
-      return "วันนี้อ่านหนังสือด้วยกันแล้ว ดีใจที่สุดเลย! 🐾";
+      return streak.current >= READING_POSE_STREAK_DAYS
+        ? `อ่านด้วยกันติดกัน ${streak.current} วันแล้ว ผมขยันอ่านตามเจ้านายเลย 🤓📖`
+        : "วันนี้อ่านหนังสือด้วยกันแล้ว ดีใจที่สุดเลย! 🐾";
     case "waiting":
       return "วันนี้ไปอ่านหนังสือด้วยกันไหมเจ้านาย? 📖";
     case "lonely":
@@ -324,9 +330,30 @@ function showPetPose(poseKey, revertAfterMs) {
   }
 }
 
-// เช็คว่ามีสถานะไหนต่ำกว่าเกณฑ์ไหม ถ้ามีโชว์ท่าเศร้าค้างไว้ ไม่มีก็กลับไปท่า idle ปกติ
+// อ่านติดกันตั้งแต่ 3 วัน: น้องหมาสลับระหว่างท่าอ่านหนังสือกับท่ายืนปกติ (ข้อ 7 — น้องสะท้อนการอ่านของผู้ใช้)
+const READING_POSE_STREAK_DAYS = 3;
+const READING_POSE_MS = 12000;
+const IDLE_POSE_MS = 8000;
+let readingPhase = true;
+let readingPoseTimer = null;
+
+function readingStreakActive() {
+  return !!(currentStreak && !currentStreak.lonely && currentStreak.current >= READING_POSE_STREAK_DAYS);
+}
+
+function scheduleReadingPoseCycle() {
+  clearTimeout(readingPoseTimer);
+  if (!currentPet || !readingStreakActive() || !getPoseFrames(currentPet.breed, "reading")) return;
+  readingPoseTimer = setTimeout(() => {
+    readingPhase = !readingPhase;
+    refreshPetMood();
+  }, readingPhase ? READING_POSE_MS : IDLE_POSE_MS);
+}
+
+// เช็คว่ามีสถานะไหนต่ำกว่าเกณฑ์ไหม ถ้ามีโชว์ท่าเศร้าค้างไว้ อ่านติดกันหลายวันสลับท่าอ่านหนังสือ ไม่งั้นท่า idle ปกติ
 // (ไม่ทำอะไรถ้ากำลังโชว์ท่ากิจกรรมชั่วคราวอยู่ กันแย่งกันโชว์)
 function refreshPetMood() {
+  scheduleReadingPoseCycle();
   if (!currentPet || showingTemporaryPose) return;
 
   // ท่าเศร้า (low) โชว์ตอน "ความสุข" ต่ำกว่าเกณฑ์ หรือไม่ได้อ่านหนังสือด้วยกันหลายวัน (เหงา)
@@ -338,6 +365,12 @@ function refreshPetMood() {
       applyPetImageSrc(lowFrames[0], currentPet.breed);
       return;
     }
+  }
+
+  const readingFrames = getPoseFrames(currentPet.breed, "reading");
+  if (readingPhase && readingStreakActive() && readingFrames && readingFrames.length) {
+    applyPetImageSrc(readingFrames[0], currentPet.breed);
+    return;
   }
 
   const idleFrames = getPoseFrames(currentPet.breed, "idle");
