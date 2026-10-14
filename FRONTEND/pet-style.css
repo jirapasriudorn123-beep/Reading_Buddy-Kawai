@@ -427,3 +427,37 @@ html.dark-mode body .levelup-card { background: #23282d; color: #eee; border-col
 html.dark-mode body .levelup-bonus { background: linear-gradient(110deg, #2c3a22 30%, #3a4a2d 50%, #2c3a22 70%); background-size: 250% 100%; }
 html.dark-mode body .levelup-bonus strong { color: #b8dc8a; }
 html.dark-mode body .levelup-btn-ghost { background: transparent; color: #b8dc8a; }
+
+/* ---- ท่านอน (ภาพนิ่ง): ตัว Zzz ลอยขึ้นจากหัวน้อง ---- */
+.pet-zzz {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 4;
+}
+.pet-zzz span {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    font-family: "Kanit", sans-serif;
+    font-weight: 600;
+    color: #5f86c4;
+    text-shadow: 0 1px 0 #fff, 0 0 4px #fff;
+    opacity: 0;
+    animation: petZzzFloat 2.4s ease-out infinite;
+}
+.pet-zzz span:nth-child(1) { font-size: 17px; animation-delay: 0s; }
+.pet-zzz span:nth-child(2) { font-size: 22px; animation-delay: 0.8s; }
+.pet-zzz span:nth-child(3) { font-size: 28px; animation-delay: 1.6s; }
+@keyframes petZzzFloat {
+    0%   { transform: translate(0, 0) rotate(-8deg) scale(0.6); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(22px, -46px) rotate(10deg) scale(1.1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pet-zzz span { animation: none; opacity: 0.9; }
+    .pet-zzz span:nth-child(2) { transform: translate(10px, -16px); }
+    .pet-zzz span:nth-child(3) { transform: translate(20px, -34px); }
+}
+html.dark-mode body .pet-zzz span { color: #a9c4f0; text-shadow: none; }

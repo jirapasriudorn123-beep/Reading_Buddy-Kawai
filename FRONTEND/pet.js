@@ -208,6 +208,34 @@ const PET_POSES = {
   },
 };
 
+// ตัว Zzz ลอยขึ้นจากหัว สำหรับรูปท่านอนที่เป็นภาพนิ่ง (GIF ของพันธุ์อื่นมี zzz ในตัวอยู่แล้ว)
+// x, y = ตำแหน่งหัวน้องเป็นสัดส่วนของรูปต้นฉบับ (รูปถูกย่อแบบ contain ชิดขอบล่างในกล่อง #petImg)
+const SLEEP_ZZZ_ANCHOR = {
+  "img/pets/thairidgeback-baby-sleep.png": { x: 0.78, y: 0.26 },
+};
+
+function updateSleepZzz(petImg, src) {
+  const character = document.getElementById("petCharacter");
+  character?.querySelector(".pet-zzz")?.remove();
+  const anchor = SLEEP_ZZZ_ANCHOR[src];
+  if (!anchor || !character || !petImg.naturalWidth) return;
+
+  // หาตำแหน่งจริงของรูปในกล่อง (object-fit: contain + object-position: center bottom)
+  const scale = Math.min(petImg.clientWidth / petImg.naturalWidth, petImg.clientHeight / petImg.naturalHeight);
+  const drawnW = petImg.naturalWidth * scale;
+  const drawnH = petImg.naturalHeight * scale;
+  const left = petImg.offsetLeft + (petImg.clientWidth - drawnW) / 2 + anchor.x * drawnW;
+  const top = petImg.offsetTop + (petImg.clientHeight - drawnH) + anchor.y * drawnH;
+
+  const zzz = document.createElement("div");
+  zzz.className = "pet-zzz";
+  zzz.setAttribute("aria-hidden", "true");
+  zzz.style.left = `${left}px`;
+  zzz.style.top = `${top}px`;
+  zzz.innerHTML = "<span>z</span><span>z</span><span>Z</span>";
+  character.appendChild(zzz);
+}
+
 function getPoseFrames(breed, poseKey) {
   return PET_POSES[breed]?.[poseKey] || null;
 }
@@ -303,8 +331,10 @@ function applyPetImageSrc(src, breed) {
   petImg.onload = () => {
     petImg.style.display = "block";
     if (petEmoji) petEmoji.style.display = "none";
+    updateSleepZzz(petImg, src);
   };
   petImg.onerror = () => {
+    updateSleepZzz(petImg, null);
     petImg.style.display = "none";
     if (petEmoji) {
       petEmoji.textContent = BREED_EMOJI[breed] || "🐶";
