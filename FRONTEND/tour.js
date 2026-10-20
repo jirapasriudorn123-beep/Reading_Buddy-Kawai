@@ -5,6 +5,18 @@
 
 const TOUR_VERSION = 1; // เปลี่ยนเลขเมื่อแก้คำแนะนำมาก ให้ทุกคนเห็นใหม่อีกครั้ง
 
+// เสียงสั้น ๆ ทุกครั้งที่ชี้จุดใหม่ (จุดแรกที่ขึ้นเองตอนเปิดหน้า บางเบราว์เซอร์อาจไม่ดังเพราะผู้ใช้ยังไม่ได้แตะหน้าเว็บ — ไม่เป็นไร)
+const TOUR_STEP_SOUND = new Audio("sound/tour-step.m4a");
+TOUR_STEP_SOUND.preload = "auto";
+TOUR_STEP_SOUND.volume = 0.6;
+
+function playTourStepSound() {
+  try {
+    TOUR_STEP_SOUND.currentTime = 0;
+    TOUR_STEP_SOUND.play().catch(() => {});
+  } catch (_) {}
+}
+
 const TOURS = {
   home: [
     {
@@ -255,6 +267,7 @@ function renderTourStep() {
 
   placeTour(el);
   tip.querySelector(".tour-next").focus({ preventScroll: true });
+  playTourStepSound();
 }
 
 // วางชั้นมืด 4 แผ่นรอบจุดที่ชี้ + กรอบส้ม + กล่องคำอธิบาย (ใต้หรือเหนือจุด แล้วแต่ที่ว่าง)
