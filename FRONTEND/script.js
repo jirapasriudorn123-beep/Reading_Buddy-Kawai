@@ -730,14 +730,14 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
 }
 
 // ---------- แบบทดสอบ (ถามทีละข้อ server จับเวลาข้อละ 1 นาที) ----------
-// ก่อนอ่าน: ไม่บอกผล มีปุ่ม "ยังไม่รู้" | หลังอ่าน: สลับแท็บระหว่างข้อ = ข้อนั้นผิด, ไม่เฉลยข้อที่ผิด
+// ก่อนอ่าน: ไม่บอกผล ต้องทำให้จบ (ไม่มีปุ่มยังไม่รู้/ทำทีหลัง หมดเวลานับว่ายังไม่รู้) | หลังอ่าน: สลับแท็บระหว่างข้อ = ข้อนั้นผิด, ไม่เฉลยข้อที่ผิด
 
 const OPTION_LABELS = ["ก", "ข", "ค", "ง"];
 const TEST_COPY = {
   pre: {
     kicker: "แบบทดสอบก่อนอ่าน",
-    hint: "ตอบตามที่รู้ตอนนี้ ไม่มีผลกับคอยน์ ข้อละ 1 นาที ถ้ายังไม่รู้กด \"ยังไม่รู้\" ได้เลย",
-    leave: "ทำทีหลัง",
+    hint: "ตอบตามที่รู้ตอนนี้ ไม่มีผลกับคอยน์ · ข้อละ 1 นาที (หมดเวลานับว่ายังไม่รู้)",
+    leave: null,
   },
   post: {
     kicker: "แบบทดสอบหลังอ่าน",
@@ -753,7 +753,7 @@ async function runChapterTest(chapter, phase, onFinished) {
   const copy = TEST_COPY[phase];
   openQuizPanel({ kicker: copy.kicker, title: `Chapter ${chapter.chapter_number} ${chapter.title}`, hint: copy.hint });
   document.getElementById("quizBody").innerHTML = `<p class="quiz-loading">กำลังโหลดคำถาม...</p>`;
-  setQuizButtons(null, { label: copy.leave, onClick: leaveTest });
+  setQuizButtons(null, copy.leave ? { label: copy.leave, onClick: leaveTest } : null);
 
   try {
     const res = await apiFetch(`/chapters/${chapter.id}/test/next`, { method: "POST", body: JSON.stringify({ phase }) });
@@ -799,9 +799,6 @@ function renderTestQuestion(q) {
         </button>`
     )
     .join("");
-  const unknownHtml = q.allowUnknown
-    ? `<button type="button" class="quiz-option quiz-option-unknown" data-picked="0">ยังไม่รู้</button>`
-    : "";
 
   const body = document.getElementById("quizBody");
   body.innerHTML = `
@@ -810,7 +807,7 @@ function renderTestQuestion(q) {
       <span class="quiz-timer-text" id="quizTimerText"></span>
     </div>
     <p class="quiz-question">${escapeHtml(q.question)}</p>
-    <div class="quiz-options">${optionsHtml}${unknownHtml}</div>
+    <div class="quiz-options">${optionsHtml}</div>
   `;
   body.querySelectorAll(".quiz-option").forEach((btn) => {
     btn.addEventListener("click", () => submitTestAnswer(Number(btn.dataset.picked)));

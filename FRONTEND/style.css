@@ -3638,13 +3638,6 @@ html.dark-mode body .modal-qty-control input {
     font-weight: 600;
 }
 
-.quiz-option-unknown {
-    justify-content: center;
-    background: transparent;
-    border-style: dashed;
-    color: #555;
-}
-
 .quiz-secondary-btn {
     background: transparent;
     border: 1px solid #999;
@@ -3699,8 +3692,7 @@ html.dark-mode body .modal-qty-control input {
 }
 
 html.dark-mode body .quiz-hint,
-html.dark-mode body .quiz-secondary-btn,
-html.dark-mode body .quiz-option-unknown {
+html.dark-mode body .quiz-secondary-btn {
     color: #bbb;
 }
 
@@ -3713,10 +3705,6 @@ html.dark-mode body .quiz-result-item {
 
 html.dark-mode body .quiz-option:hover:not(:disabled) {
     background-color: #343b42;
-}
-
-html.dark-mode body .quiz-option-unknown {
-    background: transparent;
 }
 
 html.dark-mode body .quiz-kicker,
