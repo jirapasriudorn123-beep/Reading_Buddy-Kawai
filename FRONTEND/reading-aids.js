@@ -41,7 +41,10 @@ const BREAK_MUSIC_VOLUME = 0.5;
 const BREAK_FADE_SECONDS = 8;
 const BREAK_MUSIC_MUTED_KEY = "breakMusicMuted";
 
-let breakAudio = null;
+// ใช้ element เดียวตลอด (เปลี่ยนแค่ไฟล์เพลง) — Safari/มือถืออนุญาตให้ element ที่ "ปลดล็อก" แล้วเล่นเองได้ (ดู unlockAudio ข้างล่าง)
+const breakPlayer = new Audio();
+breakPlayer.loop = true; // เวลาพักยาวกว่าเพลงก็วนซ้ำ — ตัวจับเวลาเป็นคนตัดสินว่าพักหมดเมื่อไหร่
+let breakAudio = null; // = breakPlayer ระหว่างพัก, null เมื่อไม่ได้เล่น
 
 function readStorage(key) {
   try {
@@ -78,8 +81,8 @@ function nextBreakTrack() {
 
 function startBreakMusic() {
   stopBreakMusic();
-  breakAudio = new Audio(nextBreakTrack());
-  breakAudio.loop = true; // เวลาพักยาวกว่าเพลงก็วนซ้ำ — ตัวจับเวลาเป็นคนตัดสินว่าพักหมดเมื่อไหร่
+  breakAudio = breakPlayer;
+  breakAudio.src = nextBreakTrack();
   breakAudio.volume = BREAK_MUSIC_VOLUME;
   breakAudio.muted = breakMusicMuted();
   breakAudio.play().catch((err) => console.warn("เล่นเพลงตอนพักไม่สำเร็จ:", err));
@@ -97,8 +100,6 @@ function fadeBreakMusic(secondsLeft) {
 function stopBreakMusic() {
   if (breakAudio) {
     breakAudio.pause();
-    breakAudio.removeAttribute("src");
-    breakAudio.load();
     breakAudio = null;
   }
   updateBreakMusicButton();
@@ -121,6 +122,42 @@ function updateBreakMusicButton() {
   btn.setAttribute("aria-label", btn.title);
   btn.setAttribute("aria-pressed", String(!muted));
 }
+
+// ---------- ปลดล็อกเสียงด้วยการแตะ/กดของผู้ใช้ ----------
+// Safari และเบราว์เซอร์บนมือถือบล็อกเสียงที่เริ่มเล่นเองโดยไม่ได้มาจากการกด (เช่น เพลงนับถอยหลังตอนเหลือ 11 วิ, เพลงตอนพัก)
+// แก้โดย: ตอนผู้ใช้แตะ/กดอะไรก็ได้ ให้ element เสียงเล่นแบบปิดเสียงแล้วหยุดทันที element นั้นจะเล่นเองได้ในภายหลัง
+const SILENT_WAV = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
+const unlockableAudio = new Set([breakPlayer]);
+const unlockedAudio = new WeakSet();
+
+function registerUnlockableAudio(audio) {
+  unlockableAudio.add(audio);
+}
+
+function unlockAudio() {
+  unlockableAudio.forEach((audio) => {
+    if (unlockedAudio.has(audio) || !audio.paused) return;
+    const hadSrc = !!audio.getAttribute("src");
+    if (!hadSrc) audio.src = SILENT_WAV;
+    audio.muted = true;
+    const restore = () => {
+      audio.pause();
+      audio.muted = audio === breakPlayer ? breakMusicMuted() : false;
+      if (hadSrc) audio.currentTime = 0;
+      else audio.removeAttribute("src");
+    };
+    audio
+      .play()
+      .then(() => {
+        unlockedAudio.add(audio);
+        restore();
+      })
+      .catch(restore);
+  });
+}
+
+document.addEventListener("pointerdown", unlockAudio, true);
+document.addEventListener("keydown", unlockAudio, true);
 
 // ---------- เสียงกริ่งตอนพักครบ (สร้างด้วย Web Audio ไม่ต้องใช้ไฟล์) ----------
 function playBreakEndChime() {

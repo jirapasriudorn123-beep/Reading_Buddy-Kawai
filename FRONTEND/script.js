@@ -530,6 +530,7 @@ const COUNTDOWN_SOUND_URL = "sound/reading-countdown.m4a";
 const COUNTDOWN_LEAD_SECONDS = 11;
 const countdownSound = new Audio(COUNTDOWN_SOUND_URL);
 countdownSound.preload = "auto";
+registerUnlockableAudio(countdownSound); // Safari/มือถือ: ปลดล็อกตอนผู้ใช้กดปุ่ม ไม่งั้นเล่นเองตอนเหลือ 11 วิไม่ได้ (reading-aids.js)
 
 function playCountdownSound(secondsLeft) {
   try {
