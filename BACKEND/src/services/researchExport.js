@@ -7,6 +7,7 @@ const { INTERVAL_DAYS, MASTERED_STAGE } = require("./spacedReview");
 //   days     — 1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้ (retention, เทียบวันที่ดูแลหมากับวันที่ไม่ได้ดูแลในคนเดียวกัน)
 //   sessions — 1 แถว = รอบอ่าน 1 รอบที่อ่านจบ (ช่วงเวลาที่อ่าน, ความยาวรอบ, รอบที่ถาม AI vs ไม่ได้ถาม)
 //   reviews  — 1 แถว = ตอบคำถามบทเรียน 1 ครั้งใน post/เกม พร้อมขั้นทบทวน (จำได้แค่ไหนเมื่อเว้นไป 1/3/7/14 วัน)
+//   user-key — ตารางจับคู่รหัสผู้ใช้ ↔ ชื่อผู้ใช้/อีเมล (มีข้อมูลส่วนบุคคล เก็บแยกจากข้อมูลวิจัย ห้ามแนบในเล่ม/ส่งต่อ)
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
 
 const TZ_MS = 7 * 60 * 60 * 1000;
@@ -461,6 +462,29 @@ async function buildReviewsCsv() {
   return toCsv(REVIEW_COLUMNS, rows);
 }
 
-const EXPORTS = { users: buildUsersCsv, days: buildDaysCsv, sessions: buildSessionsCsv, reviews: buildReviewsCsv };
+// ---------- user-key.csv ----------
+// "กุญแจ" สำหรับย้อนดูว่ารหัสไหนเป็นใคร (pseudonymization) — ข้อมูลวิจัย 4 ชุดข้างบนยังไม่มีชื่อเหมือนเดิม
+const USER_KEY_COLUMNS = ["user_code", "username", "email", "registered_at"];
+
+async function buildUserKeyCsv() {
+  const users = await db
+    .prepare("SELECT id, username, email, created_at FROM users WHERE is_admin = 0 ORDER BY id")
+    .all();
+  const rows = users.map((u) => ({
+    user_code: userCode(u.id),
+    username: u.username,
+    email: u.email,
+    registered_at: thaiDateTime(u.created_at),
+  }));
+  return toCsv(USER_KEY_COLUMNS, rows);
+}
+
+const EXPORTS = {
+  users: buildUsersCsv,
+  days: buildDaysCsv,
+  sessions: buildSessionsCsv,
+  reviews: buildReviewsCsv,
+  "user-key": buildUserKeyCsv,
+};
 
 module.exports = { EXPORTS };
