@@ -519,33 +519,32 @@ async function stopReading() {
   );
   if (!confirmStop) return;
 
+  stopCountdownSound();
   await completeReadingSession(false); // false = จบก่อนเวลา ไม่เข้าสู่ช่วงพัก
 }
 
-// ================== เสียงแจ้งเตือนก่อนหมดเวลา 5 วินาที (ไฟล์ buzzer 5 วิ จาก sound/timer-end.mp3) ==================
+// ================== เพลงนับถอยหลังก่อนหมดเวลาอ่าน (sound/reading-countdown.m4a ยาว ~12.7 วิ) ==================
+// เริ่มเล่นตอนเหลือ COUNTDOWN_LEAD_SECONDS วิ — จังหวะพีคท้ายเพลง (วินาทีที่ ~10.5 ของไฟล์) ตรงกับตอนนาฬิกาเป็น 00:00
+// สลับแท็บแล้วนาฬิกาหยุด เพลงก็หยุดด้วย กลับมาแล้วเล่นต่อจากตำแหน่งที่ตรงกับเวลาที่เหลือ
+const COUNTDOWN_SOUND_URL = "sound/reading-countdown.m4a";
+const COUNTDOWN_LEAD_SECONDS = 11;
+const countdownSound = new Audio(COUNTDOWN_SOUND_URL);
+countdownSound.preload = "auto";
 
-// ใช้ <Audio> element หลายอันเล่นซ้อนกัน = ดังขึ้นทวีคูณ (Web Audio GainNode boost
-// เคยลอง แต่ createMediaElementSource ตัด default output แล้วบาง browser เสียงหายเลย
-// เลยกลับมาใช้วิธีนี้ที่รองรับทุก browser 100%)
-const SOUND_URL = "sound/timer-end.mp3";
-const SOUND_COPIES = 3; // จำนวน audio element ที่เล่นพร้อมกัน (ยิ่งเยอะ = ดังยิ่งขึ้น)
-const timerEndSounds = Array.from({ length: SOUND_COPIES }, () => {
-  const a = new Audio(SOUND_URL);
-  a.preload = "auto";
-  a.volume = 1.0;
-  return a;
-});
+function playCountdownSound(secondsLeft) {
+  try {
+    countdownSound.currentTime = Math.max(0, COUNTDOWN_LEAD_SECONDS - secondsLeft);
+    countdownSound.play().catch((err) => console.error("เล่นเสียงนับถอยหลังไม่สำเร็จ:", err));
+  } catch (err) {
+    console.error("เล่นเสียงนับถอยหลังไม่สำเร็จ:", err);
+  }
+}
 
-function playSoftBeep() {
-  timerEndSounds.forEach((audio) => {
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.play().catch((err) => console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err));
-    } catch (err) {
-      console.error("เล่นเสียงแจ้งเตือนไม่สำเร็จ:", err);
-    }
-  });
+function stopCountdownSound() {
+  try {
+    countdownSound.pause();
+    countdownSound.currentTime = 0;
+  } catch (_) {}
 }
 
 // ================== นับถอยหลังระหว่างอ่าน (แสดงผลในช่องเวลาอ่านโดยตรง) ==================
@@ -559,10 +558,12 @@ function startCountdown(totalSeconds) {
 
 function resumeCountdown() {
   clearInterval(countdownInterval);
+  // กลับมาจากแท็บอื่นช่วงที่เพลงนับถอยหลังเล่นอยู่ — เล่นต่อให้ตรงกับเวลาที่เหลือ
+  if (remainingSeconds > 0 && remainingSeconds < COUNTDOWN_LEAD_SECONDS) playCountdownSound(remainingSeconds);
   countdownInterval = setInterval(async () => {
     remainingSeconds -= 1;
     updateReaderClockDisplay(Math.max(0, remainingSeconds));
-    if (remainingSeconds === 5) playSoftBeep();
+    if (remainingSeconds === COUNTDOWN_LEAD_SECONDS) playCountdownSound(remainingSeconds);
 
     if (remainingSeconds <= 0) {
       clearInterval(countdownInterval);
@@ -573,6 +574,7 @@ function resumeCountdown() {
 
 function pauseCountdown() {
   clearInterval(countdownInterval);
+  countdownSound.pause();
 }
 
 // ออกจากหน้าอ่านสั้นกว่านี้ (เช่น สลับแท็บแวบเดียว) ไม่ต้องเด้งเตือน แต่ server ก็ยังหักเวลาให้ตามจริง
@@ -1036,13 +1038,8 @@ function showBreakOverPanel(completedNaturally) {
 function resetReaderTimerState() {
   clearInterval(countdownInterval);
   clearInterval(breakCountdownInterval);
-  // ปิดเสียงเตือนถ้ายังเล่นค้างอยู่ (เช่น user กดยกเลิกช่วง 5 วิสุดท้าย)
-  timerEndSounds.forEach((audio) => {
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch (_) {}
-  });
+  // ปิดเพลงนับถอยหลังถ้ายังเล่นค้างอยู่ (เช่น user กดยกเลิกช่วงวินาทีสุดท้าย)
+  stopCountdownSound();
   activeSession = null;
   sessionPhase = null;
   remainingSeconds = 0;
