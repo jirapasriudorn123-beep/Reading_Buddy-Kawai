@@ -55,9 +55,17 @@
 }
 
 .noti-item-icon {
-    font-size: 20px;
     flex-shrink: 0;
-    line-height: 1.4;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.noti-item-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .noti-item-text {

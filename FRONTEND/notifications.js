@@ -5,7 +5,12 @@
 // จุดแดง (badge) นับเฉพาะแจ้งเตือนที่ "ยังไม่เคยเห็น" (เทียบจาก id กับที่เก็บไว้ใน localStorage)
 // พอกดเปิดกระดิ่งดูแล้ว จุดแดงจะหายไปทันที เพราะ id ที่เห็นแล้วทั้งหมดจะถูกจำไว้ไม่ให้นับซ้ำอีก
 
-const NOTI_TYPE_ICON = { update: "🔔", pet_low: "🐶", purchase: "🛍️" };
+// ไอคอนแจ้งเตือนใช้รูปชุดเดียวกับในเว็บ (กระดิ่งหัวเว็บ, หัวน้องหมาหน้าสัตว์เลี้ยง, ตะกร้าส้มหน้าร้านค้า)
+const NOTI_TYPE_ICON = {
+  update: "img/bell-icon.png",
+  pet_low: "img/pet-level-icon.png",
+  purchase: "img/cart-basket.png",
+};
 // กดแจ้งเตือนแล้วไปหน้าที่เกี่ยวข้อง (แจ้งเตือนน้องหมา → หน้าสัตว์เลี้ยง)
 const NOTI_TYPE_LINK = { pet_low: { href: "Pet.html", label: "ไปดูแลน้อง ›" } };
 const NOTI_SEEN_KEY = "notiSeenIds";
@@ -96,7 +101,7 @@ function renderNotiList(panel, notifications) {
     .map((n) => {
       const link = NOTI_TYPE_LINK[n.type];
       const body = `
-        <span class="noti-item-icon">${NOTI_TYPE_ICON[n.type] || "🔔"}</span>
+        <span class="noti-item-icon"><img src="${NOTI_TYPE_ICON[n.type] || NOTI_TYPE_ICON.update}" alt=""></span>
         <div class="noti-item-text">
           ${escapeHtml(n.message)}
           ${n.createdAt ? `<div class="noti-item-time">${escapeHtml(notiTimeAgo(n.createdAt))}</div>` : ""}
