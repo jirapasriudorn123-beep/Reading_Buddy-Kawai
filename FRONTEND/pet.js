@@ -352,6 +352,7 @@ let showingTemporaryPose = false;
 // โชว์ท่าเฉพาะกิจกรรมชั่วคราว (เช่นตอนกินข้าว/เล่นด้วยกัน) แล้วกลับไปท่าปกติ/ท่าเศร้าอัตโนมัติหลังจากนั้น
 function showPetPose(poseKey, revertAfterMs) {
   if (!currentPet) return;
+  if (poseKey !== "sleep") stopSleepSound(); // ปลุกน้องด้วยกิจกรรมอื่น = หยุดกล่องดนตรี
   const frames = getPoseFrames(currentPet.breed, poseKey);
   if (!frames || !frames.length) return; // ยังไม่มีไฟล์ท่านี้ ปล่อยรูปเดิมไว้ตามเดิม
 
@@ -811,6 +812,10 @@ async function useItem(productId) {
     if (result.leveledUp) {
       showPetPose("levelUp", 4000); // ท่าฉลองเลเวลอัพ สำคัญกว่าท่ากิจกรรมปกติ เลยแสดงแทน
       showLevelUpCelebration(result);
+    } else if (bagKey === "sleep") {
+      // ใช้ไอเทมนอน: เปิดกล่องดนตรีแล้วให้น้องนอนจนเพลงจบ (ถ้าสถานะเต็มทุกช่องก็ยังเปล่งแสงแป๊บนึงก่อน)
+      if (!celebrateIfAllFull(petBefore, currentPet)) showPetPose("sleep", SLEEP_POSE_MS);
+      playSleepSound();
     } else if (!celebrateIfAllFull(petBefore, currentPet)) {
       showPetPose(bagKey, 3000); // โชว์ท่ากิจกรรมชั่วคราว 3 วิ ถ้ามีไฟล์ท่านั้น (ไม่มีก็เงียบๆ ไม่ทำอะไร)
     }
@@ -892,20 +897,43 @@ const LEVEL_UP_SOUND = new Audio("sound/level-up.m4a");
 LEVEL_UP_SOUND.preload = "auto";
 LEVEL_UP_SOUND.volume = 0.8;
 
-function unlockLevelUpSound() {
-  document.removeEventListener("pointerdown", unlockLevelUpSound, true);
-  LEVEL_UP_SOUND.muted = true;
-  LEVEL_UP_SOUND.play()
+// กล่องดนตรีตอนใช้ไอเทมนอน (ตัดเหลือ 8 วิ ค่อย ๆ เบาลงตอนท้าย) — น้องหมานอนนานเท่าเพลง
+const SLEEP_SOUND = new Audio("sound/pet-sleep.m4a");
+SLEEP_SOUND.preload = "auto";
+SLEEP_SOUND.volume = 0.6;
+const SLEEP_POSE_MS = 8000;
+
+function primePetSound(audio) {
+  audio.muted = true;
+  audio
+    .play()
     .then(() => {
-      LEVEL_UP_SOUND.pause();
-      LEVEL_UP_SOUND.currentTime = 0;
-      LEVEL_UP_SOUND.muted = false;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
     })
     .catch(() => {
-      LEVEL_UP_SOUND.muted = false;
+      audio.muted = false;
     });
 }
+
+function unlockLevelUpSound() {
+  document.removeEventListener("pointerdown", unlockLevelUpSound, true);
+  primePetSound(LEVEL_UP_SOUND);
+  primePetSound(SLEEP_SOUND);
+}
 document.addEventListener("pointerdown", unlockLevelUpSound, true);
+
+function playSleepSound() {
+  try {
+    SLEEP_SOUND.currentTime = 0;
+    SLEEP_SOUND.play().catch(() => {});
+  } catch (_) {}
+}
+
+function stopSleepSound() {
+  if (!SLEEP_SOUND.paused) SLEEP_SOUND.pause();
+}
 
 function playLevelUpSound() {
   try {
