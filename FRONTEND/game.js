@@ -63,6 +63,12 @@ const BATTLE_MUSIC = new Audio("sound/battle-music.m4a");
 // เสียงตอนเดินเข้าไปเจอตัวร้าย (ก่อนเปลี่ยนเป็นฉากต่อสู้)
 const ENCOUNTER_SOUND = new Audio("sound/enemy-encounter.m4a");
 ENCOUNTER_SOUND.volume = 0.8;
+// เสียงดาวบนหน้าผลการต่อสู้ ดวงที่ 1 → 3 (ซ้ายไปขวา) เล่นพร้อมจังหวะที่ดาวเด้งขึ้น
+const STAR_SOUNDS = [1, 2, 3].map((n) => {
+  const a = new Audio(`sound/star-${n}.m4a`);
+  a.volume = 0.8;
+  return a;
+});
 let activeMusic = GAME_MUSIC;
 let gameMusicStarted = false;
 
@@ -94,6 +100,7 @@ function startGameMusic() {
   gameMusicStarted = true;
   primeAudio(BATTLE_MUSIC);
   primeAudio(ENCOUNTER_SOUND);
+  STAR_SOUNDS.forEach(primeAudio);
   activeMusic = GAME_MUSIC;
   GAME_MUSIC.muted = gameMusicMuted();
   GAME_MUSIC.play().catch(() => {});
@@ -1012,13 +1019,29 @@ function rewardMessage(r) {
 }
 
 // ดาวเด้งขึ้นทีละดวง (ได้ = สีทอง, ไม่ได้ = สีเทา) — ชนะได้ 1-3 ดาวตามหัวใจที่เหลือ แพ้ได้ 0 ดาว
+let starSoundTimers = [];
+
 function renderResultStars(stars) {
+  starSoundTimers.forEach(clearTimeout);
+  starSoundTimers = [];
   document.querySelectorAll("#battleResultStars .battle-star").forEach((el, i) => {
     el.classList.remove("earned", "pop");
     void el.offsetWidth; // เริ่มอนิเมชันใหม่ทุกครั้งที่เปิดหน้าผล
-    el.style.animationDelay = `${0.25 + i * 0.3}s`;
+    const delaySec = 0.25 + i * 0.3;
+    el.style.animationDelay = `${delaySec}s`;
     el.classList.add("pop");
-    if (i < stars) el.classList.add("earned");
+    if (i < stars) {
+      el.classList.add("earned");
+      // ดาวที่ได้มีเสียงประจำดวง (ดาวสีเทาที่ไม่ได้ เงียบ)
+      starSoundTimers.push(
+        setTimeout(() => {
+          const sound = STAR_SOUNDS[i];
+          if (!sound) return;
+          sound.currentTime = 0;
+          sound.play().catch(() => {});
+        }, delaySec * 1000)
+      );
+    }
   });
 }
 
