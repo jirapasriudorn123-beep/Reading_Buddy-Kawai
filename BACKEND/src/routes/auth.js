@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../db/database");
+const { recordConsent, consentStatus } = require("../services/consent");
 const { requireAuth } = require("../middleware/auth");
 const { sendPasswordResetEmail, sendUnivVerificationEmail } = require("../utils/mailer");
 const { avatarUpload } = require("../utils/cloudinary");
@@ -38,7 +39,7 @@ function normalizeEmail(email) {
 // ---------- POST /api/auth/register ----------
 router.post("/register", async (req, res) => {
   try {
-    const { email: rawEmail, username: rawUsername, password, confirmPassword } = req.body;
+    const { email: rawEmail, username: rawUsername, password, confirmPassword, acceptTerms, researchConsent } = req.body;
 
     if (!rawEmail || !rawUsername || !password || !confirmPassword) {
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบทุกช่อง" });
@@ -59,6 +60,9 @@ router.post("/register", async (req, res) => {
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "รหัสผ่านไม่ตรงกัน" });
     }
+    if (acceptTerms !== true) {
+      return res.status(400).json({ message: "กรุณาอ่านและยอมรับนโยบายความเป็นส่วนตัวก่อนสมัครสมาชิก" });
+    }
 
     const existing = await db
       .prepare("SELECT id FROM users WHERE email = ? OR username = ?")
@@ -73,6 +77,7 @@ router.post("/register", async (req, res) => {
     const result = await db
       .prepare("INSERT INTO users (email, username, password_hash) VALUES (?, ?, ?)")
       .run(email, username, passwordHash);
+    await recordConsent(Number(result.lastInsertRowid), { research: researchConsent === true, source: "register" });
 
     return res.status(201).json({
       message: "สมัครสมาชิกสำเร็จ",
@@ -128,7 +133,8 @@ router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const user = await db
       .prepare(
-        "SELECT id, email, username, coins, is_admin, avatar_url, created_at, univ_verified_at FROM users WHERE id = ?"
+        `SELECT id, email, username, coins, is_admin, avatar_url, created_at, univ_verified_at,
+                consent_version, research_consent FROM users WHERE id = ?`
       )
       .get(req.user.id);
 
@@ -136,8 +142,11 @@ router.get("/me", requireAuth, async (req, res, next) => {
       return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
     }
 
-    const { univ_verified_at, ...rest } = user;
-    return res.json({ user: { ...rest, avatarUrl: user.avatar_url, univVerified: !!univ_verified_at } });
+    const { univ_verified_at, consent_version, research_consent, ...rest } = user;
+    return res.json({
+      user: { ...rest, avatarUrl: user.avatar_url, univVerified: !!univ_verified_at },
+      consent: consentStatus(user),
+    });
   } catch (err) {
     next(err);
   }
@@ -416,6 +425,23 @@ router.post("/reset-password", async (req, res) => {
   } catch (err) {
     console.error("Reset password error:", err);
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
+  }
+});
+
+// ---------- POST /api/auth/consent ----------
+// ยอมรับนโยบายความเป็นส่วนตัว (ผู้ใช้เดิมผ่านป๊อปอัป) หรือเปลี่ยนความยินยอมด้านการวิจัย (หน้าตั้งค่า)
+// body: { acceptTerms: true, research: boolean, source: "prompt" | "settings" }
+router.post("/consent", requireAuth, async (req, res, next) => {
+  try {
+    if (req.body.acceptTerms !== true) {
+      return res.status(400).json({ message: "ต้องยอมรับนโยบายความเป็นส่วนตัวก่อนใช้งานระบบ" });
+    }
+    const source = req.body.source === "settings" ? "settings" : "prompt";
+    await recordConsent(req.user.id, { research: req.body.research === true, source });
+    const user = await db.prepare("SELECT consent_version, research_consent FROM users WHERE id = ?").get(req.user.id);
+    return res.json({ consent: consentStatus(user) });
+  } catch (err) {
+    next(err);
   }
 });
 

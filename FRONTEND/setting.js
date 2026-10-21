@@ -173,6 +173,53 @@ async function changePassword() {
   }
 }
 
+// ================== ความเป็นส่วนตัว (PDPA) ==================
+// เปิด/ถอนความยินยอมด้านการวิจัย — บันทึกทันทีที่ติ๊ก (POST /auth/consent source=settings)
+
+async function showPrivacyModal() {
+  const modal = document.getElementById("privacyModal");
+  const toggle = document.getElementById("researchConsentToggle");
+  const status = document.getElementById("privacyStatus");
+  if (!modal || !toggle) return;
+  status.textContent = "";
+  try {
+    const { consent } = await apiFetch("/auth/me");
+    toggle.checked = !!(consent && consent.research);
+  } catch (err) {
+    status.textContent = "โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้งนะ";
+  }
+  modal.style.display = "flex";
+}
+
+function closePrivacyModal() {
+  const modal = document.getElementById("privacyModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function saveResearchConsent() {
+  const toggle = document.getElementById("researchConsentToggle");
+  const status = document.getElementById("privacyStatus");
+  toggle.disabled = true;
+  try {
+    await apiFetch("/auth/consent", {
+      method: "POST",
+      body: JSON.stringify({ acceptTerms: true, research: toggle.checked, source: "settings" }),
+    });
+    status.textContent = toggle.checked
+      ? "บันทึกแล้ว: ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย ขอบคุณนะ 🐾"
+      : "บันทึกแล้ว: ถอนความยินยอมด้านการวิจัยแล้ว";
+  } catch (err) {
+    toggle.checked = !toggle.checked;
+    status.textContent = err.message || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้งนะ";
+  } finally {
+    toggle.disabled = false;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("researchConsentToggle")?.addEventListener("change", saveResearchConsent);
+});
+
 // ================== เกี่ยวกับเรา ==================
 
 function showAboutModal() {

@@ -9,8 +9,11 @@ const { INTERVAL_DAYS, MASTERED_STAGE } = require("./spacedReview");
 //   reviews  — 1 แถว = ตอบคำถามบทเรียน 1 ครั้งใน post/เกม พร้อมขั้นทบทวน (จำได้แค่ไหนเมื่อเว้นไป 1/3/7/14 วัน)
 //   user-key — ตารางจับคู่รหัสผู้ใช้ ↔ ชื่อผู้ใช้/อีเมล (มีข้อมูลส่วนบุคคล เก็บแยกจากข้อมูลวิจัย ห้ามแนบในเล่ม/ส่งต่อ)
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
+// รวมเฉพาะผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย (users.research_consent = 1 ดู services/consent.js)
 
 const TZ_MS = 7 * 60 * 60 * 1000;
+// ผู้ร่วมวิจัย = ผู้ใช้ทั่วไป (ไม่ใช่แอดมิน) ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย
+const PARTICIPANT_SQL = "is_admin = 0 AND research_consent = 1";
 const STREAK_MIN_SECONDS = 10 * 60;
 const PAGE_VIEWED_MIN_SECONDS = 5; // ตรงกับ routes/sessions.js: เปิดหน้านั้น ≥ 5 วินาที นับว่าเปิดอ่าน // ตรงกับ services/petCare.js: วันที่อ่านรวม ≥ 10 นาที นับเป็นวันอ่าน
 const PASS_RATIO = 0.6;
@@ -76,10 +79,10 @@ function groupBy(rows, key) {
 
 // ---------- ดึงข้อมูลดิบทั้งหมดของผู้ใช้ทั่วไป ----------
 async function loadRaw() {
-  const nonAdmin = "user_id IN (SELECT id FROM users WHERE is_admin = 0)";
+  const nonAdmin = `user_id IN (SELECT id FROM users WHERE ${PARTICIPANT_SQL})`;
   const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime, reviewItems, reviewLog] =
     await Promise.all([
-      db.prepare("SELECT id, created_at, coins FROM users WHERE is_admin = 0 ORDER BY id").all(),
+      db.prepare(`SELECT id, created_at, coins FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`).all(),
       db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
       db.prepare("SELECT id, chapter_number FROM chapters").all(),
       db
@@ -94,7 +97,7 @@ async function loadRaw() {
         .prepare(
           `SELECT t.user_id, q.pre_answered_at, q.post_answered_at
            FROM chapter_test_questions q JOIN chapter_tests t ON t.id = q.test_id
-           WHERE t.user_id IN (SELECT id FROM users WHERE is_admin = 0)`
+           WHERE t.user_id IN (SELECT id FROM users WHERE ${PARTICIPANT_SQL})`
         )
         .all(),
       db.prepare(`SELECT user_id, source, created_at, reading_session_id FROM chat_history WHERE ${nonAdmin}`).all(),
@@ -468,7 +471,7 @@ const USER_KEY_COLUMNS = ["user_code", "username", "email", "registered_at"];
 
 async function buildUserKeyCsv() {
   const users = await db
-    .prepare("SELECT id, username, email, created_at FROM users WHERE is_admin = 0 ORDER BY id")
+    .prepare(`SELECT id, username, email, created_at FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`)
     .all();
   const rows = users.map((u) => ({
     user_code: userCode(u.id),

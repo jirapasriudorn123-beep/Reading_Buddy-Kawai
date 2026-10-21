@@ -103,6 +103,12 @@ async function initDatabase() {
     // อีเมลมหาวิทยาลัยที่ยืนยันแล้ว (ต้องมีก่อนแลกคูปอง) เก็บแค่ SHA-256 ไม่เก็บอีเมลจริง
     ["univ_email_hash", "ALTER TABLE users ADD COLUMN univ_email_hash TEXT"],
     ["univ_verified_at", "ALTER TABLE users ADD COLUMN univ_verified_at TEXT"],
+    // ความยินยอม (PDPA) — ดู services/consent.js | consent_version = ฉบับนโยบายที่ยอมรับล่าสุด (NULL = ยังไม่เคยยอมรับ)
+    ["consent_version", "ALTER TABLE users ADD COLUMN consent_version INTEGER"],
+    ["consent_at", "ALTER TABLE users ADD COLUMN consent_at TEXT"],
+    // ยินยอมให้ใช้ข้อมูลการใช้งานแบบไม่ระบุตัวตนเพื่อการวิจัย (ไม่บังคับ) — ไม่ยินยอม = ไม่อยู่ในไฟล์ CSV ข้อมูลวิจัย
+    ["research_consent", "ALTER TABLE users ADD COLUMN research_consent INTEGER NOT NULL DEFAULT 0"],
+    ["research_consent_at", "ALTER TABLE users ADD COLUMN research_consent_at TEXT"],
   ];
   for (const [col, sql] of userColumnMigrations) {
     if (!userColumns.includes(col)) await client.execute(sql);
@@ -111,6 +117,19 @@ async function initDatabase() {
   await client.execute(
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_univ_email ON users(univ_email_hash) WHERE univ_email_hash IS NOT NULL"
   );
+
+  // ---- ประวัติการให้/ถอนความยินยอม (หลักฐานตาม PDPA ทุกครั้งที่กดยอมรับหรือเปลี่ยนใจ) ----
+  // source: register (ตอนสมัคร) | prompt (ป๊อปอัปขอความยินยอมผู้ใช้เดิม) | settings (เปลี่ยนในหน้าตั้งค่า)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS consent_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      version INTEGER NOT NULL,
+      research_consent INTEGER NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
 
   // ---- จำนวนคำถามที่ส่งให้ AI (Gemini) ตอบ ต่อผู้ใช้ต่อวัน (day = วันที่ตามเวลาไทย) ----
   await client.execute(`

@@ -16,6 +16,15 @@
       }
     </style>
     <link rel="stylesheet" href="cursor.css?v=20260926">
+    <style>
+      /* .card ใช้ร่วมกับหน้า login สูงตายตัว 600px — หน้าสมัครมีช่องยินยอมเพิ่ม เลยให้สูงตามเนื้อหา */
+      .card { height: auto; min-height: 600px; }
+      .consent-box { text-align: left; margin: 6px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+      .consent-row { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; cursor: pointer; }
+      .consent-row input { margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: #97bc62; }
+      .consent-row a { color: #4f7a24; font-weight: 600; }
+      .consent-row em { color: #777; font-style: normal; font-size: 13px; }
+    </style>
 </head>
 <body>
 
@@ -88,6 +97,18 @@
                     </div>
                     <span class="gentle-error" id="confirmPasswordError"></span>
                 </div>
+                <!-- ความยินยอม (PDPA): ข้อแรกบังคับ ข้อสองเลือกได้ -->
+                <div class="consent-box">
+                    <label class="consent-row">
+                        <input type="checkbox" id="acceptTerms">
+                        <span>ฉันได้อ่านและยอมรับ <a href="privacy.html" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a> <em>(จำเป็น)</em></span>
+                    </label>
+                    <label class="consent-row">
+                        <input type="checkbox" id="researchConsent">
+                        <span>ยินยอมให้ใช้ข้อมูลการใช้งานของฉันแบบไม่ระบุตัวตนเพื่อการวิจัยของโครงงาน <em>(ไม่บังคับ ถอนได้ทุกเมื่อในหน้าตั้งค่า)</em></span>
+                    </label>
+                    <span class="gentle-error" id="consentError"></span>
+                </div>
                 <button type="submit" class="comfort-button" id="submitBtn">
                     <div class="button-background"></div>
                     <span class="button-text">Sign Up</span>
@@ -124,6 +145,8 @@ form.addEventListener("submit", async function (e) {
   usernameError.textContent = "";
   passwordError.textContent = "";
   confirmPasswordError.textContent = "";
+  const consentError = document.getElementById("consentError");
+  consentError.textContent = "";
 
   const email = document.getElementById("email").value.trim();
   const username = document.getElementById("username").value.trim();
@@ -134,6 +157,12 @@ form.addEventListener("submit", async function (e) {
     confirmPasswordError.textContent = "รหัสผ่านไม่ตรงกัน";
     return;
   }
+  const acceptTerms = document.getElementById("acceptTerms").checked;
+  const researchConsent = document.getElementById("researchConsent").checked;
+  if (!acceptTerms) {
+    consentError.textContent = "กรุณาอ่านและยอมรับนโยบายความเป็นส่วนตัวก่อนสมัครสมาชิก";
+    return;
+  }
 
   submitBtn.classList.add("loading");
   submitBtn.disabled = true;
@@ -142,7 +171,7 @@ form.addEventListener("submit", async function (e) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, username, password, confirmPassword }),
+      body: JSON.stringify({ email, username, password, confirmPassword, acceptTerms, researchConsent }),
     });
 
     const data = await response.json();
