@@ -6,7 +6,41 @@
 // พอกดเปิดกระดิ่งดูแล้ว จุดแดงจะหายไปทันที เพราะ id ที่เห็นแล้วทั้งหมดจะถูกจำไว้ไม่ให้นับซ้ำอีก
 
 const NOTI_TYPE_ICON = { update: "🔔", pet_low: "🐶", purchase: "🛍️" };
+// กดแจ้งเตือนแล้วไปหน้าที่เกี่ยวข้อง (แจ้งเตือนน้องหมา → หน้าสัตว์เลี้ยง)
+const NOTI_TYPE_LINK = { pet_low: { href: "Pet.html", label: "ไปดูแลน้อง ›" } };
 const NOTI_SEEN_KEY = "notiSeenIds";
+
+// เสียงตอนมีแจ้งเตือนใหม่ที่ยังไม่เคยเห็น — ดังครั้งเดียวต่อแจ้งเตือนในรอบการใช้งานนี้ (จำไว้ใน sessionStorage)
+// ถ้าเบราว์เซอร์ยังไม่ให้เล่นเสียง (ผู้ใช้ยังไม่ได้แตะหน้าเว็บ) จะลองใหม่ตอนเช็คแจ้งเตือนรอบถัดไป
+const NOTI_SOUND = new Audio("sound/notification.m4a");
+NOTI_SOUND.preload = "auto";
+NOTI_SOUND.volume = 0.5;
+const NOTI_SOUNDED_KEY = "notiSoundedIds";
+
+function playNotiSoundForNew(notifications) {
+  const seen = getSeenNotiIds();
+  let sounded;
+  try {
+    sounded = new Set(JSON.parse(sessionStorage.getItem(NOTI_SOUNDED_KEY) || "[]"));
+  } catch {
+    sounded = new Set();
+  }
+  const fresh = notifications.filter((n) => !seen.has(n.id) && !sounded.has(n.id)).map((n) => n.id);
+  if (!fresh.length) return;
+  NOTI_SOUND.currentTime = 0;
+  NOTI_SOUND.play()
+    .then(() => {
+      fresh.forEach((id) => sounded.add(id));
+      try {
+        sessionStorage.setItem(NOTI_SOUNDED_KEY, JSON.stringify([...sounded]));
+      } catch {}
+    })
+    .catch(() => {});
+}
+
+function onCurrentPage(href) {
+  return location.pathname.split("/").pop().toLowerCase() === href.toLowerCase();
+}
 
 function getSeenNotiIds() {
   try {
@@ -59,16 +93,19 @@ function renderNotiList(panel, notifications) {
     return;
   }
   const items = notifications
-    .map(
-      (n) => `
-      <div class="noti-item">
+    .map((n) => {
+      const link = NOTI_TYPE_LINK[n.type];
+      const body = `
         <span class="noti-item-icon">${NOTI_TYPE_ICON[n.type] || "🔔"}</span>
         <div class="noti-item-text">
           ${escapeHtml(n.message)}
           ${n.createdAt ? `<div class="noti-item-time">${escapeHtml(notiTimeAgo(n.createdAt))}</div>` : ""}
-        </div>
-      </div>`
-    )
+          ${link ? `<div class="noti-item-go">${escapeHtml(link.label)}</div>` : ""}
+        </div>`;
+      return link
+        ? `<a class="noti-item noti-item-link" href="${link.href}">${body}</a>`
+        : `<div class="noti-item">${body}</div>`;
+    })
     .join("");
   panel.innerHTML = `<div class="noti-dropdown-title">การแจ้งเตือน</div>${items}`;
 }
@@ -89,6 +126,7 @@ async function loadNotifications(panel, badge) {
     const data = await notiApiFetch("/notifications");
     renderNotiList(panel, data.notifications);
     updateBadge(badge, data.notifications);
+    playNotiSoundForNew(data.notifications);
     return data.notifications;
   } catch (err) {
     console.error("โหลดแจ้งเตือนไม่สำเร็จ:", err);
@@ -111,6 +149,15 @@ function setupNotifications() {
 
   wrap.addEventListener("click", async (e) => {
     e.stopPropagation();
+    // กดแจ้งเตือนที่พาไปหน้าที่อยู่แล้ว (เช่น อยู่หน้าสัตว์เลี้ยงอยู่แล้ว) → แค่ปิดกล่องแจ้งเตือน
+    const linkEl = e.target.closest(".noti-item-link");
+    if (linkEl) {
+      if (onCurrentPage(linkEl.getAttribute("href"))) {
+        e.preventDefault();
+        panel.classList.remove("open");
+      }
+      return; // ไปหน้าอื่นตามลิงก์
+    }
     if (panel.classList.contains("open")) {
       panel.classList.remove("open");
       return;
