@@ -886,8 +886,38 @@ function setupPetting() {
 
 // ================== ฉลองเลเวลอัพ + โบนัสถาม AI (ป้ายใหญ่ + พลุ + ท่าดีใจของน้องหมาเรา) ==================
 
+// เสียงตอนเลเวลอัพ (ตัดเหลือ ~1.8 วิ) — ปลดล็อกตอนแตะหน้าเว็บครั้งแรก เพราะ Safari/มือถือ
+// ไม่ให้เล่นเสียงที่เริ่มหลังรอผลจาก server (หลุดจากจังหวะที่ผู้ใช้กด)
+const LEVEL_UP_SOUND = new Audio("sound/level-up.m4a");
+LEVEL_UP_SOUND.preload = "auto";
+LEVEL_UP_SOUND.volume = 0.8;
+
+function unlockLevelUpSound() {
+  document.removeEventListener("pointerdown", unlockLevelUpSound, true);
+  LEVEL_UP_SOUND.muted = true;
+  LEVEL_UP_SOUND.play()
+    .then(() => {
+      LEVEL_UP_SOUND.pause();
+      LEVEL_UP_SOUND.currentTime = 0;
+      LEVEL_UP_SOUND.muted = false;
+    })
+    .catch(() => {
+      LEVEL_UP_SOUND.muted = false;
+    });
+}
+document.addEventListener("pointerdown", unlockLevelUpSound, true);
+
+function playLevelUpSound() {
+  try {
+    LEVEL_UP_SOUND.muted = false;
+    LEVEL_UP_SOUND.currentTime = 0;
+    LEVEL_UP_SOUND.play().catch(() => {});
+  } catch (_) {}
+}
+
 function showLevelUpCelebration(result) {
   document.querySelector(".levelup-overlay")?.remove();
+  playLevelUpSound();
   const pet = result.pet || currentPet;
   const frames = getPoseFrames(pet.breed, "levelUp") || getPoseFrames(pet.breed, "happiness") || getPoseFrames(pet.breed, "idle");
   const dogHtml = frames
