@@ -752,9 +752,15 @@ html, body {
 }
 
 /* ================== หน้าจอต่อสู้ (ควิซ) ================== */
+/* ฉากต่อสู้: รูปพิกเซล 1024x572 ชิดขอบบน ขยายให้สูง 115% ของจอ (หรือเต็มความกว้างถ้าจอกว้างกว่า)
+   ดินด้านล่างของรูปเลยล้นจอไปบางส่วน เส้นหญ้าลงมาอยู่ต่ำ ตัวละครยืนบนหญ้าได้โดยไม่ไปชนกรอบคำถาม
+   สีไล่ระดับเดิมเป็นสำรองตอนรูปยังโหลดไม่เสร็จ | 205.87vh = 115vh x 1024/572 */
 #screenBattle {
   z-index: 7;
-  background: linear-gradient(#7ec0ee 0%, #a8d8f0 62%, #7cb342 62%, #5d9433 100%);
+  background:
+    url("img/game/battle-bg.webp") center top / max(205.87vh, 100vw) auto no-repeat,
+    linear-gradient(#7ec0ee 0%, #a8d8f0 62%, #7cb342 62%, #5d9433 100%);
+  image-rendering: pixelated;
   clip-path: circle(0% at 50% 50%);
   -webkit-clip-path: circle(0% at 50% 50%);
   overflow: hidden;
@@ -904,7 +910,8 @@ html, body {
 .battle-dog,
 .battle-enemy {
   position: absolute;
-  bottom: 3%;
+  /* ยืนบนเส้นหญ้าของรูปฉาก (ลึกจากขอบบนรูป 82.5%) — รูปสูง = max(115vh, จอกว้าง x 572/1024) */
+  bottom: calc(100vh - max(115vh, 55.86vw) * 0.825);
   image-rendering: pixelated;
   z-index: 3;
 }
