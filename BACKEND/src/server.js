@@ -81,6 +81,7 @@ app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
 app.use("/api/chat/message", chatLimiter);
 app.use("/api/auth/reset-password", authLimiter);
+app.use("/api/auth/delete-account", authLimiter);
 
 // ---- เปิดให้เข้าถึงไฟล์ที่อัปโหลดได้ (เช่น รูปโปรไฟล์) ----
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));

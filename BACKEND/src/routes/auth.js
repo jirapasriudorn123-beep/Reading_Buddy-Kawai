@@ -428,6 +428,48 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+// ---------- POST /api/auth/delete-account ----------
+// ลบบัญชีและข้อมูลทั้งหมดของผู้ใช้เอง (สิทธิ์ขอให้ลบข้อมูลตาม PDPA) — ต้องยืนยันด้วยรหัสผ่าน กู้คืนไม่ได้
+// ลบตารางลูกที่อ้างผ่านตารางอื่นก่อน แล้วไล่ลบทุกตารางที่มี user_id เอง (ไม่พึ่ง ON DELETE CASCADE
+// เพราะ PRAGMA foreign_keys ของฐานข้อมูลบนคลาวด์อาจไม่ติดไปทุกการเชื่อมต่อ)
+// รหัสผ่านผิดตอบ 400 (ไม่ใช่ 401) หน้าเว็บจะได้ไม่เด้งออกจากระบบ
+const USER_DATA_TABLES = [
+  "reading_summaries", "review_log", "review_items", "pet_action_log", "chat_history", "coin_adjustments",
+  "user_coupons", "univ_email_verifications", "game_stage_clears", "game_stage_rewards", "game_battles",
+  "quiz_answer_log", "chapter_tests", "purchase_log", "game_progress", "inventory", "pets",
+  "reading_sessions", "reading_goals", "ai_daily_usage", "consent_log",
+];
+router.post("/delete-account", requireAuth, async (req, res, next) => {
+  try {
+    const { password } = req.body;
+    const user = await db.prepare("SELECT id, password_hash, is_admin FROM users WHERE id = ?").get(req.user.id);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+    if (user.is_admin) {
+      return res.status(403).json({ message: "บัญชีแอดมินลบผ่านหน้านี้ไม่ได้" });
+    }
+    if (!password || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(400).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    }
+
+    await db.tx(async (t) => {
+      await t
+        .prepare("DELETE FROM chapter_test_questions WHERE test_id IN (SELECT id FROM chapter_tests WHERE user_id = ?)")
+        .run(user.id);
+      await t
+        .prepare("DELETE FROM reading_page_time WHERE session_id IN (SELECT id FROM reading_sessions WHERE user_id = ?)")
+        .run(user.id);
+      for (const table of USER_DATA_TABLES) {
+        await t.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(user.id);
+      }
+      await t.prepare("UPDATE coin_adjustments SET admin_id = NULL WHERE admin_id = ?").run(user.id);
+      await t.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+    });
+    return res.json({ message: "ลบบัญชีและข้อมูลทั้งหมดเรียบร้อยแล้ว" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- POST /api/auth/consent ----------
 // ยอมรับนโยบายความเป็นส่วนตัว (ผู้ใช้เดิมผ่านป๊อปอัป) หรือเปลี่ยนความยินยอมด้านการวิจัย (หน้าตั้งค่า)
 // body: { acceptTerms: true, research: boolean, source: "prompt" | "settings" }

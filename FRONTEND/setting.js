@@ -220,6 +220,55 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("researchConsentToggle")?.addEventListener("change", saveResearchConsent);
 });
 
+// ================== ลบบัญชี (PDPA) ==================
+
+function showDeleteAccountModal() {
+  const modal = document.getElementById("deleteAccountModal");
+  if (!modal) return;
+  document.getElementById("deleteAccountPassword").value = "";
+  document.getElementById("deleteAccountConfirm").checked = false;
+  document.getElementById("deleteAccountError").textContent = "";
+  updateDeleteAccountBtn();
+  modal.style.display = "flex";
+}
+
+function closeDeleteAccountModal() {
+  const modal = document.getElementById("deleteAccountModal");
+  if (modal) modal.style.display = "none";
+}
+
+function updateDeleteAccountBtn() {
+  const ready =
+    document.getElementById("deleteAccountConfirm").checked &&
+    document.getElementById("deleteAccountPassword").value.length > 0;
+  document.getElementById("deleteAccountBtn").disabled = !ready;
+}
+
+async function deleteAccount() {
+  const btn = document.getElementById("deleteAccountBtn");
+  const error = document.getElementById("deleteAccountError");
+  btn.disabled = true;
+  error.textContent = "";
+  try {
+    await apiFetch("/auth/delete-account", {
+      method: "POST",
+      body: JSON.stringify({ password: document.getElementById("deleteAccountPassword").value }),
+    });
+    localStorage.removeItem("token");
+    localStorage.removeItem("currentUser");
+    alert("ลบบัญชีและข้อมูลทั้งหมดเรียบร้อยแล้ว ขอบคุณที่ใช้ Reading Buddy นะ 🐾");
+    window.location.href = "login.html";
+  } catch (err) {
+    error.textContent = err.message || "ลบบัญชีไม่สำเร็จ ลองใหม่อีกครั้งนะ";
+    updateDeleteAccountBtn();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("deleteAccountPassword")?.addEventListener("input", updateDeleteAccountBtn);
+  document.getElementById("deleteAccountConfirm")?.addEventListener("change", updateDeleteAccountBtn);
+});
+
 // ================== เกี่ยวกับเรา ==================
 
 function showAboutModal() {

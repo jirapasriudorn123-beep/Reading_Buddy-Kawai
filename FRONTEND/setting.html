@@ -84,6 +84,7 @@
             <button class="menu-items" onclick="changePassword()">เปลี่ยนรหัส <i class="arrow-icon"></i></button>
             <button class="menu-items" onclick="showPrivacyModal()">ความเป็นส่วนตัว <i class="arrow-icon"></i></button>
             <button class="menu-items" onclick="showAboutModal()">เกี่ยวกับเรา <i class="arrow-icon"></i></button>
+            <button class="menu-items danger-item" style="color:#c0392b;" onclick="showDeleteAccountModal()">ลบบัญชี <i class="arrow-icon"></i></button>
         </div>
     </div>
 </div>
@@ -106,6 +107,33 @@
         <p id="privacyStatus" role="status" style="font-size: 14px; color:#4f7a24; min-height: 1.4em; margin-bottom: 10px;"></p>
         <div style="display:flex; justify-content:center;">
             <button class="confirm-btn" onclick="closePrivacyModal()">ปิด</button>
+        </div>
+    </div>
+</div>
+
+<!-- ลบบัญชี (สิทธิ์ขอให้ลบข้อมูลตาม PDPA): ยืนยันด้วยรหัสผ่าน + ติ๊กว่าเข้าใจ กู้คืนไม่ได้ -->
+<div class="modal-overlay" id="deleteAccountModal">
+    <div class="modal-content" style="min-width: 320px; max-width: 480px; text-align:left;">
+        <h3 class="modal-title" style="font-size: 24px; margin-bottom: 12px; text-align:center; color:#c0392b;">ลบบัญชี</h3>
+        <p style="line-height:1.7; margin-bottom: 8px;">บัญชีและข้อมูลทั้งหมดของคุณจะถูกลบถาวร <strong>กู้คืนไม่ได้</strong> ได้แก่</p>
+        <ul style="line-height:1.7; margin: 0 0 12px 20px; padding:0;">
+            <li>ข้อมูลบัญชี รูปโปรไฟล์ และคอยน์</li>
+            <li>ประวัติการอ่าน แบบทดสอบ มินิเกม และการทบทวน</li>
+            <li>น้องหมา ไอเทมในกระเป๋า และ<strong>คูปองที่ยังไม่ได้ใช้</strong></li>
+            <li>ประวัติการถาม AI และการแจ้งเตือน</li>
+        </ul>
+        <label style="display:block; margin-bottom: 6px;">ใส่รหัสผ่านเพื่อยืนยัน</label>
+        <input type="password" id="deleteAccountPassword" autocomplete="current-password"
+               style="width:100%; box-sizing:border-box; padding:10px 14px; border:2px solid #000; border-radius:10px; font-family:inherit; font-size:16px; margin-bottom: 10px;">
+        <label style="display:flex; gap:10px; align-items:flex-start; line-height:1.6; cursor:pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="deleteAccountConfirm" style="margin-top:4px; width:18px; height:18px; flex-shrink:0; accent-color:#c0392b;">
+            <span>ฉันเข้าใจว่าลบแล้วกู้คืนไม่ได้</span>
+        </label>
+        <p id="deleteAccountError" role="alert" style="color:#c0392b; font-size:14px; min-height:1.4em; margin-bottom: 8px;"></p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button class="confirm-btn" onclick="closeDeleteAccountModal()">ยกเลิก</button>
+            <button class="confirm-btn" id="deleteAccountBtn" onclick="deleteAccount()" disabled
+                    style="background:#c0392b; color:#fff; border-color:#7d241b;">ลบบัญชีถาวร</button>
         </div>
     </div>
 </div>
@@ -135,7 +163,7 @@
 <script src="config.js"></script>
 <script src="consent.js?v=2"></script>
 <script src="notifications.js?v=4"></script>
-<script src="setting.js?v=2"></script>
+<script src="setting.js?v=3"></script>
 <script src="theme.js"></script>
     <script src="cursor.js"></script>
 <script src="click-sound.js?v=2"></script>
