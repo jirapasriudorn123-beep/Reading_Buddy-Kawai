@@ -49,12 +49,21 @@ function circleReveal(fromEl, toEl, e, onDone) {
   setTimeout(finishOpening, 950);
 }
 
-// ---------- เพลงประกอบเกม (วนตลอดทั้งหน้าเกม รวมฉากสำรวจและการต่อสู้) ----------
+// ---------- เพลงประกอบเกม ----------
+// GAME_MUSIC วนตลอดหน้าเกม (title, เลือกตัว, แผนที่, ฉากสำรวจ) | เข้าฉากต่อสู้สลับเป็น BATTLE_MUSIC แล้วกลับมาเพลงเดิมตอนออก
 // เริ่มตอนคลิกเปิดเครื่องครั้งแรก (เบราว์เซอร์ไม่ให้เล่นเสียงก่อนผู้ใช้แตะหน้าเว็บ) | สลับแท็บแล้วหยุด กลับมาเล่นต่อ
 const GAME_MUSIC_MUTED_KEY = "gameMusicMuted";
+const MUSIC_VOLUME = 0.3;
 const GAME_MUSIC = new Audio("sound/game-music.m4a");
-GAME_MUSIC.loop = true;
-GAME_MUSIC.volume = 0.3;
+const BATTLE_MUSIC = new Audio("sound/battle-music.m4a");
+[GAME_MUSIC, BATTLE_MUSIC].forEach((m) => {
+  m.loop = true;
+  m.volume = MUSIC_VOLUME;
+});
+// เสียงตอนเดินเข้าไปเจอตัวร้าย (ก่อนเปลี่ยนเป็นฉากต่อสู้)
+const ENCOUNTER_SOUND = new Audio("sound/enemy-encounter.m4a");
+ENCOUNTER_SOUND.volume = 0.8;
+let activeMusic = GAME_MUSIC;
 let gameMusicStarted = false;
 
 function gameMusicMuted() {
@@ -65,11 +74,47 @@ function gameMusicMuted() {
   }
 }
 
+// Safari/มือถือ: element เสียงที่จะเล่นเองทีหลัง (ไม่ได้อยู่ในจังหวะที่ผู้ใช้กด) ต้องเคยถูกเล่นตอนผู้ใช้กดมาก่อน
+function primeAudio(audio) {
+  audio.muted = true;
+  audio
+    .play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+    })
+    .catch(() => {
+      audio.muted = false;
+    });
+}
+
+// เรียกตอนคลิกเปิดเครื่อง (อยู่ในจังหวะที่ผู้ใช้กด)
 function startGameMusic() {
   gameMusicStarted = true;
+  primeAudio(BATTLE_MUSIC);
+  primeAudio(ENCOUNTER_SOUND);
+  activeMusic = GAME_MUSIC;
   GAME_MUSIC.muted = gameMusicMuted();
   GAME_MUSIC.play().catch(() => {});
   updateGameMusicButton();
+}
+
+// สลับเพลง (เพลงต่อสู้เริ่มต้นเพลงทุกครั้ง เพลงหลักเล่นต่อจากที่ค้างไว้)
+function switchMusic(track) {
+  if (!gameMusicStarted || activeMusic === track) return;
+  activeMusic.pause();
+  activeMusic = track;
+  if (track === BATTLE_MUSIC) track.currentTime = 0;
+  track.muted = gameMusicMuted();
+  track.play().catch(() => {});
+}
+
+function playEncounterSound() {
+  try {
+    ENCOUNTER_SOUND.currentTime = 0;
+    ENCOUNTER_SOUND.play().catch(() => {});
+  } catch (_) {}
 }
 
 function toggleGameMusic() {
@@ -77,8 +122,8 @@ function toggleGameMusic() {
   try {
     localStorage.setItem(GAME_MUSIC_MUTED_KEY, muted ? "1" : "0");
   } catch {}
-  GAME_MUSIC.muted = muted;
-  if (!muted && GAME_MUSIC.paused) GAME_MUSIC.play().catch(() => {});
+  activeMusic.muted = muted;
+  if (!muted && activeMusic.paused) activeMusic.play().catch(() => {});
   updateGameMusicButton();
 }
 
@@ -95,8 +140,8 @@ function updateGameMusicButton() {
 
 document.addEventListener("visibilitychange", () => {
   if (!gameMusicStarted) return;
-  if (document.hidden) GAME_MUSIC.pause();
-  else if (!gameMusicMuted()) GAME_MUSIC.play().catch(() => {});
+  if (document.hidden) activeMusic.pause();
+  else if (!gameMusicMuted()) activeMusic.play().catch(() => {});
 });
 
 // เสียงเวทมนตร์ตอนคลิกเปิดเครื่องเข้าเกม (หน้า Title ค่อย ๆ ปรากฏ)
@@ -774,6 +819,7 @@ function checkEnemyEncounter() {
   if (Math.abs(playerXPct - ENEMY_X_PCT) > ENEMY_TRIGGER_PCT) return;
 
   playerMoveDir = 0; // หยุดเดินก่อนเข้าฉากต่อสู้
+  playEncounterSound();
   startBattle();
 }
 
@@ -835,6 +881,7 @@ async function startBattle(e) {
   screenBattleEl.style.display = "block";
   screenBattleEl.style.pointerEvents = "";
   circleReveal(screenExploreEl, screenBattleEl, e);
+  switchMusic(BATTLE_MUSIC);
 }
 
 function renderHearts() {
@@ -1006,6 +1053,7 @@ function advanceStageProgress() {
 
 // กดปุ่มบนหน้าผลการต่อสู้ -> กลับไปแผนที่โลก แล้วสร้างแผนที่ใหม่ให้ตรงกับความคืบหน้าล่าสุด
 function leaveBattle(e) {
+  switchMusic(GAME_MUSIC);
   const screenBattleEl = document.getElementById("screenBattle");
   const screenMapEl = document.getElementById("screenMap");
   document.getElementById("battleResult").classList.remove("show");
