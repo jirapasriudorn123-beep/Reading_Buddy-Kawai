@@ -3,9 +3,10 @@
 // ไม่เล่นกับปุ่มใน tutorial (มีเสียงชี้จุดของตัวเองอยู่แล้ว) และปุ่มที่กดไม่ได้
 
 (function () {
-  const CLICK_SOUND = new Audio("sound/ui-click.m4a");
+  // ?v กันเบราว์เซอร์ใช้ไฟล์เสียงเก่าที่แคชไว้ (เปลี่ยนเลขเมื่อเปลี่ยนไฟล์เสียง)
+  const CLICK_SOUND = new Audio("sound/ui-click.m4a?v=2");
   CLICK_SOUND.preload = "auto";
-  CLICK_SOUND.volume = 0.4;
+  CLICK_SOUND.volume = 0.25; // เสียงฟองสบู่ป๊อป เบา ๆ (กดบ่อย ไม่ให้รบกวน)
 
   const CLICKABLE =
     'button, a[href], [role="button"], [onclick], input[type="submit"], input[type="button"], ' +
