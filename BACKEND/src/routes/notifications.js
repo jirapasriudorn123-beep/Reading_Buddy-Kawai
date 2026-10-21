@@ -38,11 +38,13 @@ router.get("/", requireAuth, async (req, res, next) => {
       .prepare("SELECT name, hunger, cleanliness, happiness, energy FROM pets WHERE user_id = ?")
       .get(req.user.id);
 
+    // id มีวันที่ (เวลาไทย) ด้วย — เตือนใหม่ได้วันละครั้งต่อค่าสถานะ ถ้าใช้ id ตายตัว เห็นครั้งเดียวแล้วจะไม่เด้งอีกเลย
     if (pet) {
+      const thaiDay = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
       for (const stat of Object.keys(STAT_LABELS)) {
         if (pet[stat] < LOW_STAT_THRESHOLD) {
           notifications.push({
-            id: `pet-${stat}`,
+            id: `pet-${stat}-${thaiDay}`,
             type: "pet_low",
             message: `น้อง${pet.name}มีค่า${STAT_LABELS[stat]}ต่ำกว่า 25% แล้ว ไปดูแลน้องหน่อยนะ`,
             createdAt: null,

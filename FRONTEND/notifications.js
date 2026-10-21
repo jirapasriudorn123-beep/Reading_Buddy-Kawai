@@ -55,10 +55,11 @@ function getSeenNotiIds() {
   }
 }
 
+// จำเฉพาะแจ้งเตือนที่ยังแสดงอยู่ตอนนี้ (แจ้งเตือนเก่าที่หายไปแล้วไม่ต้องเก็บ ไม่งั้นรายการโตไปเรื่อย ๆ)
 function markNotiIdsSeen(ids) {
-  const seen = getSeenNotiIds();
-  ids.forEach((id) => seen.add(id));
-  localStorage.setItem(NOTI_SEEN_KEY, JSON.stringify([...seen]));
+  try {
+    localStorage.setItem(NOTI_SEEN_KEY, JSON.stringify([...new Set(ids)]));
+  } catch {}
 }
 
 function countUnseenNotis(notifications) {
