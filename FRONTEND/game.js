@@ -63,6 +63,9 @@ const BATTLE_MUSIC = new Audio("sound/battle-music.m4a");
 // เสียงตอนเดินเข้าไปเจอตัวร้าย (ก่อนเปลี่ยนเป็นฉากต่อสู้)
 const ENCOUNTER_SOUND = new Audio("sound/enemy-encounter.m4a");
 ENCOUNTER_SOUND.volume = 0.8;
+// เสียงตอนตอบถูกแล้วตัวร้ายโดนโจมตี
+const ENEMY_HIT_SOUND = new Audio("sound/enemy-hit.m4a");
+ENEMY_HIT_SOUND.volume = 0.7;
 // เสียงตอนตอบผิดแล้วน้องหมาโดนโจมตี (ตัวแดงแล้วเด้ง)
 const PLAYER_HIT_SOUND = new Audio("sound/player-hit.m4a");
 PLAYER_HIT_SOUND.volume = 0.8;
@@ -110,6 +113,7 @@ function startGameMusic() {
   STAR_SOUNDS.forEach(primeAudio);
   primeAudio(GAME_OVER_SOUND);
   primeAudio(PLAYER_HIT_SOUND);
+  primeAudio(ENEMY_HIT_SOUND);
   activeMusic = GAME_MUSIC;
   GAME_MUSIC.muted = gameMusicMuted();
   GAME_MUSIC.play().catch(() => {});
@@ -956,6 +960,8 @@ async function answerQuiz(picked, wrap) {
     enemyHp -= 1;
     renderEnemyHp();
     flashHit("battleEnemy");
+    ENEMY_HIT_SOUND.currentTime = 0;
+    ENEMY_HIT_SOUND.play().catch(() => {});
   } else {
     buttons[picked].classList.add("wrong");
     playerHearts = Math.max(0, playerHearts - 1);
