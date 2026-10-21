@@ -59,7 +59,7 @@
         </label>
         <label class="consent-option">
           <input type="checkbox" id="consentResearch">
-          <span>ยินยอมให้ใช้ข้อมูลการใช้งานของฉันแบบไม่ระบุตัวตนเพื่อการวิจัยของโครงงาน <em>(ไม่บังคับ เปลี่ยนใจได้ที่หน้าตั้งค่า)</em></span>
+          <span>ยินยอมให้ใช้ข้อมูลการใช้งานของฉันแบบไม่ระบุตัวตน <em>(ไม่บังคับ เปลี่ยนใจได้ที่หน้าตั้งค่า)</em></span>
         </label>
         <button type="button" class="consent-submit" id="consentSubmit" disabled>ยืนยันและใช้งานต่อ</button>
         <div class="consent-error" id="consentError" role="alert"></div>
