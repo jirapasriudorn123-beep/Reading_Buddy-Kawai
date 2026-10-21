@@ -63,6 +63,9 @@ const BATTLE_MUSIC = new Audio("sound/battle-music.m4a");
 // เสียงตอนเดินเข้าไปเจอตัวร้าย (ก่อนเปลี่ยนเป็นฉากต่อสู้)
 const ENCOUNTER_SOUND = new Audio("sound/enemy-encounter.m4a");
 ENCOUNTER_SOUND.volume = 0.8;
+// เสียงตอนตอบผิดแล้วน้องหมาโดนโจมตี (ตัวแดงแล้วเด้ง)
+const PLAYER_HIT_SOUND = new Audio("sound/player-hit.m4a");
+PLAYER_HIT_SOUND.volume = 0.8;
 // เสียงตอนแพ้ (หัวใจหมดแล้วตอบครบ / หมดเวลา) — หยุดเพลงต่อสู้ให้ได้ยินชัด
 const GAME_OVER_SOUND = new Audio("sound/game-over.m4a");
 GAME_OVER_SOUND.volume = 0.8;
@@ -106,6 +109,7 @@ function startGameMusic() {
   primeAudio(ENCOUNTER_SOUND);
   STAR_SOUNDS.forEach(primeAudio);
   primeAudio(GAME_OVER_SOUND);
+  primeAudio(PLAYER_HIT_SOUND);
   activeMusic = GAME_MUSIC;
   GAME_MUSIC.muted = gameMusicMuted();
   GAME_MUSIC.play().catch(() => {});
@@ -957,6 +961,8 @@ async function answerQuiz(picked, wrap) {
     playerHearts = Math.max(0, playerHearts - 1);
     renderHearts();
     flashHit("battleDog");
+    PLAYER_HIT_SOUND.currentTime = 0;
+    PLAYER_HIT_SOUND.play().catch(() => {});
   }
   // หัวใจหมด = รอบนี้แพ้แล้ว (ไม่ได้ดาว/คอยน์) แต่ตอบต่อจนครบทุกข้อเพื่อทบทวน
   setReviewModeNote(result);
