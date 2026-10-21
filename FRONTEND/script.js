@@ -228,6 +228,11 @@ function formatMinutes(seconds) {
   return `${Math.floor(seconds / 60)} นาที`;
 }
 
+// อ่านบทเดิมซ้ำ (ชุดที่ 2 ขึ้นไป) ไม่มีแบบทดสอบก่อนอ่าน — บอกให้ชัดว่าทำแค่ครั้งแรก
+function rereadLine(attemptNo) {
+  return `🔁 อ่านบทนี้ครั้งที่ ${attemptNo} — ไม่มีแบบทดสอบก่อนอ่าน (ทำครั้งเดียวตอนอ่านครั้งแรก)`;
+}
+
 function chapterStatusLines(progress) {
   if (!progress || progress.status === "none" || progress.status === "pre_test") {
     return ["📝 อ่านบทนี้ครั้งแรก: ทำแบบทดสอบก่อนอ่าน 5 ข้อ (ข้อละ 1 นาที) ก่อนนะ ไม่มีผลกับคอยน์"];
@@ -237,6 +242,7 @@ function chapterStatusLines(progress) {
   }
   if (progress.status === "reading") {
     return [
+      ...(progress.attempt >= 2 ? [rereadLine(progress.attempt)] : []),
       `📖 อ่านบทนี้แล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
         `คอยน์รอปลดล็อก ${progress.pendingCoins} 🪙`,
       progress.canPostTest
@@ -246,7 +252,10 @@ function chapterStatusLines(progress) {
   }
   // completed = อ่านซ้ำ (ชุดใหม่ ไม่มีแบบทดสอบก่อนอ่าน)
   const best = progress.bestPostScore != null ? ` (หลังอ่านดีที่สุด ${progress.bestPostScore}/${progress.total})` : "";
-  return [`${progress.passed ? "✅ ผ่านบทนี้แล้ว" : "อ่านบทนี้จบไปแล้ว"}${best} — อ่านซ้ำได้ ข้อที่เคยตอบผิดจะถูกถามก่อนในแบบทดสอบหลังอ่าน`];
+  return [
+    rereadLine(progress.attempt + 1),
+    `${progress.passed ? "✅ ผ่านบทนี้แล้ว" : "อ่านบทนี้จบไปแล้ว"}${best} · ข้อที่เคยตอบผิดจะถูกถามก่อนในแบบทดสอบหลังอ่าน`,
+  ];
 }
 
 function renderPresetButtons() {
