@@ -69,6 +69,17 @@ ENEMY_HIT_SOUND.volume = 0.7;
 // เสียงตอนตอบผิดแล้วน้องหมาโดนโจมตี (ตัวแดงแล้วเด้ง)
 const PLAYER_HIT_SOUND = new Audio("sound/player-hit.m4a");
 PLAYER_HIT_SOUND.volume = 0.8;
+// เสียงตอนคุยกับอาจารย์ — ทุกครั้งที่กล่องคำพูดขึ้นหรือคลิกเปลี่ยนข้อความ
+const DIALOGUE_SOUND = new Audio("sound/dialogue-next.m4a");
+DIALOGUE_SOUND.volume = 0.6;
+
+function playDialogueSound() {
+  try {
+    DIALOGUE_SOUND.currentTime = 0;
+    DIALOGUE_SOUND.play().catch(() => {});
+  } catch (_) {}
+}
+
 // เสียงตอนชนะด่าน (เล่นก่อน แล้วดาวค่อยเด้งตามหลังจังหวะเพลงจบ)
 const STAGE_CLEAR_SOUND = new Audio("sound/stage-clear.m4a");
 STAGE_CLEAR_SOUND.volume = 0.8;
@@ -654,6 +665,7 @@ function startDialogue(lines, onDone) {
   document.getElementById("screenExplore").classList.add("talking");
   box.classList.add("show");
   renderDialogueLine();
+  playDialogueSound();
 }
 
 function renderDialogueLine() {
@@ -663,6 +675,7 @@ function renderDialogueLine() {
 
 function advanceDialogue() {
   if (!dialogueActive) return;
+  playDialogueSound();
   dialogueIndex += 1;
 
   if (dialogueIndex >= dialogueLines.length) {
