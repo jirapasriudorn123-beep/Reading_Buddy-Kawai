@@ -69,6 +69,10 @@ ENEMY_HIT_SOUND.volume = 0.7;
 // เสียงตอนตอบผิดแล้วน้องหมาโดนโจมตี (ตัวแดงแล้วเด้ง)
 const PLAYER_HIT_SOUND = new Audio("sound/player-hit.m4a");
 PLAYER_HIT_SOUND.volume = 0.8;
+// เสียงตอนชนะด่าน (เล่นก่อน แล้วดาวค่อยเด้งตามหลังจังหวะเพลงจบ)
+const STAGE_CLEAR_SOUND = new Audio("sound/stage-clear.m4a");
+STAGE_CLEAR_SOUND.volume = 0.8;
+const STARS_AFTER_CLEAR_SEC = 0.85; // ความยาวเสียงชนะ ~0.9 วิ — ดาวดวงแรกเด้งตอนเสียงใกล้จบ ไม่ซ้อนกัน
 // เสียงตอนแพ้ (หัวใจหมดแล้วตอบครบ / หมดเวลา) — หยุดเพลงต่อสู้ให้ได้ยินชัด
 const GAME_OVER_SOUND = new Audio("sound/game-over.m4a");
 GAME_OVER_SOUND.volume = 0.8;
@@ -112,6 +116,7 @@ function startGameMusic() {
   primeAudio(ENCOUNTER_SOUND);
   STAR_SOUNDS.forEach(primeAudio);
   primeAudio(GAME_OVER_SOUND);
+  primeAudio(STAGE_CLEAR_SOUND);
   primeAudio(PLAYER_HIT_SOUND);
   primeAudio(ENEMY_HIT_SOUND);
   activeMusic = GAME_MUSIC;
@@ -1039,13 +1044,13 @@ function rewardMessage(r) {
 // ดาวเด้งขึ้นทีละดวง (ได้ = สีทอง, ไม่ได้ = สีเทา) — ชนะได้ 1-3 ดาวตามหัวใจที่เหลือ แพ้ได้ 0 ดาว
 let starSoundTimers = [];
 
-function renderResultStars(stars) {
+function renderResultStars(stars, startDelaySec = 0.25) {
   starSoundTimers.forEach(clearTimeout);
   starSoundTimers = [];
   document.querySelectorAll("#battleResultStars .battle-star").forEach((el, i) => {
     el.classList.remove("earned", "pop");
     void el.offsetWidth; // เริ่มอนิเมชันใหม่ทุกครั้งที่เปิดหน้าผล
-    const delaySec = 0.25 + i * 0.3;
+    const delaySec = startDelaySec + i * 0.3;
     el.style.animationDelay = `${delaySec}s`;
     el.classList.add("pop");
     if (i < stars) {
@@ -1076,15 +1081,15 @@ function endBattle(won, message) {
   const correctCount = battleReward ? battleReward.correctCount : battleQuiz.length - enemyHp;
   const totalAnswered = battleReward ? battleReward.totalAnswered : correctCount + (PLAYER_MAX_HEARTS - playerHearts);
   document.getElementById("battleResultScore").textContent = `ตอบถูก ${correctCount} จาก ${totalAnswered} ข้อ`;
-  renderResultStars(won && battleReward ? battleReward.stars : 0);
+  renderResultStars(won && battleReward ? battleReward.stars : 0, won ? STARS_AFTER_CLEAR_SEC : 0.25);
   document.getElementById("battleResultBtn").textContent = won ? "ไปด่านถัดไป" : "ลองใหม่";
   box.classList.add("show");
-  if (!won) {
-    BATTLE_MUSIC.pause(); // กลับไปเพลงหลักตอนกดออกจากหน้าผล (leaveBattle)
-    musicHeld = true;
-    GAME_OVER_SOUND.currentTime = 0;
-    GAME_OVER_SOUND.play().catch(() => {});
-  }
+  // หน้าผล: หยุดเพลงต่อสู้ให้ได้ยินเสียงชนะ/แพ้ชัด แล้วกลับไปเพลงหลักตอนกดออกจากหน้าผล (leaveBattle)
+  BATTLE_MUSIC.pause();
+  musicHeld = true;
+  const resultSound = won ? STAGE_CLEAR_SOUND : GAME_OVER_SOUND;
+  resultSound.currentTime = 0;
+  resultSound.play().catch(() => {});
 
   if (won) advanceStageProgress();
 }
