@@ -63,6 +63,9 @@ const BATTLE_MUSIC = new Audio("sound/battle-music.m4a");
 // เสียงตอนเดินเข้าไปเจอตัวร้าย (ก่อนเปลี่ยนเป็นฉากต่อสู้)
 const ENCOUNTER_SOUND = new Audio("sound/enemy-encounter.m4a");
 ENCOUNTER_SOUND.volume = 0.8;
+// เสียงตอนแพ้ (หัวใจหมดแล้วตอบครบ / หมดเวลา) — หยุดเพลงต่อสู้ให้ได้ยินชัด
+const GAME_OVER_SOUND = new Audio("sound/game-over.m4a");
+GAME_OVER_SOUND.volume = 0.8;
 // เสียงดาวบนหน้าผลการต่อสู้ ดวงที่ 1 → 3 (ซ้ายไปขวา) เล่นพร้อมจังหวะที่ดาวเด้งขึ้น
 const STAR_SOUNDS = [1, 2, 3].map((n) => {
   const a = new Audio(`sound/star-${n}.m4a`);
@@ -71,6 +74,7 @@ const STAR_SOUNDS = [1, 2, 3].map((n) => {
 });
 let activeMusic = GAME_MUSIC;
 let gameMusicStarted = false;
+let musicHeld = false; // หยุดเพลงไว้ระหว่างหน้าผลตอนแพ้ (สลับแท็บกลับมาก็ไม่เล่นต่อ)
 
 function gameMusicMuted() {
   try {
@@ -101,6 +105,7 @@ function startGameMusic() {
   primeAudio(BATTLE_MUSIC);
   primeAudio(ENCOUNTER_SOUND);
   STAR_SOUNDS.forEach(primeAudio);
+  primeAudio(GAME_OVER_SOUND);
   activeMusic = GAME_MUSIC;
   GAME_MUSIC.muted = gameMusicMuted();
   GAME_MUSIC.play().catch(() => {});
@@ -109,6 +114,7 @@ function startGameMusic() {
 
 // สลับเพลง (เพลงต่อสู้เริ่มต้นเพลงทุกครั้ง เพลงหลักเล่นต่อจากที่ค้างไว้)
 function switchMusic(track) {
+  musicHeld = false;
   if (!gameMusicStarted || activeMusic === track) return;
   activeMusic.pause();
   activeMusic = track;
@@ -130,7 +136,7 @@ function toggleGameMusic() {
     localStorage.setItem(GAME_MUSIC_MUTED_KEY, muted ? "1" : "0");
   } catch {}
   activeMusic.muted = muted;
-  if (!muted && activeMusic.paused) activeMusic.play().catch(() => {});
+  if (!muted && !musicHeld && activeMusic.paused) activeMusic.play().catch(() => {});
   updateGameMusicButton();
 }
 
@@ -148,7 +154,7 @@ function updateGameMusicButton() {
 document.addEventListener("visibilitychange", () => {
   if (!gameMusicStarted) return;
   if (document.hidden) activeMusic.pause();
-  else if (!gameMusicMuted()) activeMusic.play().catch(() => {});
+  else if (!gameMusicMuted() && !musicHeld) activeMusic.play().catch(() => {});
 });
 
 // เสียงเวทมนตร์ตอนคลิกเปิดเครื่องเข้าเกม (หน้า Title ค่อย ๆ ปรากฏ)
@@ -1061,6 +1067,12 @@ function endBattle(won, message) {
   renderResultStars(won && battleReward ? battleReward.stars : 0);
   document.getElementById("battleResultBtn").textContent = won ? "ไปด่านถัดไป" : "ลองใหม่";
   box.classList.add("show");
+  if (!won) {
+    BATTLE_MUSIC.pause(); // กลับไปเพลงหลักตอนกดออกจากหน้าผล (leaveBattle)
+    musicHeld = true;
+    GAME_OVER_SOUND.currentTime = 0;
+    GAME_OVER_SOUND.play().catch(() => {});
+  }
 
   if (won) advanceStageProgress();
 }
