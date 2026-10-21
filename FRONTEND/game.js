@@ -923,12 +923,13 @@ async function startBattle(e) {
   switchMusic(BATTLE_MUSIC);
 }
 
-function renderHearts() {
+// breakingIndex = ดวงที่เพิ่งเสีย (เล่นอนิเมชันหัวใจแตกเฉพาะดวงนั้น ดวงที่เสียไปก่อนหน้าไม่เด้งซ้ำ)
+function renderHearts(breakingIndex = -1) {
   const wrap = document.getElementById("battleHearts");
   wrap.innerHTML = "";
   for (let i = 0; i < PLAYER_MAX_HEARTS; i++) {
     const h = document.createElement("div");
-    h.className = "heart" + (i >= playerHearts ? " lost" : "");
+    h.className = "heart" + (i >= playerHearts ? " lost" : "") + (i === breakingIndex ? " breaking" : "");
     wrap.appendChild(h);
   }
 }
@@ -982,8 +983,9 @@ async function answerQuiz(picked, wrap) {
     ENEMY_HIT_SOUND.play().catch(() => {});
   } else {
     buttons[picked].classList.add("wrong");
+    const lostIndex = playerHearts - 1;
     playerHearts = Math.max(0, playerHearts - 1);
-    renderHearts();
+    renderHearts(lostIndex);
     flashHit("battleDog");
     PLAYER_HIT_SOUND.currentTime = 0;
     PLAYER_HIT_SOUND.play().catch(() => {});
