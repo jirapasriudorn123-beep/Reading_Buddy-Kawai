@@ -49,6 +49,11 @@ function circleReveal(fromEl, toEl, e, onDone) {
   setTimeout(finishOpening, 950);
 }
 
+// เสียงเวทมนตร์ตอนคลิกเปิดเครื่องเข้าเกม (หน้า Title ค่อย ๆ ปรากฏ)
+const GAME_START_SOUND = new Audio("sound/game-start.m4a");
+GAME_START_SOUND.preload = "auto";
+GAME_START_SOUND.volume = 0.8;
+
 document.addEventListener("DOMContentLoaded", () => {
   const screen1 = document.getElementById("screen1");
   const screen2 = document.getElementById("screen2");
@@ -60,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
   screen1.addEventListener("click", (e) => {
     if (opened1) return;
     opened1 = true;
+    GAME_START_SOUND.play().catch(() => {});
     circleReveal(screen1, screen2, e);
   });
 
