@@ -49,6 +49,56 @@ function circleReveal(fromEl, toEl, e, onDone) {
   setTimeout(finishOpening, 950);
 }
 
+// ---------- เพลงประกอบเกม (วนตลอดทั้งหน้าเกม รวมฉากสำรวจและการต่อสู้) ----------
+// เริ่มตอนคลิกเปิดเครื่องครั้งแรก (เบราว์เซอร์ไม่ให้เล่นเสียงก่อนผู้ใช้แตะหน้าเว็บ) | สลับแท็บแล้วหยุด กลับมาเล่นต่อ
+const GAME_MUSIC_MUTED_KEY = "gameMusicMuted";
+const GAME_MUSIC = new Audio("sound/game-music.m4a");
+GAME_MUSIC.loop = true;
+GAME_MUSIC.volume = 0.3;
+let gameMusicStarted = false;
+
+function gameMusicMuted() {
+  try {
+    return localStorage.getItem(GAME_MUSIC_MUTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function startGameMusic() {
+  gameMusicStarted = true;
+  GAME_MUSIC.muted = gameMusicMuted();
+  GAME_MUSIC.play().catch(() => {});
+  updateGameMusicButton();
+}
+
+function toggleGameMusic() {
+  const muted = !gameMusicMuted();
+  try {
+    localStorage.setItem(GAME_MUSIC_MUTED_KEY, muted ? "1" : "0");
+  } catch {}
+  GAME_MUSIC.muted = muted;
+  if (!muted && GAME_MUSIC.paused) GAME_MUSIC.play().catch(() => {});
+  updateGameMusicButton();
+}
+
+function updateGameMusicButton() {
+  const btn = document.getElementById("gameMusicBtn");
+  if (!btn) return;
+  const muted = gameMusicMuted();
+  btn.hidden = !gameMusicStarted;
+  btn.textContent = muted ? "🔇" : "🎵";
+  btn.title = muted ? "เปิดเพลงประกอบ" : "ปิดเพลงประกอบ";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", String(!muted));
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!gameMusicStarted) return;
+  if (document.hidden) GAME_MUSIC.pause();
+  else if (!gameMusicMuted()) GAME_MUSIC.play().catch(() => {});
+});
+
 // เสียงเวทมนตร์ตอนคลิกเปิดเครื่องเข้าเกม (หน้า Title ค่อย ๆ ปรากฏ)
 const GAME_START_SOUND = new Audio("sound/game-start.m4a");
 GAME_START_SOUND.preload = "auto";
@@ -59,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const screen2 = document.getElementById("screen2");
   const screenChar = document.getElementById("screenChar");
   const screenMap = document.getElementById("screenMap");
+  document.getElementById("gameMusicBtn")?.addEventListener("click", toggleGameMusic);
 
   // ---------- SCREEN 1 -> SCREEN 2 ----------
   let opened1 = false;
@@ -66,6 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (opened1) return;
     opened1 = true;
     GAME_START_SOUND.play().catch(() => {});
+    startGameMusic();
     circleReveal(screen1, screen2, e);
   });
 

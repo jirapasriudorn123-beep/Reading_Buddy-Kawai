@@ -1148,3 +1148,27 @@ html, body {
   z-index: 30;
 }
 .battle-review-note[hidden] { display: none; }
+
+/* ---------- ปุ่มเปิด/ปิดเพลงประกอบ: ด้านบนกลางจอ (มุมซ้าย/ขวามีปุ่มย้อนกลับ ตั้งค่า เวลา หัวใจอยู่แล้ว) ---------- */
+.game-music-btn {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(20, 24, 40, 0.55);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.game-music-btn[hidden] { display: none; }
+.game-music-btn:hover { background: rgba(20, 24, 40, 0.75); }

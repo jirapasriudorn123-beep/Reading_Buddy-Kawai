@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Phayao Adventure</title>
-    <link rel="stylesheet" href="game.css?v=11">
+    <link rel="stylesheet" href="game.css?v=12">
     <link rel="stylesheet" href="cursor.css?v=20260926">
 </head>
 <body>
     <a href="Pet.html" class="game-back-btn" aria-label="กลับไปหน้า Pet">
         <img src="img/game/Arrow.png" alt="">
     </a>
+    <!-- เปิด/ปิดเพลงประกอบเกม (จำค่าไว้ในเบราว์เซอร์) -->
+    <button type="button" id="gameMusicBtn" class="game-music-btn" hidden></button>
 
     <div id="game-root">
         <div id="screen1" class="game-scene">
@@ -137,7 +139,7 @@
 
     <script src="config.js?v=2"></script>
     <script src="game-content.js?v=2"></script>
-    <script src="game.js?v=20261021"></script>
+    <script src="game.js?v=20261021b"></script>
     <script src="cursor.js?v=2"></script>
 </body>
 </html>
