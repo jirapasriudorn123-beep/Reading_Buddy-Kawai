@@ -378,7 +378,7 @@ async function initDatabase() {
     );
   }
 
-  // เงื่อนไขแลกคูปอง (แทน "อ่านสะสม X นาที" เดิม): ผ่านแบบทดสอบหลังอ่าน (≥ 60%) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
+  // เงื่อนไขแลกคูปอง (แทน "อ่านสะสม X นาที" เดิม): ผ่านแบบทดสอบหลังอ่าน (≥ 80%) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
   // ตอนเพิ่มคอลัมน์ครั้งแรก ตั้งให้คูปองตามมูลค่า: 20 บาท = 2 บท | 30 บาท = 4 บท + 2 โลก | 50 บาท = 6 บท + 6 โลก
   if (!productColumns.includes("required_post_chapters")) {
     await client.execute("ALTER TABLE products ADD COLUMN required_post_chapters INTEGER NOT NULL DEFAULT 0");
@@ -496,6 +496,19 @@ async function initDatabase() {
       UNIQUE (user_id, chapter_id, attempt)
     )
   `);
+
+  // post ไม่ผ่าน (< 80%) → กลับไป status reading แล้วทำ post ใหม่ได้จนผ่าน
+  // post_tries = ทำ post ไปแล้วกี่ครั้งในชุดนี้ | first_post_score = คะแนน post ครั้งแรก (ใช้วิจัยก่อน/หลังอ่าน)
+  // last_post_score = คะแนน post ครั้งล่าสุด (โชว์ตอนยังไม่ผ่าน) | post_score = คะแนนครั้งที่ผ่าน (มีเมื่อ completed)
+  const testColumns = (await client.execute("PRAGMA table_info(chapter_tests)")).rows.map((c) => c.name);
+  const testColumnMigrations = [
+    ["post_tries", "ALTER TABLE chapter_tests ADD COLUMN post_tries INTEGER NOT NULL DEFAULT 0"],
+    ["first_post_score", "ALTER TABLE chapter_tests ADD COLUMN first_post_score INTEGER"],
+    ["last_post_score", "ALTER TABLE chapter_tests ADD COLUMN last_post_score INTEGER"],
+  ];
+  for (const [col, sql] of testColumnMigrations) {
+    if (!testColumns.includes(col)) await client.execute(sql);
+  }
 
   // ---- ตาราง chapter_test_questions (คำถามของแบบทดสอบแต่ละชุด ถามทีละข้อ ข้อละ 1 นาที) ----
   // *_order = ลำดับที่ถาม (pre_order NULL = ชุดนี้ไม่มี pre) | *_shown_at = server ส่งข้อนี้ให้ดูเมื่อไหร่ (ใช้จับเวลา)

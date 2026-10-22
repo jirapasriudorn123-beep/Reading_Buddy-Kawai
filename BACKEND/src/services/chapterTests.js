@@ -4,7 +4,9 @@ const { recordReview } = require("./spacedReview");
 
 // ================== แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท ==================
 // pre 10 ข้อ (สุ่มจากคลังคำถามมินิเกมของบทนั้น) ตอนเริ่มอ่านบทครั้งแรก → อ่านกี่รอบก็ได้ (คอยน์จากเวลาค้างไว้) → อ่านครบเวลาขั้นต่ำของบท → post 10 ข้อเดิม สลับแค่ลำดับข้อ
-// ทำ post เสร็จ: ได้คอยน์จากเวลาที่ค้างไว้ทั้งหมด + โบนัสข้อละ 10 คอยน์ (เฉพาะข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+// post ผ่าน (≥ 8 จาก 10): ได้คอยน์จากเวลาที่ค้างไว้ทั้งหมด + โบนัสข้อละ 10 คอยน์ (เฉพาะข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+// post ไม่ผ่าน: ไม่ได้คอยน์ กลับไปสถานะอ่าน ทำ post ใหม่ได้ทันที (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านก่อนก็ได้ ทำได้จนกว่าจะผ่าน
+// ได้คอยน์จากบทหนึ่งๆ สูงสุด 4 ครั้ง (นับชุดที่ผ่าน) — ครบแล้วอ่านทบทวน/ทำ post ได้แต่ไม่ได้คอยน์
 // อ่านบทเดิมซ้ำ = ชุดใหม่ (attempt ถัดไป) ไม่มี pre, post เอาข้อที่ตอบผิดครั้งก่อนมาถามเป็นข้อแรก
 // ถามทีละข้อ ข้อละ 1 นาที (server จับเวลาเอง) | post: สลับแท็บระหว่างข้อ = ข้อนั้นผิด
 
@@ -12,7 +14,8 @@ const QUESTIONS_PER_TEST = 10;
 const SECONDS_PER_QUESTION = 60;
 const ANSWER_GRACE_SECONDS = 5; // เผื่อ network ช้าตอนกดตอบใกล้หมดเวลา
 const BONUS_PER_CORRECT = 10;
-const PASS_RATIO = 0.6; // post ได้ ≥ 60% (6 จาก 10) = ผ่านบทนั้น ใช้นับเงื่อนไขคูปอง
+const PASS_RATIO = 0.8; // post ได้ ≥ 80% (8 จาก 10) = ผ่านบทนั้น ได้คอยน์ + นับเงื่อนไขคูปอง
+const MAX_COIN_REWARDS_PER_CHAPTER = 4;
 // เฉลยข้อที่ผิดหลังทำ post ไหม — ไม่เฉลย ให้กลับไปอ่านแล้วเจอข้อนั้นซ้ำ (ข้อแรกของ post ครั้งหน้า / ในเกมทบทวน)
 const REVEAL_WRONG_ANSWERS = false;
 
@@ -49,6 +52,14 @@ async function minReadSecondsFor(chapterId) {
   return Math.max(1, chapter ? chapter.game_required_minutes ?? 20 : 20) * 60;
 }
 
+// บทนี้ได้คอยน์ไปแล้วกี่ครั้ง (ชุดที่ทำ post จบ = ผ่านแล้ว) — ครบ MAX_COIN_REWARDS_PER_CHAPTER แล้วไม่ได้คอยน์อีก
+async function coinRewardsUsed(userId, chapterId, conn = db) {
+  const row = await conn
+    .prepare("SELECT COUNT(*) AS c FROM chapter_tests WHERE user_id = ? AND chapter_id = ? AND status = 'completed'")
+    .get(userId, chapterId);
+  return row.c || 0;
+}
+
 async function testReadingTotals(testId) {
   const row = await db
     .prepare(
@@ -70,6 +81,7 @@ async function chapterProgress(userId, chapterId) {
        FROM chapter_tests WHERE user_id = ? AND chapter_id = ? AND status = 'completed'`
     )
     .get(userId, chapterId);
+  const rewardsUsed = best.completedCount || 0;
 
   const base = {
     status: "none",
@@ -83,6 +95,12 @@ async function chapterProgress(userId, chapterId) {
     completedCount: best.completedCount || 0,
     bestPostScore: best.bestPost,
     passed: best.completedCount > 0 && best.bestPost >= passScore(best.total || QUESTIONS_PER_TEST),
+    passScore: passScore(QUESTIONS_PER_TEST),
+    postTries: 0,
+    lastPostScore: null,
+    coinRewardsUsed: Math.min(rewardsUsed, MAX_COIN_REWARDS_PER_CHAPTER),
+    coinRewardsMax: MAX_COIN_REWARDS_PER_CHAPTER,
+    coinRewardsLeft: Math.max(0, MAX_COIN_REWARDS_PER_CHAPTER - rewardsUsed),
   };
   if (!test) return base;
 
@@ -98,6 +116,9 @@ async function chapterProgress(userId, chapterId) {
     canPostTest: test.status === "post_test" || (test.status === "reading" && readSeconds >= minReadSeconds),
     preScore: test.pre_score,
     total: test.total || QUESTIONS_PER_TEST,
+    passScore: passScore(test.total || QUESTIONS_PER_TEST),
+    postTries: finished ? 0 : test.post_tries || 0,
+    lastPostScore: finished ? null : test.last_post_score,
   };
 }
 
@@ -195,8 +216,11 @@ async function startPostTest(userId, chapterId) {
     return { error: { status: 400, message: `อ่านบทนี้อีก ${left} นาที ถึงจะทำแบบทดสอบหลังอ่านได้` } };
   }
 
-  // ชุดที่อ่านซ้ำ: เลือกคำถามก่อนเปิด transaction (อ่านด้วย connection หลักระหว่าง transaction เขียนค้างอยู่ จะติด lock)
-  const repeatIds = test.attempt === 1 ? null : await pickRepeatPostQuestions(userId, chapterId);
+  // ชุดแรก (มีข้อของ pre) หรือชุดที่เคยทำ post ไม่ผ่านมาแล้ว = ใช้ข้อเดิมของชุดนี้ สลับลำดับใหม่
+  // ชุดที่อ่านซ้ำซึ่งยังไม่เคยทำ post: เลือกคำถามก่อนเปิด transaction (อ่านด้วย connection หลักระหว่าง transaction เขียนค้างอยู่ จะติด lock)
+  const existing = await db.prepare("SELECT COUNT(*) AS c FROM chapter_test_questions WHERE test_id = ?").get(test.id);
+  const reuse = existing.c > 0;
+  const repeatIds = reuse ? null : await pickRepeatPostQuestions(userId, chapterId);
 
   await db.tx(async (t) => {
     const moved = await t.prepare(
@@ -204,7 +228,7 @@ async function startPostTest(userId, chapterId) {
     ).run(test.id);
     if (moved.changes === 0) return; // อีกแท็บเริ่มไปแล้ว
 
-    if (test.attempt === 1) {
+    if (reuse) {
       const rows = await t.prepare("SELECT question_id FROM chapter_test_questions WHERE test_id = ?").all(test.id);
       for (const [i, r] of shuffle(rows).entries()) {
         await t.prepare("UPDATE chapter_test_questions SET post_order = ? WHERE test_id = ? AND question_id = ?").run(
@@ -338,22 +362,45 @@ async function finishPhase(userId, test, phase) {
         "UPDATE chapter_tests SET status = 'reading', pre_score = ?, pre_done_at = datetime('now') WHERE id = ? AND status = 'pre_test'"
       )
       .run(row.score, test.id);
-    return { phase: "pre", preScore: row.score, total: test.total };
+    // บอกแค่ข้อไหนถูก/ผิด ไม่เฉลย (ข้อเดียวกันจะถูกถามอีกใน post)
+    const questions = await phaseQuestions(test.id, "pre");
+    return {
+      phase: "pre",
+      preScore: row.score,
+      total: test.total,
+      results: questions.map((q) => ({
+        question: q.question,
+        options: [q.option_1, q.option_2, q.option_3, q.option_4],
+        picked: q.pre_picked,
+        correct: q.pre_correct === 1,
+      })),
+    };
   }
   return finishPostTest(userId, test);
 }
 
-// ปิด post: ปล่อยคอยน์จากเวลาอ่านที่ค้างไว้ทั้งหมดของชุดนี้ + โบนัสข้อที่ถูก (ข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+// ปิด post
+// ผ่าน (≥ 80%): ชุดนี้ completed ปล่อยคอยน์จากเวลาอ่านที่ค้างไว้ทั้งหมด + โบนัสข้อที่ถูก (ข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+//   — ถ้าบทนี้ได้คอยน์ครบ 4 ครั้งแล้ว คอยน์ที่ค้างไว้ไม่จ่าย (ปิด pending ทิ้ง)
+// ไม่ผ่าน: ไม่ได้คอยน์ (คอยน์จากเวลายังค้างไว้) กลับไป status reading ล้างคำตอบ post ไว้ทำใหม่ด้วยข้อเดิม
 async function finishPostTest(userId, test) {
   const questions = await phaseQuestions(test.id, "post");
   const postScore = questions.filter((q) => q.post_correct === 1).length;
+  const passed = postScore >= passScore(questions.length);
   const rules = await getReadingRules();
 
   const result = await db.tx(async (t) => {
-    const closed = await t.prepare(
-      `UPDATE chapter_tests SET status = 'completed', post_score = ?, completed_at = datetime('now')
-       WHERE id = ? AND status = 'post_test'`
-    ).run(postScore, test.id);
+    const closed = passed
+      ? await t.prepare(
+          `UPDATE chapter_tests SET status = 'completed', post_score = ?, completed_at = datetime('now'),
+             post_tries = post_tries + 1, first_post_score = COALESCE(first_post_score, ?), last_post_score = ?
+           WHERE id = ? AND status = 'post_test'`
+        ).run(postScore, postScore, postScore, test.id)
+      : await t.prepare(
+          `UPDATE chapter_tests SET status = 'reading', post_started_at = NULL,
+             post_tries = post_tries + 1, first_post_score = COALESCE(first_post_score, ?), last_post_score = ?
+           WHERE id = ? AND status = 'post_test'`
+        ).run(postScore, postScore, test.id);
     if (closed.changes === 0) return null; // อีกแท็บปิดไปแล้ว
 
     // นัดทบทวนแบบเว้นระยะ: ข้อผิดถึงรอบทันที ข้อถูกนัดพรุ่งนี้ (ดู services/spacedReview.js)
@@ -365,6 +412,23 @@ async function finishPostTest(userId, test) {
         correct: q.post_correct === 1,
         source: "post",
       });
+    }
+
+    if (!passed) {
+      await t.prepare(
+        `UPDATE chapter_test_questions
+         SET post_order = NULL, post_shown_at = NULL, post_picked = NULL, post_correct = NULL,
+             post_timed_out = 0, post_tab_switched = 0, post_answered_at = NULL
+         WHERE test_id = ?`
+      ).run(test.id);
+      return { coinsTime: 0, coinsBonus: 0, rewardLimitReached: false };
+    }
+
+    // นับชุดที่ผ่านก่อนหน้าชุดนี้ (ชุดนี้เพิ่ง completed ไปข้างบน จึงลบ 1)
+    const rewardLimitReached = (await coinRewardsUsed(userId, test.chapter_id, t)) - 1 >= MAX_COIN_REWARDS_PER_CHAPTER;
+    if (rewardLimitReached) {
+      await t.prepare("UPDATE reading_sessions SET coins_pending = 0 WHERE chapter_test_id = ? AND coins_pending = 1").run(test.id);
+      return { coinsTime: 0, coinsBonus: 0, rewardLimitReached };
     }
 
     let bonusCount = 0;
@@ -386,20 +450,27 @@ async function finishPostTest(userId, test) {
     await t.prepare("UPDATE reading_sessions SET coins_pending = 0 WHERE chapter_test_id = ? AND coins_pending = 1").run(test.id);
     await t.prepare("UPDATE chapter_tests SET coins_time = ?, coins_bonus = ? WHERE id = ?").run(coinsTime, coinsBonus, test.id);
     await t.prepare("UPDATE users SET coins = coins + ? WHERE id = ?").run(coinsTime + coinsBonus, userId);
-    return { coinsTime, coinsBonus };
+    return { coinsTime, coinsBonus, rewardLimitReached: false };
   });
 
   const fresh = await db.prepare("SELECT * FROM chapter_tests WHERE id = ?").get(test.id);
   const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(userId);
+  const rewardsUsed = await coinRewardsUsed(userId, test.chapter_id);
   return {
     phase: "post",
     attempt: fresh.attempt,
     preScore: fresh.pre_score,
-    postScore: fresh.post_score,
+    postScore,
     total: questions.length,
-    passed: fresh.post_score >= passScore(questions.length),
-    coinsTime: result ? result.coinsTime : fresh.coins_time,
-    coinsBonus: result ? result.coinsBonus : fresh.coins_bonus,
+    passed,
+    passScore: passScore(questions.length),
+    postTries: fresh.post_tries,
+    coinsTime: result ? result.coinsTime : passed ? fresh.coins_time : 0,
+    coinsBonus: result ? result.coinsBonus : passed ? fresh.coins_bonus : 0,
+    rewardLimitReached: result ? result.rewardLimitReached : false,
+    coinRewardsUsed: Math.min(rewardsUsed, MAX_COIN_REWARDS_PER_CHAPTER),
+    coinRewardsMax: MAX_COIN_REWARDS_PER_CHAPTER,
+    pendingCoins: passed ? 0 : (await testReadingTotals(test.id)).pendingCoins,
     bonusPerCorrect: BONUS_PER_CORRECT,
     totalCoins: user.coins,
     results: questions.map((q) => ({
@@ -428,7 +499,7 @@ async function completedChapterNumbers(userId) {
   return new Set(rows.map((r) => r.chapter_number));
 }
 
-// จำนวนบทที่ผ่าน post (≥ 60%) — นับคะแนนที่ดีที่สุดของแต่ละบท
+// จำนวนบทที่ผ่าน post (≥ 80%) — นับคะแนนที่ดีที่สุดของแต่ละบท
 async function passedChapterCount(userId) {
   const rows = await db
     .prepare(
@@ -458,6 +529,8 @@ module.exports = {
   SECONDS_PER_QUESTION,
   BONUS_PER_CORRECT,
   PASS_RATIO,
+  MAX_COIN_REWARDS_PER_CHAPTER,
+  coinRewardsUsed,
   getLatestTest,
   getOrCreateActiveTest,
   startPostTest,

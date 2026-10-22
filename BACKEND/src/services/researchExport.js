@@ -16,7 +16,13 @@ const TZ_MS = 7 * 60 * 60 * 1000;
 const PARTICIPANT_SQL = "is_admin = 0 AND research_consent = 1";
 const STREAK_MIN_SECONDS = 10 * 60;
 const PAGE_VIEWED_MIN_SECONDS = 5; // ตรงกับ routes/sessions.js: เปิดหน้านั้น ≥ 5 วินาที นับว่าเปิดอ่าน // ตรงกับ services/petCare.js: วันที่อ่านรวม ≥ 10 นาที นับเป็นวันอ่าน
-const PASS_RATIO = 0.6;
+const PASS_RATIO = 0.8;
+
+// คะแนน post ครั้งแรกของชุด (ก่อนทำซ้ำจนผ่าน) — ชุดเก่าก่อนมีคอลัมน์นี้ใช้ post_score ของชุดที่จบแล้ว
+function firstPostScore(t) {
+  if (t.first_post_score !== null && t.first_post_score !== undefined) return t.first_post_score;
+  return t.status === "completed" ? t.post_score : null;
+}
 
 function thaiDateTime(sqliteDatetime) {
   if (!sqliteDatetime) return "";
@@ -240,10 +246,10 @@ async function buildUsersCsv() {
     // คะแนนก่อน/หลังอ่าน ใช้ชุดแรกของแต่ละบท (ชุดที่มีทั้ง pre และ post) — ชุดที่อ่านซ้ำไม่มี pre
     const firstTests = tests.filter((t) => t.attempt === 1 && t.total > 0);
     const preList = firstTests.filter((t) => t.pre_score !== null).map((t) => (t.pre_score / t.total) * 100);
-    const postList = firstTests.filter((t) => t.status === "completed").map((t) => (t.post_score / t.total) * 100);
+    const postList = firstTests.filter((t) => firstPostScore(t) !== null).map((t) => (firstPostScore(t) / t.total) * 100);
     const gainList = firstTests
-      .filter((t) => t.status === "completed" && t.pre_score !== null)
-      .map((t) => ((t.post_score - t.pre_score) / t.total) * 100);
+      .filter((t) => firstPostScore(t) !== null && t.pre_score !== null)
+      .map((t) => ((firstPostScore(t) - t.pre_score) / t.total) * 100);
     const bestByChapter = new Map();
     for (const t of tests.filter((t) => t.status === "completed")) {
       const ratio = t.total > 0 ? t.post_score / t.total : 1;
@@ -425,7 +431,7 @@ async function buildSessionsCsv() {
         last_page_viewed: viewedPages.length ? Math.max(...viewedPages) : "",
         page_seconds_tracked: pageRows.reduce((a, p) => a + p.seconds, 0),
         chapter_pre_score: test && test.pre_score !== null ? test.pre_score : "",
-        chapter_post_score: test && test.status === "completed" ? test.post_score : "",
+        chapter_post_score: test && firstPostScore(test) !== null ? firstPostScore(test) : "",
         chapter_total: test ? test.total : "",
       };
     })

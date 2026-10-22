@@ -658,8 +658,14 @@ router.get("/scores/quiz", requireAdmin, async (req, res, next) => {
 });
 
 // ================== คะแนนแบบทดสอบก่อนอ่าน/หลังอ่าน (รายบท) ==================
-// ใช้ชุดแรกของแต่ละบท (attempt 1 = มีทั้ง pre และ post) คิดคะแนนก่อน/หลัง | "ผ่าน" = post ดีที่สุดของบทนั้น ≥ 60%
-const TEST_PASS_RATIO = 0.6;
+// ใช้ชุดแรกของแต่ละบท (attempt 1 = มีทั้ง pre และ post) คิดคะแนนก่อน/หลัง (post = คะแนนครั้งแรก ก่อนทำซ้ำจนผ่าน)
+// "ผ่าน" = post ดีที่สุดของบทนั้น ≥ 80%
+const TEST_PASS_RATIO = 0.8;
+
+function firstPostScore(t) {
+  if (t.first_post_score !== null && t.first_post_score !== undefined) return t.first_post_score;
+  return t.status === "completed" ? t.post_score : null;
+}
 
 function avgPct(list) {
   return list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : null;
@@ -668,9 +674,9 @@ function avgPct(list) {
 function summarizeTests(tests) {
   const first = tests.filter((t) => t.attempt === 1 && t.total > 0);
   const pre = first.filter((t) => t.pre_score !== null).map((t) => (t.pre_score / t.total) * 100);
-  const done = first.filter((t) => t.status === "completed");
-  const post = done.map((t) => (t.post_score / t.total) * 100);
-  const gain = done.filter((t) => t.pre_score !== null).map((t) => ((t.post_score - t.pre_score) / t.total) * 100);
+  const done = first.filter((t) => firstPostScore(t) !== null);
+  const post = done.map((t) => (firstPostScore(t) / t.total) * 100);
+  const gain = done.filter((t) => t.pre_score !== null).map((t) => ((firstPostScore(t) - t.pre_score) / t.total) * 100);
   return { preCount: pre.length, postCount: post.length, avgPrePct: avgPct(pre), avgPostPct: avgPct(post), avgGainPct: avgPct(gain) };
 }
 
@@ -745,7 +751,8 @@ router.get("/scores/tests/:userId", requireAdmin, async (req, res, next) => {
     const tests = await db
       .prepare(
         `SELECT c.chapter_number AS chapterNumber, c.title, t.attempt, t.status, t.total,
-                t.pre_score AS preScore, t.post_score AS postScore, t.coins_time AS coinsTime,
+                t.pre_score AS preScore, t.post_score AS postScore, t.first_post_score AS firstPostScore,
+                t.post_tries AS postTries, t.coins_time AS coinsTime,
                 t.coins_bonus AS coinsBonus, t.created_at AS createdAt, t.completed_at AS completedAt
          FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id
          WHERE t.user_id = ? ORDER BY c.chapter_number ASC, t.attempt ASC`
@@ -1291,9 +1298,9 @@ router.get("/reading-pages/:chapterId", requireAdmin, async (req, res, next) => 
         .get(chapterId),
       db
         .prepare(
-          `SELECT t.user_id AS userId, t.pre_score AS preScore, t.post_score AS postScore, t.total
+          `SELECT t.user_id AS userId, t.pre_score AS preScore, COALESCE(t.first_post_score, t.post_score) AS postScore, t.total
            FROM chapter_tests t
-           WHERE t.chapter_id = ? AND t.attempt = 1 AND t.status = 'completed'
+           WHERE t.chapter_id = ? AND t.attempt = 1 AND (t.first_post_score IS NOT NULL OR t.status = 'completed')
              AND t.user_id IN (SELECT id FROM users WHERE is_admin = 0)`
         )
         .all(chapterId),

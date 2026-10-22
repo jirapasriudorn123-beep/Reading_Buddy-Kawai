@@ -6,7 +6,7 @@ const { passedChapterCount, clearedWorldCount } = require("../services/chapterTe
 
 const router = express.Router();
 
-// เงื่อนไขแลกคูปอง: ผ่านแบบทดสอบหลังอ่าน (≥ 60%) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก (คอยน์เป็นราคาที่ต้องจ่ายแยกต่างหาก)
+// เงื่อนไขแลกคูปอง: ผ่านแบบทดสอบหลังอ่าน (≥ 80%) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก (คอยน์เป็นราคาที่ต้องจ่ายแยกต่างหาก)
 async function couponProgress(userId) {
   const [passedChapters, clearedWorlds] = await Promise.all([passedChapterCount(userId), clearedWorldCount(userId)]);
   return { passedChapters, clearedWorlds };

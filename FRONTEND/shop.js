@@ -161,7 +161,7 @@ function updateCouponToolbar() {
 function couponRequirements(p) {
   const reqs = [];
   if (p.required_post_chapters > 0) {
-    reqs.push({ label: "ผ่านแบบทดสอบหลังอ่าน (≥ 60%)", unit: "บท", need: p.required_post_chapters, have: couponProgress.passedChapters });
+    reqs.push({ label: "ผ่านแบบทดสอบหลังอ่าน (≥ 80%)", unit: "บท", need: p.required_post_chapters, have: couponProgress.passedChapters });
   }
   if (p.required_game_worlds > 0) {
     reqs.push({ label: "ผ่านด่านบทเรียนในเกม (≥ 2 ดาว)", unit: "โลก", need: p.required_game_worlds, have: couponProgress.clearedWorlds });

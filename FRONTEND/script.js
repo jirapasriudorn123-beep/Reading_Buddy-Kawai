@@ -241,13 +241,18 @@ function chapterStatusLines(progress) {
     return ["📝 ทำแบบทดสอบหลังอ่านค้างอยู่ ทำให้เสร็จก่อนอ่านต่อนะ (ข้อที่เปิดค้างไว้จนหมดเวลานับว่าผิด)"];
   }
   if (progress.status === "reading") {
+    const failedLine = progress.postTries > 0
+      ? [`📝 แบบทดสอบหลังอ่านครั้งล่าสุดได้ ${progress.lastPostScore}/${progress.total} ยังไม่ผ่าน (ต้องได้ ${progress.passScore} ขึ้นไป) ทำใหม่ได้เลย หรืออ่านทบทวนก่อนก็ได้`]
+      : [];
     return [
       ...(progress.attempt >= 2 ? [rereadLine(progress.attempt)] : []),
+      ...failedLine,
       `📖 อ่านบทนี้แล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
         `คอยน์รอปลดล็อก ${progress.pendingCoins} 🪙`,
       progress.canPostTest
-        ? "✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ + โบนัสข้อที่ตอบถูก"
-        : "คอยน์จะเข้าหลังทำแบบทดสอบหลังอ่าน (อ่านครบเวลาก่อนถึงจะทำได้)",
+        ? `✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่าน ได้ ${progress.passScore}/${progress.total} ขึ้นไปถึงจะผ่านและได้คอยน์ + โบนัสข้อที่ตอบถูก`
+        : `คอยน์จะเข้าเมื่อทำแบบทดสอบหลังอ่านผ่าน (${progress.passScore}/${progress.total} ขึ้นไป · อ่านครบเวลาก่อนถึงจะทำได้)`,
+      ...rewardLimitLines(progress),
     ];
   }
   // completed = อ่านซ้ำ (ชุดใหม่ ไม่มีแบบทดสอบก่อนอ่าน)
@@ -255,7 +260,19 @@ function chapterStatusLines(progress) {
   return [
     rereadLine(progress.attempt + 1),
     `${progress.passed ? "✅ ผ่านบทนี้แล้ว" : "อ่านบทนี้จบไปแล้ว"}${best} · ข้อที่เคยตอบผิดจะถูกถามก่อนในแบบทดสอบหลังอ่าน`,
+    ...rewardLimitLines(progress),
   ];
+}
+
+// ได้คอยน์จากบทหนึ่งสูงสุด 4 ครั้ง (นับครั้งที่ทำแบบทดสอบหลังอ่านผ่าน)
+function rewardLimitLines(progress) {
+  if (!progress.coinRewardsMax) return [];
+  if (progress.coinRewardsLeft === 0) {
+    return [`🪙 บทนี้ได้คอยน์ครบ ${progress.coinRewardsMax} ครั้งแล้ว อ่านทบทวน/ทำแบบทดสอบได้ แต่ไม่ได้คอยน์เพิ่ม`];
+  }
+  return progress.coinRewardsUsed > 0
+    ? [`🪙 ได้คอยน์จากบทนี้แล้ว ${progress.coinRewardsUsed}/${progress.coinRewardsMax} ครั้ง`]
+    : [];
 }
 
 function renderPresetButtons() {
@@ -750,10 +767,12 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
   lastRoundChapter = chapter || null;
   lastRoundStreak = result.streak || null;
   const lines = [];
-  if (result.capped && result.coinsEarned === 0) {
+  if (result.chapterRewardLimitReached) {
+    lines.push("บทนี้ได้คอยน์ครบ 4 ครั้งแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖");
+  } else if (result.capped && result.coinsEarned === 0) {
     lines.push(`วันนี้ได้คอยน์จากการอ่านครบ ${result.roundsCap} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖`);
   } else {
-    lines.push(`รอบนี้ได้ ${result.coinsEarned} คอยน์ 🪙 — ${result.coinsPending ? "รอปลดล็อก จะเข้าหลังทำแบบทดสอบหลังอ่านบทนี้" : "เข้าบัญชีแล้ว"}`);
+    lines.push(`รอบนี้ได้ ${result.coinsEarned} คอยน์ 🪙 — ${result.coinsPending ? "รอปลดล็อก จะเข้าเมื่อทำแบบทดสอบหลังอ่านบทนี้ผ่าน" : "เข้าบัญชีแล้ว"}`);
     if (result.capped) lines.push(`(ครบโควต้าวันละ ${result.roundsCap} รอบพอดี คอยน์รอบนี้เลยได้ไม่เต็ม)`);
   }
   if (result.roundsCap) lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${result.roundsUsed}/${result.roundsCap} รอบ`);
@@ -804,7 +823,8 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
 }
 
 // ---------- แบบทดสอบ (ถามทีละข้อ server จับเวลาข้อละ 1 นาที) ----------
-// ก่อนอ่าน: ไม่บอกผล ต้องทำให้จบ (ไม่มีปุ่มยังไม่รู้/ทำทีหลัง หมดเวลานับว่ายังไม่รู้) | หลังอ่าน: สลับแท็บระหว่างข้อ = ข้อนั้นผิด, ไม่เฉลยข้อที่ผิด
+// ก่อนอ่าน: ต้องทำให้จบ (หมดเวลานับว่ายังไม่รู้) จบแล้วบอกคะแนน + ข้อไหนถูก/ผิด | หลังอ่าน: สลับแท็บระหว่างข้อ = ข้อนั้นผิด
+// ทั้งสองแบบไม่เฉลยคำตอบ | หลังอ่านต้องได้ 8/10 ขึ้นไปถึงผ่าน ไม่ผ่านทำใหม่ได้จนกว่าจะผ่าน
 
 const OPTION_LABELS = ["ก", "ข", "ค", "ง"];
 const TEST_COPY = {
@@ -815,7 +835,7 @@ const TEST_COPY = {
   },
   post: {
     kicker: "แบบทดสอบหลังอ่าน",
-    hint: "ข้อละ 1 นาที · ห้ามสลับแท็บ (สลับแท็บ = ข้อนั้นผิด) · ทำครบเพื่อรับคอยน์ + โบนัสข้อละ 10 คอยน์",
+    hint: "ข้อละ 1 นาที · ห้ามสลับแท็บ (สลับแท็บ = ข้อนั้นผิด) · ได้ 8/10 ขึ้นไปถึงจะผ่าน และได้คอยน์ + โบนัสข้อละ 10 คอยน์",
     leave: "ออกก่อน",
   },
 };
@@ -959,21 +979,41 @@ async function endTest(completed) {
   else if (!activeSession && !onBreak) resetReaderTimerState();
 }
 
+// รายการข้อ: บอกแค่ถูก/ผิด ไม่เฉลยคำตอบ (pre กับ post เป็นข้อชุดเดียวกัน)
+function testResultRows(results) {
+  return results
+    .map((q, i) => {
+      let detail;
+      if (q.correct) detail = "✅ ถูก";
+      else if (q.tabSwitched) detail = "❌ ผิด (สลับแท็บระหว่างทำข้อนี้)";
+      else if (q.timedOut) detail = "❌ ผิด (หมดเวลา)";
+      else detail = "❌ ผิด";
+      return `
+        <li class="quiz-result-item">
+          <p class="quiz-result-question">${i + 1}. ${escapeHtml(q.question)}</p>
+          <p class="quiz-result-line ${q.correct ? "is-correct" : "is-wrong"}">${detail}</p>
+        </li>`;
+    })
+    .join("");
+}
+
 function finishTest(summary) {
   clearInterval(quiz.timerId);
   quiz.question = null;
   if (summary.phase === "pre") {
-    document.getElementById("quizTitle").textContent = "ทำแบบทดสอบก่อนอ่านเสร็จแล้ว ✅";
+    document.getElementById("quizTitle").textContent = `ก่อนอ่านได้ ${summary.preScore}/${summary.total} คะแนน`;
     document.getElementById("quizHint").style.display = "none";
-    document.getElementById("quizBody").innerHTML =
-      `<p class="round-summary">เริ่มอ่านได้เลย! อ่านครบเวลาของบทนี้แล้วจะได้ทำแบบทดสอบหลังอ่าน (ข้อเดิม) เพื่อดูว่าเข้าใจขึ้นแค่ไหน 📖</p>`;
+    document.getElementById("quizBody").innerHTML = `
+      ${summary.results ? `<ol class="quiz-results">${testResultRows(summary.results)}</ol>` : ""}
+      <p class="round-summary">เริ่มอ่านได้เลย! อ่านครบเวลาของบทนี้แล้วจะได้ทำแบบทดสอบหลังอ่าน (ข้อเดิม สลับลำดับ) ต้องได้ ${Math.ceil(summary.total * 0.8)}/${summary.total} ขึ้นไปถึงจะผ่าน 📖</p>`;
     setQuizButtons({ label: "เริ่มอ่าน", onClick: () => endTest(true) }, null);
     return;
   }
   showTestResults(summary);
 }
 
-// ผลแบบทดสอบหลังอ่าน: คะแนนก่อน → หลัง, คอยน์ที่ได้, ข้อไหนถูก/ผิด (ข้อที่ผิดไม่เฉลย ให้กลับไปอ่านแล้วเจอซ้ำในเกม/ครั้งหน้า)
+// ผลแบบทดสอบหลังอ่าน: คะแนน + ผ่านไหม + ข้อไหนถูก/ผิด (ไม่เฉลย)
+// ผ่าน = ได้คอยน์ (ถ้าบทนี้ยังได้ไม่ครบ 4 ครั้ง) | ไม่ผ่าน = บอกว่าต้องได้เท่าไหร่ + ปุ่มลองอีกครั้ง / กลับไปอ่าน
 function showTestResults(summary) {
   const scoreText = summary.preScore != null
     ? `ก่อนอ่าน ${summary.preScore}/${summary.total} → หลังอ่าน ${summary.postScore}/${summary.total}`
@@ -982,36 +1022,61 @@ function showTestResults(summary) {
   document.getElementById("quizTitle").textContent = scoreText;
   document.getElementById("quizHint").style.display = "none";
 
-  const answerText = (q, picked) => (picked ? `${OPTION_LABELS[picked - 1]}. ${escapeHtml(q.options[picked - 1])}` : "ไม่ได้ตอบ");
-  const rows = summary.results
-    .map((q, i) => {
-      let detail;
-      if (q.correct) detail = `✅ ${answerText(q, q.postPicked)}`;
-      else if (q.tabSwitched) detail = "❌ สลับแท็บระหว่างทำข้อนี้";
-      else if (q.timedOut) detail = "❌ หมดเวลา";
-      else detail = `❌ ${answerText(q, q.postPicked)}`;
-      return `
-        <li class="quiz-result-item">
-          <p class="quiz-result-question">${i + 1}. ${escapeHtml(q.question)}</p>
-          <p class="quiz-result-line">${detail}</p>
-        </li>`;
-    })
-    .join("");
-  const wrongCount = summary.results.filter((q) => !q.correct).length;
-  const passNote = summary.passed ? "✅ ผ่านบทนี้แล้ว (นับเป็นเงื่อนไขแลกคูปอง) · " : "";
-  const unlockNote = `${passNote}🎮 โลกที่ ${quiz.chapter.chapter_number} ในเกมเปิดแล้ว ไปทบทวนกันเลย!`;
+  const rows = testResultRows(summary.results);
+  const body = document.getElementById("quizBody");
 
-  document.getElementById("quizBody").innerHTML = `
-    <div class="quiz-coins">
-      <p>คอยน์จากเวลาอ่าน ${summary.coinsTime} + โบนัสตอบถูก ${summary.coinsBonus} = <strong>${summary.coinsTime + summary.coinsBonus} คอยน์</strong> 🎉</p>
-      <p class="quiz-coins-sub">เหรียญรวม ${summary.totalCoins} · โบนัสข้อละ ${summary.bonusPerCorrect} คอยน์ (ข้อที่เคยตอบถูกแล้วไม่ได้ซ้ำ)</p>
+  if (!summary.passed) {
+    const missing = Math.max(0, summary.passScore - summary.postScore);
+    body.innerHTML = `
+      <div class="quiz-verdict is-fail">
+        <p class="quiz-verdict-title">ยังไม่ผ่าน · ได้ ${summary.postScore}/${summary.total} คะแนน</p>
+        <p>ต้องได้ ${summary.passScore}/${summary.total} คะแนนขึ้นไปถึงจะผ่าน (ขาดอีก ${missing} คะแนน)</p>
+        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} 🪙 เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
+      </div>
+      <ol class="quiz-results">${rows}</ol>
+      <p class="quiz-hint">ไม่เฉลยข้อที่ผิดนะ ลองอีกครั้ง (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านบทเรียนก่อนก็ได้</p>
+    `;
+    setQuizButtons(
+      { label: "🔁 ลองอีกครั้ง", onClick: retryPostTest },
+      { label: "📖 กลับไปอ่านบทเรียนอีกรอบ", onClick: rereadAfterFail }
+    );
+    return;
+  }
+
+  const coins = summary.coinsTime + summary.coinsBonus;
+  const coinsHtml = summary.rewardLimitReached
+    ? `<p>บทนี้ได้คอยน์ครบ ${summary.coinRewardsMax} ครั้งแล้ว ครั้งนี้จึงไม่ได้คอยน์</p>`
+    : `<p>คอยน์จากเวลาอ่าน ${summary.coinsTime} + โบนัสตอบถูก ${summary.coinsBonus} = <strong>${coins} คอยน์</strong> 🎉</p>
+       <p class="quiz-coins-sub">เหรียญรวม ${summary.totalCoins} · โบนัสข้อละ ${summary.bonusPerCorrect} คอยน์ (ข้อที่เคยตอบถูกแล้วไม่ได้ซ้ำ) · ได้คอยน์จากบทนี้แล้ว ${summary.coinRewardsUsed}/${summary.coinRewardsMax} ครั้ง</p>`;
+  body.innerHTML = `
+    <div class="quiz-verdict is-pass">
+      <p class="quiz-verdict-title">✅ ผ่านแล้ว! ได้ ${summary.postScore}/${summary.total} คะแนน</p>
+      <p class="quiz-coins-sub">เกณฑ์ผ่าน ${summary.passScore}/${summary.total} · นับเป็นเงื่อนไขแลกคูปอง</p>
     </div>
+    <div class="quiz-coins">${coinsHtml}</div>
     <ol class="quiz-results">${rows}</ol>
-    ${wrongCount ? `<p class="quiz-hint">ข้อที่ผิดยังไม่เฉลยนะ ลองกลับไปอ่านดู — ข้อเหล่านี้จะถูกถามก่อนในเกมทบทวนและครั้งหน้าที่อ่านบทนี้</p>` : ""}
-    <p class="quiz-unlock">${unlockNote}</p>
+    <p class="quiz-unlock">🎮 โลกที่ ${quiz.chapter.chapter_number} ในเกมเปิดแล้ว ไปทบทวนกันเลย!</p>
   `;
   updateCoinBadge(summary.totalCoins);
   setQuizButtons({ label: "ตกลง", onClick: () => endTest(true) }, null);
+}
+
+// ไม่ผ่าน → ทำ post ใหม่ทันที (server ใช้ข้อเดิม สลับลำดับ)
+function retryPostTest() {
+  if (!quiz) return;
+  const { chapter, onFinished } = quiz;
+  clearInterval(quiz.timerId);
+  quiz = null;
+  runChapterTest(chapter, "post", onFinished);
+}
+
+// ไม่ผ่าน → กลับไปเลือกรอบอ่านบทเดิม (อ่านแล้วกลับมาทำ post ได้ทุกเมื่อ ไม่ต้องอ่านครบเวลาใหม่)
+async function rereadAfterFail() {
+  if (!quiz) return;
+  const chapterId = quiz.chapter.id;
+  await endTest(false);
+  const chapter = chaptersData.find((c) => c.id === chapterId);
+  if (chapter) openChapterTimeModal(chapter);
 }
 
 // ================== ช่วงพักหลังอ่านจบ (นับถอยหลังฝั่ง client ล้วนๆ ไม่มี session ผูกอยู่แล้ว) ==================

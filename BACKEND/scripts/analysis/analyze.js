@@ -115,7 +115,7 @@ const DESCRIPTIVE_VARS = [
   ["reading_minutes", "เวลาอ่านรวม (นาที)"],
   ["reading_minutes_per_active_day", "เวลาอ่านต่อวันที่เข้าใช้ (นาที)"],
   ["chapters_posttested", "บทที่ทำแบบทดสอบหลังอ่าน (บท)"],
-  ["chapters_passed", "บทที่ผ่านเกณฑ์ 60% (บท)"],
+  ["chapters_passed", "บทที่ผ่านเกณฑ์ 80% (บท)"],
   ["pet_visits", "เข้าหน้าน้องหมา (ครั้ง)"],
   ["pet_care_free", "ลูบน้องหมา (ครั้ง)"],
   ["pet_care_item", "ใช้ไอเทมดูแลน้องหมา (ครั้ง)"],

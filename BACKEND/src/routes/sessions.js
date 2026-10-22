@@ -123,7 +123,13 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
     const effectiveElapsedSeconds = Math.min(readSeconds, session.planned_read_seconds);
     const effectiveElapsedMinutes = Math.floor(effectiveElapsedSeconds / 60);
     const minutesPerBlock = session.minutes_per_block || NORMAL_RULES.minutesPerBlock;
-    const coinsFromTime = Math.floor(effectiveElapsedMinutes / minutesPerBlock) * COINS_PER_BLOCK;
+    // บทที่ได้คอยน์ครบ 4 ครั้งแล้ว: อ่านทบทวนได้ นับเวลาให้ แต่ไม่ได้คอยน์ (และไม่กินโควต้าคอยน์รายวัน)
+    const chapterRewardLimitReached =
+      !!session.chapter_test_id &&
+      (await tests.coinRewardsUsed(req.user.id, session.chapter_id)) >= tests.MAX_COIN_REWARDS_PER_CHAPTER;
+    const coinsFromTime = chapterRewardLimitReached
+      ? 0
+      : Math.floor(effectiveElapsedMinutes / minutesPerBlock) * COINS_PER_BLOCK;
     const completedFullDuration = effectiveElapsedSeconds >= session.planned_read_seconds;
 
     // ---- โควต้าคอยน์จากเวลาอ่านต่อวัน ----
@@ -177,6 +183,7 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       coinsEarned,
       coinsPending: !!pending,
       capped,
+      chapterRewardLimitReached,
       roundsUsed,
       roundsCap: cap === null ? null : rules.dailyCoinRounds,
       totalCoins: user.coins,

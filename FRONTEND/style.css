@@ -4395,3 +4395,59 @@ html.dark-mode body .review-banner {
         border-color: #000 transparent transparent transparent;
     }
 }
+
+/* ผลแบบทดสอบ: กล่องผ่าน/ไม่ผ่าน + ป้ายถูก/ผิดรายข้อ */
+.quiz-verdict {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border: 1px solid #000;
+    border-radius: 10px;
+}
+
+.quiz-verdict p {
+    margin: 2px 0;
+}
+
+.quiz-verdict.is-pass {
+    background-color: #eef5e2;
+}
+
+.quiz-verdict.is-fail {
+    background-color: #fdecea;
+}
+
+.quiz-verdict-title {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.quiz-result-line.is-correct {
+    color: #3f6b1c;
+    font-weight: 600;
+}
+
+.quiz-result-line.is-wrong {
+    color: #b3261e;
+    font-weight: 600;
+}
+
+html.dark-mode body .quiz-verdict {
+    border-color: #555;
+    color: #e8e8e8;
+}
+
+html.dark-mode body .quiz-verdict.is-pass {
+    background-color: #2f3d26;
+}
+
+html.dark-mode body .quiz-verdict.is-fail {
+    background-color: #45282a;
+}
+
+html.dark-mode body .quiz-result-line.is-correct {
+    color: #a6d27a;
+}
+
+html.dark-mode body .quiz-result-line.is-wrong {
+    color: #f2a49e;
+}
