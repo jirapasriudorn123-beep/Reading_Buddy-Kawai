@@ -87,7 +87,7 @@ async function loadRaw() {
       db.prepare("SELECT id, chapter_number FROM chapters").all(),
       db
         .prepare(
-          `SELECT id, user_id, chapter_id, chapter_test_id, planned_read_seconds, read_seconds, away_seconds,
+          `SELECT id, user_id, chapter_id, chapter_test_id, planned_read_seconds, read_seconds, away_seconds, idle_seconds,
                   coins_earned, coins_pending, started_at, ended_at, pdf_total_pages
            FROM reading_sessions WHERE status = 'completed' AND ${nonAdmin} ORDER BY started_at`
         )
@@ -363,6 +363,7 @@ const SESSION_COLUMNS = [
   "planned_minutes",
   "read_minutes",
   "away_minutes",
+  "idle_minutes",
   "stopped_early",
   "coins_time",
   "coins_paid",
@@ -410,7 +411,9 @@ async function buildSessionsCsv() {
         day_index: daysBetween(registeredBy.get(s.user_id), date),
         planned_minutes: round1(s.planned_read_seconds / 60),
         read_minutes: round1((s.read_seconds || 0) / 60),
-        away_minutes: round1((s.away_seconds || 0) / 60),
+        // away_seconds รวมช่วงไม่ขยับไว้ด้วย — แยกออกมาให้ away_minutes เป็นเวลาที่สลับไปหน้าอื่นอย่างเดียว
+        away_minutes: round1(Math.max(0, (s.away_seconds || 0) - (s.idle_seconds || 0)) / 60),
+        idle_minutes: round1((s.idle_seconds || 0) / 60),
         stopped_early: (s.read_seconds || 0) < s.planned_read_seconds ? 1 : 0,
         coins_time: s.coins_earned,
         coins_paid: s.coins_pending ? 0 : 1,

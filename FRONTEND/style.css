@@ -790,6 +790,11 @@ body {
     font-family: 'Kanit', sans-serif;
 }
 
+/* เด้งถาม "ยังอ่านอยู่ไหม" ต้องอยู่บนแชท/ปุ่มลอย (100000+) ไม่งั้นนาฬิกาหยุดแต่ผู้ใช้มองไม่เห็นป๊อปอัพ */
+#idleModal {
+    z-index: 100003;
+}
+
 /* กล่องเนื้อหา Pop-up */
 .modal-content, .timer-modal-content {
     background-color: #f9fbf2; 

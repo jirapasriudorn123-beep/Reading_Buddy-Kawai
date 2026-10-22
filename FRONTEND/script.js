@@ -487,11 +487,12 @@ function startPageTracking() {
   stopPageTracking();
   pageTime = {};
   pageTickTimer = setInterval(() => {
-    if (!activeSession || sessionPhase !== "reading" || document.hidden || !pdfTotalPages) return;
+    if (!activeSession || sessionPhase !== "reading" || document.hidden || !pdfTotalPages || idlePromptOpen) return;
     const page = currentPdfPage();
     if (page) pageTime[page] = (pageTime[page] || 0) + 1;
   }, 1000);
   pageFlushTimer = setInterval(() => flushPageTime(false), PAGE_FLUSH_SECONDS * 1000);
+  startIdleWatch();
 }
 
 function stopPageTracking() {
@@ -499,6 +500,7 @@ function stopPageTracking() {
   clearInterval(pageFlushTimer);
   pageTickTimer = null;
   pageFlushTimer = null;
+  stopIdleWatch();
 }
 
 async function flushPageTime(keepalive) {
@@ -512,6 +514,68 @@ async function flushPageTime(keepalive) {
   } catch (err) {
     console.warn("บันทึกเวลาที่อ่านแต่ละหน้าไม่สำเร็จ:", err);
   }
+}
+
+// ================== ไม่ขยับระหว่างอ่าน: ไม่มีการขยับเมาส์/เลื่อนหน้า/กดปุ่ม/แตะจอนาน IDLE_PROMPT_SECONDS ==================
+// หยุดนาฬิกาแล้วถามว่ายังอ่านอยู่ไหม — ช่วงตั้งแต่ขยับครั้งสุดท้ายจนกด "อ่านต่อ" ไม่นับเป็นเวลาอ่าน (server หักให้แบบเดียวกับสลับแท็บ)
+// ใช้เฉพาะตัวแสดง PDF.js — ตัวแสดงของเบราว์เซอร์ (iframe) ขยับข้างในแล้วหน้านี้ไม่รู้ จะเด้งถามทั้งที่อ่านอยู่
+
+const IDLE_PROMPT_SECONDS = 3 * 60;
+const IDLE_ACTIVITY_EVENTS = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"];
+let lastActivityAt = Date.now();
+let idleCheckTimer = null;
+let idlePromptOpen = false;
+
+function markActivity() {
+  if (!idlePromptOpen) lastActivityAt = Date.now();
+}
+
+function startIdleWatch() {
+  stopIdleWatch();
+  lastActivityAt = Date.now();
+  // capture: เลื่อนในกล่อง PDF ไม่ bubble ขึ้นมาถึง document
+  IDLE_ACTIVITY_EVENTS.forEach((type) => document.addEventListener(type, markActivity, { capture: true, passive: true }));
+  idleCheckTimer = setInterval(checkIdle, 1000);
+}
+
+function stopIdleWatch() {
+  clearInterval(idleCheckTimer);
+  idleCheckTimer = null;
+  IDLE_ACTIVITY_EVENTS.forEach((type) => document.removeEventListener(type, markActivity, { capture: true }));
+  if (idlePromptOpen) {
+    idlePromptOpen = false;
+    document.getElementById("idleModal").style.display = "none";
+  }
+}
+
+function checkIdle() {
+  if (!activeSession || sessionPhase !== "reading" || document.hidden || idlePromptOpen || !pdfTotalPages) return;
+  const idleSeconds = Math.floor((Date.now() - lastActivityAt) / 1000);
+  if (idleSeconds < IDLE_PROMPT_SECONDS) return;
+
+  idlePromptOpen = true;
+  pauseCountdown();
+  // นาฬิกาเดินไประหว่างที่ไม่ขยับ — คืนเวลาส่วนนั้นให้ ต้องอ่านจริงให้ครบเวลาที่ตั้งไว้
+  remainingSeconds = Math.min(activeSession.plannedReadSeconds, remainingSeconds + idleSeconds);
+  updateReaderClockDisplay(remainingSeconds);
+  apiFetch(`/sessions/${activeSession.id}/away`, { method: "POST", body: JSON.stringify({ idleSeconds }) }).catch(() => {});
+  flushPageTime(false);
+
+  document.getElementById("idleModalText").textContent =
+    `ไม่ได้ขยับเมาส์หรือเลื่อนหน้ามา ${formatAwayDuration(IDLE_PROMPT_SECONDS)} นาฬิกาหยุดไว้ก่อนนะ\n` +
+    "ช่วงที่ไม่ได้ขยับจะไม่ถูกนับเป็นเวลาอ่าน กด \"อ่านต่อ\" เพื่อนับเวลาต่อ";
+  document.getElementById("idleModal").style.display = "flex";
+  document.getElementById("idleContinueBtn").focus();
+}
+
+function continueAfterIdle() {
+  if (!idlePromptOpen) return;
+  idlePromptOpen = false;
+  document.getElementById("idleModal").style.display = "none";
+  lastActivityAt = Date.now();
+  if (!activeSession || sessionPhase !== "reading") return;
+  apiFetch(`/sessions/${activeSession.id}/back`, { method: "POST" }).catch(() => {});
+  resumeCountdown();
 }
 
 // readerStartStopBtn ทำหน้าที่ต่างกันตามช่วง: ระหว่างอ่าน = "หยุด" (จบรอบก่อนเวลา คิดคอยน์ตามเวลาที่อ่านจริง), ระหว่างพัก = "ข้ามพัก"
@@ -1093,6 +1157,7 @@ function bindStaticEventListeners() {
   document.getElementById("postTestBtn").addEventListener("click", startPostTestFromModal);
   document.getElementById("readerStartStopBtn").addEventListener("click", stopReading);
   document.getElementById("breakMusicBtn").addEventListener("click", toggleBreakMusic);
+  document.getElementById("idleContinueBtn").addEventListener("click", continueAfterIdle);
   registerReadingServiceWorker();
   document.addEventListener("visibilitychange", onTestVisibilityChange);
 
@@ -1126,7 +1191,8 @@ function bindStaticEventListeners() {
   let awayStartedAt = null;
   document.addEventListener("visibilitychange", () => {
     // นับเฉพาะช่วงกำลังอ่าน — ตอนทำแบบทดสอบก่อน/หลังอ่านไม่มีนาฬิกาเดินอยู่
-    const reading = activeSession && sessionPhase === "reading";
+    // ระหว่างเด้งถาม "ยังอ่านอยู่ไหม" นาฬิกาหยุดและ server นับเป็นช่วงไม่อ่านอยู่แล้ว รอผู้ใช้กด "อ่านต่อ" อย่างเดียว
+    const reading = activeSession && sessionPhase === "reading" && !idlePromptOpen;
     if (document.hidden) {
       if (reading) {
         pauseCountdown();
@@ -1143,6 +1209,7 @@ function bindStaticEventListeners() {
         if (awaySeconds >= AWAY_NOTICE_MIN_SECONDS) {
           alert(`คุณออกจากหน้าอ่านไป ${formatAwayDuration(awaySeconds)}\nช่วงเวลานี้จะไม่ถูกนับเป็นเวลาอ่านนะ 📖`);
         }
+        lastActivityAt = Date.now(); // กลับมาที่แท็บ = ขยับแล้ว เริ่มนับไม่ขยับใหม่
         resumeCountdown();
       }
       if (onBreak) tickBreak(); // พักนับต่อตอนอยู่แท็บอื่น — กลับมาแล้วอัปเดตนาฬิกาทันที

@@ -229,6 +229,9 @@ async function initDatabase() {
     // ตัวแสดง PDF (PDF.js): บทนี้มีกี่หน้า + หน้าที่เปิดอยู่ล่าสุด (เปิดบทครั้งหน้าจะไปต่อหน้านี้)
     ["pdf_total_pages", "ALTER TABLE reading_sessions ADD COLUMN pdf_total_pages INTEGER"],
     ["last_page", "ALTER TABLE reading_sessions ADD COLUMN last_page INTEGER"],
+    // idle_seconds = ส่วนของ away_seconds ที่อยู่หน้าอ่านแต่ไม่ขยับเมาส์/เลื่อนหน้าจนต้องเด้งถาม | away_is_idle = ช่วงที่ออกค้างอยู่ตอนนี้เป็นแบบไม่ขยับ
+    ["idle_seconds", "ALTER TABLE reading_sessions ADD COLUMN idle_seconds INTEGER NOT NULL DEFAULT 0"],
+    ["away_is_idle", "ALTER TABLE reading_sessions ADD COLUMN away_is_idle INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [col, sql] of sessionColumnMigrations) {
     if (!sessionColumns.includes(col)) await client.execute(sql);

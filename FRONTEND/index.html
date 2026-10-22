@@ -136,6 +136,17 @@
     </div>
 </div>
 
+<!-- ไม่ได้ขยับเมาส์/เลื่อนหน้านานระหว่างอ่าน: หยุดนาฬิกาแล้วถามว่ายังอ่านอยู่ไหม (script.js) -->
+<div id="idleModal" class="modal-overlay">
+    <div class="timer-modal-content" role="alertdialog" aria-modal="true" aria-labelledby="idleModalTitle" aria-describedby="idleModalText">
+        <h2 class="timer-modal-title" id="idleModalTitle">ยังอ่านอยู่ไหม? 📖</h2>
+        <p class="timer-chapter-info" id="idleModalText" style="white-space: pre-line;"></p>
+        <div class="timer-action-group">
+            <button type="button" id="idleContinueBtn" class="timer-btn-confirm">อ่านต่อ</button>
+        </div>
+    </div>
+</div>
+
 <div id="readerView" class="reader-view" style="display:none;">
     <div class="reader-toolbar">
         <div class="reader-timer-group">

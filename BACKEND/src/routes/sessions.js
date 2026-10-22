@@ -193,12 +193,15 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
 
 // ---------- POST /api/sessions/:sessionId/away ----------
 // หน้าเว็บเรียกตอนผู้ใช้ออกจากหน้าอ่าน (สลับแท็บ/ย่อหน้าต่าง) เริ่มจับเวลาที่ไม่นับเป็นเวลาอ่าน
+// body { idleSeconds }: ไม่ได้ขยับเมาส์/เลื่อนหน้ามานานแล้ว — นับย้อนไปตั้งแต่ขยับครั้งสุดท้าย (ไม่ก่อนเริ่มรอบ)
+const MAX_IDLE_BACKDATE_SECONDS = 3600;
 router.post("/:sessionId/away", requireAuth, async (req, res, next) => {
   try {
+    const idleSeconds = Math.min(MAX_IDLE_BACKDATE_SECONDS, Math.max(0, Math.floor(Number(req.body?.idleSeconds) || 0)));
     await db.prepare(
-      `UPDATE reading_sessions SET away_started_at = datetime('now')
+      `UPDATE reading_sessions SET away_started_at = MAX(started_at, datetime('now', ?)), away_is_idle = ?
        WHERE id = ? AND user_id = ? AND status = 'in_progress' AND away_started_at IS NULL`
-    ).run(Number(req.params.sessionId), req.user.id);
+    ).run(`-${idleSeconds} seconds`, idleSeconds > 0 ? 1 : 0, Number(req.params.sessionId), req.user.id);
     return res.json({ message: "บันทึกเวลาออกจากหน้าอ่านแล้ว" });
   } catch (err) {
     next(err);
@@ -211,7 +214,7 @@ router.post("/:sessionId/back", requireAuth, async (req, res, next) => {
   try {
     const sessionId = Number(req.params.sessionId);
     const session = await db
-      .prepare("SELECT user_id, status, away_seconds, away_started_at FROM reading_sessions WHERE id = ?")
+      .prepare("SELECT user_id, status, away_seconds, away_started_at, away_is_idle FROM reading_sessions WHERE id = ?")
       .get(sessionId);
 
     if (!session || session.user_id !== req.user.id) {
@@ -223,10 +226,13 @@ router.post("/:sessionId/back", requireAuth, async (req, res, next) => {
 
     const awaySeconds = secondsSince(session.away_started_at);
     // guard ด้วย away_started_at เดิม กันเรียก back ซ้อนกันแล้วบวกช่วงเดียวกันสองรอบ
+    // ช่วงที่ไม่ขยับ (away_is_idle) รวมอยู่ใน away_seconds ด้วย และแยกเก็บใน idle_seconds ไว้ทำสถิติ
+    const idleAdded = session.away_is_idle ? awaySeconds : 0;
     const result = await db.prepare(
-      `UPDATE reading_sessions SET away_seconds = away_seconds + ?, away_started_at = NULL
+      `UPDATE reading_sessions SET away_seconds = away_seconds + ?, idle_seconds = idle_seconds + ?,
+              away_started_at = NULL, away_is_idle = 0
        WHERE id = ? AND away_started_at = ?`
-    ).run(awaySeconds, sessionId, session.away_started_at);
+    ).run(awaySeconds, idleAdded, sessionId, session.away_started_at);
 
     const added = result.changes === 0 ? 0 : awaySeconds;
     return res.json({ awaySeconds: added, totalAwaySeconds: session.away_seconds + added });
