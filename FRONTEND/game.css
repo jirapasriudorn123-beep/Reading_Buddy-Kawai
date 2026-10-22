@@ -341,6 +341,42 @@ html, body {
   50% { transform: translateY(-12%); }
 }
 
+/* น้องหมามีตัวเดียว: โชว์เฉพาะบนโลกที่กำลังดู | ตอนปลดล็อคโลกใหม่ ตัวที่เดินข้ามสะพานยังโชว์อยู่ ตัวของโลกใหม่ซ่อนไว้จนเดินมาถึง */
+.world-card:not(.focused):not(.dog-walking) .dog-marker,
+.world-card.dog-arriving .dog-marker {
+  visibility: hidden;
+}
+/* ตัวที่เดินข้ามสะพานต้องอยู่บนการ์ดโลกถัดไป (การ์ดถัดไปอยู่หลังใน DOM จะวาดทับ) */
+.world-card.dog-walking {
+  z-index: 6;
+}
+
+/* จุดเริ่มของโลก 2/4 (วงสีเหลืองติดสะพานที่ไม่ใช่ด่าน) — กดไม่ได้ */
+.stage-node.start-node {
+  cursor: default;
+  pointer-events: none;
+}
+.stage-node.start-node .stage-kind { background: #6d8a3d; }
+
+/* โลกที่ยังล็อก: ไอคอนด่านจางลง ให้รู้ว่ายังเล่นไม่ได้ */
+.world-card.locked .stage-node {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+  cursor: default;
+}
+
+/* กุญแจบนสะพานตอนปลดล็อคโลกใหม่: ส่าย แล้วเด้งหายไป */
+.world-card .next-lock-badge.unlocking.open {
+  animation: lock-open 650ms ease-in forwards;
+}
+@keyframes lock-open {
+  0% { transform: translate(50%, -50%) rotate(0); opacity: 1; }
+  20% { transform: translate(50%, -50%) rotate(-14deg); }
+  40% { transform: translate(50%, -50%) rotate(14deg); }
+  60% { transform: translate(50%, -60%) scale(1.25); opacity: 1; }
+  100% { transform: translate(50%, -90%) scale(1.5); opacity: 0; }
+}
+
 /* ---------- ปุ่มลูกศรเลื่อนโลก (ใช้ไอคอน Arrow.png ของจริง ไม่มีพื้นหลังปุ่มแล้ว) ---------- */
 .map-nav-arrow {
   position: absolute;

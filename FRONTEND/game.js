@@ -87,6 +87,9 @@ const STARS_AFTER_CLEAR_SEC = 0.85; // ความยาวเสียงช�
 // เสียงตอนแพ้ (หัวใจหมดแล้วตอบครบ / หมดเวลา) — หยุดเพลงต่อสู้ให้ได้ยินชัด
 const GAME_OVER_SOUND = new Audio("sound/game-over.m4a");
 GAME_OVER_SOUND.volume = 0.8;
+// เสียงกุญแจปลดตอนเปิดโลกใหม่ (ก่อนน้องหมาเดินข้ามสะพาน)
+const UNLOCK_SOUND = new Audio("sound/level-up.m4a");
+UNLOCK_SOUND.volume = 0.8;
 // เสียงดาวบนหน้าผลการต่อสู้ ดวงที่ 1 → 3 (ซ้ายไปขวา) เล่นพร้อมจังหวะที่ดาวเด้งขึ้น
 const STAR_SOUNDS = [1, 2, 3].map((n) => {
   const a = new Audio(`sound/star-${n}.m4a`);
@@ -219,6 +222,11 @@ document.addEventListener("DOMContentLoaded", () => {
       opened3 = true;
       setPlayerBreed(card.dataset.breed);
       circleReveal(screenChar, screenMap, e);
+      // รอวงกลมเปิดฉากจบก่อน (900ms) ค่อยเล่นเดินข้ามสะพาน ถ้าเพิ่งปลดล็อคโลกใหม่
+      setTimeout(() => {
+        mapScreenShown = true;
+        maybePlayUnlockWalk();
+      }, 950);
     });
   });
 
@@ -226,7 +234,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDialogueControls();
   setupBattleControls();
   initWorldMap();
-  loadGameProgress().then(rebuildWorldMap);
+  loadGameProgress().then(() => {
+    rebuildWorldMap();
+    maybePlayUnlockWalk();
+  });
 
   document.getElementById("exploreBackBtn").addEventListener("click", backToWorldMap);
 });
@@ -280,8 +291,8 @@ function rebuildWorldMap() {
 }
 
 // ---------- ตำแหน่งด่าน (วงกลมสีเหลืองในภาพ) ต่อโลก ----------
-// พิกัดอิงจากภาพต้นฉบับ world-select.png ขนาด 640x720 ต่อโลก 1 ช่อง เรียงตามลำดับเส้นทางที่เดินจริง
-// ตอนนี้กำหนดไว้เฉพาะ World 1 (โลกเดียวที่ปลดล็อคอยู่ตอนนี้) โลกอื่นเว้นว่างไว้ก่อน รอเพิ่มทีหลัง
+// พิกัดอิงจากภาพแถบโลก (unlock5.png) ขนาด 640x720 ต่อโลก 1 ช่อง (จุดกึ่งกลางของวงสีเหลือง) เรียงตามลำดับเส้นทางที่เดินจริง
+// ด่านสุดท้ายของแต่ละโลกคือวงที่ติดสะพานไปโลกถัดไป
 const STAGE_POSITIONS = [
   [
     { x: 176, y: 369 },
@@ -290,12 +301,45 @@ const STAGE_POSITIONS = [
     { x: 463, y: 315 },
     { x: 584, y: 393 },
   ],
-  [],
-  [],
-  [],
-  [],
-  [],
+  [
+    { x: 240, y: 466 },
+    { x: 240, y: 307 },
+    { x: 338, y: 396 },
+    { x: 447, y: 466 },
+    { x: 571, y: 388 },
+  ],
+  [
+    { x: 149, y: 388 },
+    { x: 253, y: 466 },
+    { x: 253, y: 299 },
+    { x: 400, y: 388 },
+    { x: 544, y: 388 },
+  ],
+  [
+    { x: 233, y: 303 },
+    { x: 233, y: 455 },
+    { x: 384, y: 455 },
+    { x: 384, y: 307 },
+    { x: 512, y: 392 },
+  ],
+  [
+    { x: 105, y: 392 },
+    { x: 196, y: 311 },
+    { x: 289, y: 392 },
+    { x: 390, y: 462 },
+    { x: 495, y: 392 },
+  ],
+  [
+    { x: 88, y: 392 },
+    { x: 193, y: 392 },
+    { x: 278, y: 299 },
+    { x: 356, y: 392 },
+    { x: 488, y: 392 },
+  ],
 ];
+// โลก 2 กับ 4 มีวงสีเหลือง 6 วง (ด่านมี 5) — วงแรกที่ติดสะพานขาเข้าเป็นจุดเริ่ม ไม่ใช่ด่าน (ขึ้นธง 🚩 แทนไอคอนด่าน)
+// โลกอื่นด่าน 1 อยู่ติดสะพานขาเข้าอยู่แล้ว
+const WORLD_START_PADS = [null, { x: 134, y: 392 }, null, { x: 133, y: 392 }, null, null];
 const WORLD_ART_SOURCE_W = 640;
 const WORLD_ART_SOURCE_H = 720;
 
@@ -356,6 +400,17 @@ function initWorldMap() {
     art.style.backgroundPositionX = (i / (TOTAL_WORLDS - 1)) * 100 + "%";
     card.appendChild(art);
 
+    const startPad = WORLD_START_PADS[i];
+    if (startPad) {
+      const node = document.createElement("div");
+      node.className = "stage-node start-node";
+      node.innerHTML = '<span class="stage-kind" aria-hidden="true">🚩</span>';
+      node.title = "จุดเริ่ม (ข้ามสะพานมาถึงตรงนี้)";
+      node.style.left = (startPad.x / WORLD_ART_SOURCE_W) * 100 + "%";
+      node.style.top = (startPad.y / WORLD_ART_SOURCE_H) * 100 + "%";
+      art.appendChild(node);
+    }
+
     const stages = STAGE_POSITIONS[i];
     if (stages.length) {
       stages.forEach((pos, si) => {
@@ -376,7 +431,10 @@ function initWorldMap() {
         });
         art.appendChild(node);
       });
+    }
 
+    // น้องหมายืนเฉพาะโลกที่ปลดล็อคแล้ว (โลกที่ยังล็อกยังเดินข้ามสะพานไปไม่ได้)
+    if (stages.length && isWorldUnlocked(i)) {
       const dogMarker = document.createElement("div");
       dogMarker.className = "dog-marker";
       dogMarker.innerHTML = `<img src="img/game/${PLAYER_BREEDS[selectedPlayerBreed].logo}" alt="">`;
@@ -443,7 +501,7 @@ function goToWorld(i) {
   updateMapPlayBtn();
 }
 
-function updateMapView(animate) {
+function updateMapView(animate, durationMs = 420) {
   const track = document.getElementById("worldCardTrack");
   if (!track || !worldCards.length) return;
 
@@ -452,8 +510,11 @@ function updateMapView(animate) {
   const step = cardWidth + gap;
   const targetX = window.innerWidth / 2 - (step * worldIdx + cardWidth / 2);
 
-  track.style.transition = animate ? "transform 420ms cubic-bezier(.65,0,.35,1)" : "none";
+  track.style.transition = animate ? `transform ${durationMs}ms cubic-bezier(.65,0,.35,1)` : "none";
   track.style.transform = `translateX(${targetX}px)`;
+
+  // น้องหมามีตัวเดียว: โชว์เฉพาะบนโลกที่กำลังดูอยู่ (ทุกโลกมีด่านแล้ว ไม่งั้นการ์ดข้างๆ จะมีน้องหมาโผล่หลายตัว)
+  worldCards.forEach((card, i) => card.classList.toggle("focused", i === worldIdx));
 
   document.getElementById("mapPrevBtn").classList.toggle("hidden", worldIdx === 0);
   document.getElementById("mapNextBtn").classList.toggle("hidden", worldIdx === TOTAL_WORLDS - 1);
@@ -524,7 +585,7 @@ function walkDogTo(worldI, targetStageIdx) {
   const stages = STAGE_POSITIONS[worldI];
   const card = worldCards[worldI];
   const marker = card && card.querySelector(".dog-marker");
-  if (!marker || !stages.length) return;
+  if (!marker || !stages.length || unlockWalkPlaying) return;
 
   clearTimeout(dogWalkTimer);
   let cur = currentStageIdxByWorld[worldI];
@@ -549,6 +610,114 @@ function resetGameProgress() {
   currentStageIdxByWorld.fill(0);
   worldIdx = 0;
   rebuildWorldMap();
+}
+
+// ---------- ปลดล็อคโลกใหม่: น้องหมาเดินจากโลกก่อนหน้า ข้ามสะพาน ไปยืนที่ด่านแรกของโลกใหม่ ----------
+// จำไว้ในเครื่องว่าเคยเห็นปลดล็อคถึงโลกไหนแล้ว (ต่อ username) เล่นครั้งเดียวตอนเปิดแผนที่ครั้งแรกหลังปลดล็อค
+// เข้าเกมครั้งแรกบนเครื่องนี้ (ยังไม่มีค่าเก่า) แค่จำไว้ ไม่เล่น — กันเล่นย้อนหลังให้โลกที่เปิดไปนานแล้ว
+const UNLOCK_WALK_STEP_MS = 380; // ระยะเดินระหว่างวงในโลกเดียวกัน (เท่ากับ transition ของ .dog-marker)
+const UNLOCK_WALK_BRIDGE_MS = 1300; // เดินข้ามสะพาน
+let mapScreenShown = false;
+let unlockWalkPlaying = false;
+
+function seenUnlockKey() {
+  return `gameSeenUnlockedWorlds:${localStorage.getItem("currentUser") || ""}`;
+}
+
+function highestUnlockedWorld() {
+  let top = -1;
+  for (let i = 0; i < TOTAL_WORLDS; i++) if (isWorldUnlocked(i)) top = i;
+  return top;
+}
+
+// เรียกตอนเปิดหน้าแผนที่ และหลังโหลดความคืบหน้าเสร็จ — เล่นเมื่อพร้อมทั้งสองอย่าง
+function maybePlayUnlockWalk() {
+  if (!mapScreenShown || !gameProgressLoaded || unlockWalkPlaying) return;
+  const top = highestUnlockedWorld();
+  let seen = null;
+  try {
+    seen = localStorage.getItem(seenUnlockKey());
+  } catch (_) {}
+  const seenTop = seen === null ? null : Number(seen);
+  try {
+    localStorage.setItem(seenUnlockKey(), String(top));
+  } catch (_) {}
+  if (seenTop === null || top <= seenTop || top < 1) return;
+  playUnlockWalk(top);
+}
+
+// พิกัดในภาพ (หน่วย px ของภาพ 640x720) ของการ์ดโลก from ไปเป็น % ของ world-art — เกิน 100% = อยู่ในการ์ดถัดไป
+function placeMarkerAt(markerEl, x, y) {
+  markerEl.style.left = (x / WORLD_ART_SOURCE_W) * 100 + "%";
+  markerEl.style.top = (y / WORLD_ART_SOURCE_H) * 100 + "%";
+}
+
+function playUnlockWalk(newWorld) {
+  const fromWorld = newWorld - 1;
+  const fromCard = worldCards[fromWorld];
+  const toCard = worldCards[newWorld];
+  const marker = fromCard && fromCard.querySelector(".dog-marker");
+  const fromStages = STAGE_POSITIONS[fromWorld];
+  if (!marker || !toCard || !fromStages.length) return;
+  unlockWalkPlaying = true;
+
+  // เริ่มที่โลกก่อนหน้า: ขึ้นกุญแจบนสะพานไว้ก่อน แล้วค่อยปลดออก
+  worldIdx = fromWorld;
+  updateMapView(false);
+  updateMapPlayBtn();
+  fromCard.classList.add("dog-walking");
+  toCard.classList.add("dog-arriving");
+  const lockBadge = document.createElement("div");
+  lockBadge.className = "next-lock-badge unlocking";
+  lockBadge.innerHTML = '<img src="img/game/world1-6/KeyLock.png" alt="">';
+  fromCard.appendChild(lockBadge);
+
+  // เส้นทาง: ด่านที่ยืนอยู่ → ไล่ทีละวงจนถึงวงติดสะพาน → ข้ามสะพาน → จุดเริ่มโลกใหม่ (→ ด่านแรก ถ้าจุดเริ่มไม่ใช่ด่าน)
+  const path = [];
+  for (let si = currentStageIdxByWorld[fromWorld] + 1; si < fromStages.length; si++) path.push({ ...fromStages[si], ms: UNLOCK_WALK_STEP_MS });
+  const shift = (p) => ({ x: p.x + WORLD_ART_SOURCE_W, y: p.y });
+  const startPad = WORLD_START_PADS[newWorld];
+  const firstStage = STAGE_POSITIONS[newWorld][0];
+  path.push({ ...shift(startPad || firstStage), ms: UNLOCK_WALK_BRIDGE_MS, bridge: true });
+  if (startPad) path.push({ ...shift(firstStage), ms: UNLOCK_WALK_STEP_MS });
+
+  const finish = () => {
+    lockBadge.remove();
+    fromCard.classList.remove("dog-walking");
+    toCard.classList.remove("dog-arriving");
+    marker.style.transition = "";
+    positionDogMarker(marker, fromStages[currentStageIdxByWorld[fromWorld]]);
+    currentStageIdxByWorld[newWorld] = 0;
+    const newMarker = toCard.querySelector(".dog-marker");
+    if (newMarker) positionDogMarker(newMarker, firstStage);
+    updateMapPlayBtn();
+    unlockWalkPlaying = false;
+  };
+
+  const walk = (k) => {
+    if (k >= path.length) {
+      setTimeout(finish, 200);
+      return;
+    }
+    const p = path[k];
+    marker.style.transition = `left ${p.ms}ms linear, top ${p.ms}ms linear`;
+    if (p.bridge) {
+      // กล้องเลื่อนตามไปโลกใหม่พร้อมกับตอนเดินข้ามสะพาน
+      worldIdx = newWorld;
+      updateMapView(true, p.ms);
+      updateMapPlayBtn();
+    }
+    placeMarkerAt(marker, p.x, p.y);
+    setTimeout(() => walk(k + 1), p.ms);
+  };
+
+  // กุญแจเด้ง+หายไปก่อน แล้วน้องหมาค่อยออกเดิน
+  setTimeout(() => {
+    lockBadge.classList.add("open");
+    UNLOCK_SOUND.currentTime = 0;
+    UNLOCK_SOUND.play().catch(() => {});
+    setTimeout(() => walk(0), 650);
+  }, 600);
 }
 
 // ---------- ลากด้วยนิ้ว/เมาส์เพื่อเลื่อนดูโลกอื่น ----------
