@@ -2,9 +2,11 @@
 // ย้ายชุดคำถามที่เกมเล่นจริงเข้าฐานข้อมูล (quiz_questions / breed_quiz_questions) เพื่อให้แอดมินแก้ไขผ่านหน้าเว็บได้
 // รันครั้งเดียว: node scripts/seed-quiz-questions.js (จาก BACKEND/)
 // สคริปต์นี้ข้าม insert ถ้าตารางนั้นมีข้อมูลอยู่แล้ว (กันการ seed ซ้ำทับของที่แอดมินแก้ไปแล้ว)
+// ชุดเพิ่มใน quiz-questions-extra.js ถูกรวมเข้าไปด้วย — ฐานข้อมูลที่ seed ไปแล้วให้รัน add-extra-quiz-questions.js แทน
 
 require("dotenv").config();
 const db = require("../src/db/database");
+const { EXTRA_QUIZ_BY_CHAPTER, EXTRA_QUIZ_BY_BREED } = require("./quiz-questions-extra");
 
 const QUIZ_BY_CHAPTER = {
   1: [
@@ -158,7 +160,8 @@ async function seedChapterQuestions() {
     return;
   }
 
-  for (const [chapterNumber, items] of Object.entries(QUIZ_BY_CHAPTER)) {
+  for (const [chapterNumber, baseItems] of Object.entries(QUIZ_BY_CHAPTER)) {
+    const items = [...baseItems, ...(EXTRA_QUIZ_BY_CHAPTER[chapterNumber] || [])];
     const chapter = await db.prepare("SELECT id FROM chapters WHERE chapter_number = ?").get(Number(chapterNumber));
     if (!chapter) {
       console.warn(`ไม่พบ chapter_number ${chapterNumber} ในตาราง chapters — ข้ามคำถามชุดนี้`);
@@ -183,7 +186,8 @@ async function seedBreedQuestions() {
     return;
   }
 
-  for (const [breed, items] of Object.entries(QUIZ_BY_BREED)) {
+  for (const [breed, baseItems] of Object.entries(QUIZ_BY_BREED)) {
+    const items = [...baseItems, ...(EXTRA_QUIZ_BY_BREED[breed] || [])];
     for (const item of items) {
       await db
         .prepare(

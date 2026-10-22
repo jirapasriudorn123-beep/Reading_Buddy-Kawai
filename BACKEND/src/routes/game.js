@@ -62,9 +62,9 @@ const ANSWER_SOURCES = {
 
 // ================== การต่อสู้ (ควิซ) + โบนัสเหรียญ ==================
 // ต้องตรงกับฝั่ง FRONTEND/game.js (ENEMY_MAX_HP, PLAYER_MAX_HEARTS, BATTLE_SECONDS, STAGES_PER_WORLD)
-const BATTLE_MAX_QUESTIONS = 10;
+const BATTLE_MAX_QUESTIONS = 30;
 const BATTLE_MAX_WRONG = 3;
-const BATTLE_SECONDS = 10 * 60;
+const BATTLE_SECONDS = 30 * 60;
 const BATTLE_GRACE_SECONDS = 30; // เผื่อ network ช้า ตอนตอบข้อสุดท้ายใกล้หมดเวลา
 const GAME_WORLDS = 6;
 const GAME_STAGES_PER_WORLD = 5;

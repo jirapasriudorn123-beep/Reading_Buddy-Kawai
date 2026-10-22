@@ -932,9 +932,9 @@ function setupDialogueControls() {
 
 const ENEMY_X_PCT = 88;        // ตำแหน่งตัวร้ายในฉากสำรวจ
 const ENEMY_TRIGGER_PCT = 8;   // เข้าใกล้แค่ไหนถึงเข้าโหมดต่อสู้
-const ENEMY_MAX_HP = 10;       // เลือดตัวร้าย (ตอบถูก 1 ข้อ = ลด 1)
+const ENEMY_MAX_HP = 30;       // เลือดตัวร้าย (ตอบถูก 1 ข้อ = ลด 1)
 const PLAYER_MAX_HEARTS = 3;   // หัวใจผู้เล่น (ตอบผิด 1 ข้อ = ลด 1)
-const BATTLE_SECONDS = 10 * 60; // เวลาต่อสู้ 10 นาที
+const BATTLE_SECONDS = 30 * 60; // เวลาต่อสู้ 30 นาที (1 นาทีต่อข้อ)
 const STAGES_PER_WORLD = 5;
 
 // ชื่อบทเรียนของแต่ละโลก ใช้โชว์เป็นหัวข้อคำถาม
@@ -1061,7 +1061,7 @@ async function startBattle(e) {
   battleId = data.battle.id;
   battleReward = null;
   battleReviewCount = data.battle.reviewCount || 0;
-  // server สุ่มคำถามจากคลังมาให้ไม่เกิน 10 ข้อต่อการต่อสู้ 1 ครั้ง
+  // server สุ่มคำถามจากคลังมาให้ไม่เกิน 30 ข้อต่อการต่อสู้ 1 ครั้ง
   battleQuiz = data.questions;
   battleQuizIndex = 0;
   // เลือดตัวร้าย = จำนวนคำถามที่ได้มา ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
