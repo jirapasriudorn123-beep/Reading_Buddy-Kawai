@@ -235,7 +235,7 @@ function rereadLine(attemptNo) {
 
 function chapterStatusLines(progress) {
   if (!progress || progress.status === "none" || progress.status === "pre_test") {
-    return ["📝 อ่านบทนี้ครั้งแรก: ทำแบบทดสอบก่อนอ่าน 5 ข้อ (ข้อละ 1 นาที) ก่อนนะ ไม่มีผลกับคอยน์"];
+    return ["📝 อ่านบทนี้ครั้งแรก: ทำแบบทดสอบก่อนอ่าน 10 ข้อ (ข้อละ 1 นาที) ก่อนนะ ไม่มีผลกับคอยน์"];
   }
   if (progress.status === "post_test") {
     return ["📝 ทำแบบทดสอบหลังอ่านค้างอยู่ ทำให้เสร็จก่อนอ่านต่อนะ (ข้อที่เปิดค้างไว้จนหมดเวลานับว่าผิด)"];

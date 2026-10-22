@@ -378,7 +378,7 @@ async function initDatabase() {
     );
   }
 
-  // เงื่อนไขแลกคูปอง (แทน "อ่านสะสม X นาที" เดิม): ผ่านแบบทดสอบหลังอ่าน (≥ 3/5) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
+  // เงื่อนไขแลกคูปอง (แทน "อ่านสะสม X นาที" เดิม): ผ่านแบบทดสอบหลังอ่าน (≥ 60%) กี่บท + ผ่านด่านบทเรียนในเกมกี่โลก
   // ตอนเพิ่มคอลัมน์ครั้งแรก ตั้งให้คูปองตามมูลค่า: 20 บาท = 2 บท | 30 บาท = 4 บท + 2 โลก | 50 บาท = 6 บท + 6 โลก
   if (!productColumns.includes("required_post_chapters")) {
     await client.execute("ALTER TABLE products ADD COLUMN required_post_chapters INTEGER NOT NULL DEFAULT 0");

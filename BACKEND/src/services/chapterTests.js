@@ -3,16 +3,16 @@ const { getReadingRules } = require("./readingRules");
 const { recordReview } = require("./spacedReview");
 
 // ================== แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท ==================
-// pre 5 ข้อ ตอนเริ่มอ่านบทครั้งแรก → อ่านกี่รอบก็ได้ (คอยน์จากเวลาค้างไว้) → อ่านครบเวลาขั้นต่ำของบท → post 5 ข้อเดิม
+// pre 10 ข้อ (สุ่มจากคลังคำถามมินิเกมของบทนั้น) ตอนเริ่มอ่านบทครั้งแรก → อ่านกี่รอบก็ได้ (คอยน์จากเวลาค้างไว้) → อ่านครบเวลาขั้นต่ำของบท → post 10 ข้อเดิม สลับแค่ลำดับข้อ
 // ทำ post เสร็จ: ได้คอยน์จากเวลาที่ค้างไว้ทั้งหมด + โบนัสข้อละ 10 คอยน์ (เฉพาะข้อที่ไม่เคยตอบถูกใน post มาก่อน)
 // อ่านบทเดิมซ้ำ = ชุดใหม่ (attempt ถัดไป) ไม่มี pre, post เอาข้อที่ตอบผิดครั้งก่อนมาถามเป็นข้อแรก
 // ถามทีละข้อ ข้อละ 1 นาที (server จับเวลาเอง) | post: สลับแท็บระหว่างข้อ = ข้อนั้นผิด
 
-const QUESTIONS_PER_TEST = 5;
+const QUESTIONS_PER_TEST = 10;
 const SECONDS_PER_QUESTION = 60;
 const ANSWER_GRACE_SECONDS = 5; // เผื่อ network ช้าตอนกดตอบใกล้หมดเวลา
 const BONUS_PER_CORRECT = 10;
-const PASS_RATIO = 0.6; // post ได้ ≥ 60% (3 จาก 5) = ผ่านบทนั้น ใช้นับเงื่อนไขคูปอง
+const PASS_RATIO = 0.6; // post ได้ ≥ 60% (6 จาก 10) = ผ่านบทนั้น ใช้นับเงื่อนไขคูปอง
 // เฉลยข้อที่ผิดหลังทำ post ไหม — ไม่เฉลย ให้กลับไปอ่านแล้วเจอข้อนั้นซ้ำ (ข้อแรกของ post ครั้งหน้า / ในเกมทบทวน)
 const REVEAL_WRONG_ANSWERS = false;
 
@@ -103,7 +103,7 @@ async function chapterProgress(userId, chapterId) {
 
 // ---------- เลือกคำถาม ----------
 
-// pre ของชุดแรก: สุ่ม 5 ข้อจากคำถามบทเรียนของบทนี้ (ชุดเดียวกับมินิเกม)
+// pre ของชุดแรก: สุ่ม 10 ข้อจากคำถามบทเรียนของบทนี้ (ชุดเดียวกับมินิเกม)
 async function pickPreQuestions(chapterId) {
   const rows = await db
     .prepare("SELECT id FROM quiz_questions WHERE chapter_id = ? AND enabled = 1 ORDER BY RANDOM() LIMIT ?")
@@ -112,7 +112,7 @@ async function pickPreQuestions(chapterId) {
 }
 
 // post ของชุดที่อ่านซ้ำ: ข้อที่ตอบผิดใน post ครั้งล่าสุดของบทนี้มาก่อน แล้วเติมด้วยข้อที่ยังไม่เคยตอบถูกใน post
-// (ยังไม่เคยถามมาก่อนได้ก่อน) ถ้ายังไม่ครบ 5 ค่อยเติมข้อที่เคยตอบถูกแล้ว
+// (ยังไม่เคยถามมาก่อนได้ก่อน) ถ้ายังไม่ครบ 10 ค่อยเติมข้อที่เคยตอบถูกแล้ว
 async function pickRepeatPostQuestions(userId, chapterId) {
   const lastWrong = await db
     .prepare(
@@ -177,7 +177,7 @@ async function getOrCreateActiveTest(userId, chapterId) {
   return getLatestTest(userId, chapterId);
 }
 
-// เริ่ม post ของชุดที่กำลังอ่าน (ต้องอ่านครบเวลาขั้นต่ำก่อน) — ชุดแรกใช้ 5 ข้อเดิมของ pre สลับลำดับ
+// เริ่ม post ของชุดที่กำลังอ่าน (ต้องอ่านครบเวลาขั้นต่ำก่อน) — ชุดแรกใช้ 10 ข้อเดิมของ pre สลับลำดับ
 // คืน { test } หรือ { error: { status, message } }
 async function startPostTest(userId, chapterId) {
   const test = await getLatestTest(userId, chapterId);
