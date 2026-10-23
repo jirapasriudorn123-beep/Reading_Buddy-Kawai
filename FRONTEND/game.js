@@ -928,12 +928,12 @@ function setupDialogueControls() {
 // ================== ระบบต่อสู้ (ควิซ) ==================
 // เดินเข้าใกล้ตัวร้าย -> วงกลมเปิดฉาก -> หน้าต่อสู้
 // ตอบถูก = ตัวร้ายแดง+เด้ง เลือดลด 1 | ตอบผิด = น้องหมาแดง+เด้ง หัวใจลด 1
-// ชนะเมื่อเลือดตัวร้ายหมด | แพ้เมื่อหัวใจหมด หรือหมดเวลา
+// ถามครบทุกข้อ (30) แล้วตัดสิน: ถูก ≥ 80% (24/30) = ชนะ | หัวใจหมด (ผิด 7 ข้อ) หรือหมดเวลา = แพ้
 
 const ENEMY_X_PCT = 88;        // ตำแหน่งตัวร้ายในฉากสำรวจ
 const ENEMY_TRIGGER_PCT = 8;   // เข้าใกล้แค่ไหนถึงเข้าโหมดต่อสู้
 const ENEMY_MAX_HP = 30;       // เลือดตัวร้าย (ตอบถูก 1 ข้อ = ลด 1)
-const PLAYER_MAX_HEARTS = 3;   // หัวใจผู้เล่น (ตอบผิด 1 ข้อ = ลด 1)
+const PLAYER_MAX_HEARTS = 7;   // หัวใจผู้เล่น (ตอบผิด 1 ข้อ = ลด 1) — ต้องตรงกับ BATTLE_MAX_WRONG ฝั่ง server
 const BATTLE_SECONDS = 30 * 60; // เวลาต่อสู้ 30 นาที (1 นาทีต่อข้อ)
 const STAGES_PER_WORLD = 5;
 
@@ -964,6 +964,7 @@ let battleReward = null;    // ผลคะแนน/เหรียญของ
 let battleQuizIndex = 0;
 let battleReviewCount = 0; // จำนวนข้อแรกๆ ที่เป็นข้อทบทวน (เคยตอบผิดในแบบทดสอบหลังอ่าน)
 let enemyHp = ENEMY_MAX_HP;
+let battleRequiredCorrect = 0;
 let playerHearts = PLAYER_MAX_HEARTS;
 let battleTimeLeft = BATTLE_SECONDS;
 let battleTimerId = null;
@@ -1064,8 +1065,9 @@ async function startBattle(e) {
   // server สุ่มคำถามจากคลังมาให้ไม่เกิน 30 ข้อต่อการต่อสู้ 1 ครั้ง
   battleQuiz = data.questions;
   battleQuizIndex = 0;
-  // เลือดตัวร้าย = จำนวนคำถามที่ได้มา ไม่งั้นตอบครบทุกข้อแล้วก็ยังฆ่าไม่ตาย
-  enemyHp = data.battle.requiredCorrect;
+  // เลือดตัวร้าย = จำนวนคำถามทั้งหมด (ตอบถูก 1 ข้อ = ลด 1) ส่วนเกณฑ์ชนะคือถูก requiredCorrect ข้อ
+  enemyHp = battleQuiz.length;
+  battleRequiredCorrect = data.battle.requiredCorrect;
   playerHearts = PLAYER_MAX_HEARTS;
   battleTimeLeft = BATTLE_SECONDS;
 
@@ -1113,7 +1115,8 @@ function renderQuizQuestion() {
   const item = battleQuiz[battleQuizIndex % battleQuiz.length];
   document.getElementById("quizQuestion").textContent = item.q;
   const reviewTag = battleQuizIndex < battleReviewCount ? " · 🔁 ถึงรอบทบทวน" : "";
-  document.getElementById("quizTopic").textContent = `คำถามที่ ${battleQuizIndex + 1} : ${battleTopic}${reviewTag}`;
+  document.getElementById("quizTopic").textContent =
+    `คำถามที่ ${battleQuizIndex + 1}/${battleQuiz.length} : ${battleTopic} · ต้องถูก ${battleRequiredCorrect} ข้อ${reviewTag}`;
 
   const wrap = document.getElementById("quizOptions");
   wrap.innerHTML = "";
@@ -1166,8 +1169,10 @@ async function answerQuiz(picked, wrap) {
   if (result.status !== "in_progress") battleReward = result;
 
   setTimeout(() => {
-    if (result.status === "won") return endBattle(true, "ตัวร้ายพ่ายแพ้แล้ว!");
-    if (result.status === "lost") return endBattle(false, "ตอบครบทุกข้อแล้ว 👏 แต่ผิดเกิน 2 ข้อ รอบนี้เลยไม่ผ่าน ลองใหม่อีกครั้งนะ");
+    if (result.status === "won") return endBattle(true, `ตอบถูกถึงเกณฑ์ ${battleRequiredCorrect} ข้อ ตัวร้ายพ่ายแพ้แล้ว!`);
+    if (result.status === "lost") {
+      return endBattle(false, `ตอบครบทุกข้อแล้ว 👏 แต่ถูกไม่ถึง ${battleRequiredCorrect} ข้อ รอบนี้เลยไม่ผ่าน ลองใหม่อีกครั้งนะ`);
+    }
     battleQuizIndex += 1;
     renderQuizQuestion();
   }, 900);
@@ -1225,7 +1230,7 @@ function rewardMessage(r) {
   return "ตอบผิดให้น้อยลง จะได้โบนัสคอยน์นะ";
 }
 
-// ดาวเด้งขึ้นทีละดวง (ได้ = สีทอง, ไม่ได้ = สีเทา) — ชนะได้ 1-3 ดาวตามหัวใจที่เหลือ แพ้ได้ 0 ดาว
+// ดาวเด้งขึ้นทีละดวง (ได้ = สีทอง, ไม่ได้ = สีเทา) — ชนะได้ 1-3 ดาวตามจำนวนข้อที่ผิด (0–2 / 3–4 / 5–6) แพ้ได้ 0 ดาว
 let starSoundTimers = [];
 
 function renderResultStars(stars, startDelaySec = 0.25) {

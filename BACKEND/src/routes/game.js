@@ -63,7 +63,8 @@ const ANSWER_SOURCES = {
 // ================== การต่อสู้ (ควิซ) + โบนัสเหรียญ ==================
 // ต้องตรงกับฝั่ง FRONTEND/game.js (ENEMY_MAX_HP, PLAYER_MAX_HEARTS, BATTLE_SECONDS, STAGES_PER_WORLD)
 const BATTLE_MAX_QUESTIONS = 30;
-const BATTLE_MAX_WRONG = 3;
+const BATTLE_MAX_WRONG = 7; // หัวใจ 7 ดวง: ผิดครบ 7 ข้อ = ได้ไม่ถึง 24/30 แล้ว
+const BATTLE_PASS_RATIO = 0.8; // ตอบครบทุกข้อแล้วถูก ≥ 80% (24 จาก 30) = ชนะ
 const BATTLE_SECONDS = 30 * 60;
 const BATTLE_GRACE_SECONDS = 30; // เผื่อ network ช้า ตอนตอบข้อสุดท้ายใกล้หมดเวลา
 const GAME_WORLDS = 6;
@@ -75,9 +76,12 @@ const REWARD_MIN_PERCENT = 80;
 const REWARD_COINS = 10; // เท่ากับอ่าน 5 นาที
 const REWARD_COINS_PERFECT = 15; // ตอบถูกหมดไม่ผิดเลย
 
-// ดาวตอนชนะ = หัวใจที่เหลือ: ไม่ผิดเลย 3 ดาว | ผิด 1 ข้อ 2 ดาว | ผิด 2 ข้อ 1 ดาว (แพ้ = 0 ดาว)
+// ดาวตอนชนะ: ผิด 0–2 ข้อ 3 ดาว | ผิด 3–4 ข้อ 2 ดาว | ผิด 5–6 ข้อ 1 ดาว (แพ้ = 0 ดาว)
 function starsFor(status, wrongCount) {
-  return status === "won" ? Math.max(1, BATTLE_MAX_WRONG - wrongCount) : 0;
+  if (status !== "won") return 0;
+  if (wrongCount <= 2) return 3;
+  if (wrongCount <= 4) return 2;
+  return 1;
 }
 
 function shuffle(list) {
@@ -147,7 +151,8 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
     const review = reviewIds.map((id) => rows.find((r) => r.id === id)).filter(Boolean);
     const rest = shuffle(rows.filter((r) => !reviewIds.includes(r.id)));
     const questions = [...review, ...rest].slice(0, BATTLE_MAX_QUESTIONS);
-    const requiredCorrect = questions.length;
+    // ต้องตอบถูกกี่ข้อถึงชนะ (ถามครบทุกข้อก่อนตัดสิน) — 30 ข้อ = 24
+    const requiredCorrect = Math.ceil(questions.length * BATTLE_PASS_RATIO);
 
     // เลิกการต่อสู้เก่าที่ค้างอยู่ (ปิดหน้า/หมดเวลา) แล้วเริ่มอันใหม่
     const result = await db.tx(async (t) => {
@@ -181,8 +186,8 @@ router.post("/battle/start", requireAuth, async (req, res, next) => {
 });
 
 // ---------- POST /api/game/battle/:battleId/answer ----------
-// ตอบข้อปัจจุบันของการต่อสู้ (server รู้เองว่าข้อไหน) — ชนะเมื่อตอบถูกครบก่อนผิดครบ 3 ข้อ
-// ผิดครบ 3 ข้อ (หัวใจหมด) = แพ้ แต่ยังตอบต่อได้จนทุกข้อของรอบนี้ถูกถามครบ เพื่อทบทวน (ไม่ได้ดาว/คอยน์) | หมดเวลา = แพ้
+// ตอบข้อปัจจุบันของการต่อสู้ (server รู้เองว่าข้อไหน) — ถามครบทุกข้อ (ไม่วนซ้ำ) แล้วตัดสิน: ถูก ≥ 80% และหัวใจยังเหลือ = ชนะ
+// ผิดครบ 7 ข้อ (หัวใจหมด) = แพ้ แต่ยังตอบต่อได้จนครบทุกข้อเพื่อทบทวน (ไม่ได้ดาว/คอยน์) | หมดเวลา = แพ้
 router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
   try {
     const battleId = Number(req.params.battleId);
@@ -207,8 +212,10 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
 
     const questionIds = JSON.parse(battle.question_ids);
     const answered = battle.correct_count + battle.wrong_count;
-    // ตอบผิดแล้วคำถามวนกลับมาข้อแรกๆ ได้ (เหมือนฝั่งหน้าเว็บ) ถ้าคลังคำถามมีน้อย
-    const questionId = questionIds[answered % questionIds.length];
+    if (answered >= questionIds.length) {
+      return res.status(400).json({ message: "ตอบครบทุกข้อแล้ว" });
+    }
+    const questionId = questionIds[answered];
     const src = ANSWER_SOURCES[battle.source];
 
     const question = await db
@@ -224,8 +231,9 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
     const totalAnswered = correctCount + wrongCount;
     const outOfHearts = wrongCount >= BATTLE_MAX_WRONG;
     let status = "in_progress";
-    if (!outOfHearts && correctCount >= battle.required_correct) status = "won";
-    else if (outOfHearts && totalAnswered >= questionIds.length) status = "lost";
+    if (totalAnswered >= questionIds.length) {
+      status = !outOfHearts && correctCount >= battle.required_correct ? "won" : "lost";
+    }
 
     const scorePercent = Math.round((correctCount / totalAnswered) * 100);
     const stars = starsFor(status, wrongCount);
@@ -300,7 +308,7 @@ router.post("/battle/:battleId/answer", requireAuth, async (req, res, next) => {
       correctCount,
       totalAnswered,
       outOfHearts,
-      questionsLeft: status === "in_progress" && outOfHearts ? questionIds.length - totalAnswered : null,
+      questionsLeft: status === "in_progress" ? questionIds.length - totalAnswered : null,
       coinsEarned: outcome.coinsAwarded,
       alreadyRewarded: outcome.alreadyRewarded,
     };

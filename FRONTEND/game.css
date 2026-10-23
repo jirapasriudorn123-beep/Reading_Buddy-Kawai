@@ -829,11 +829,11 @@ html, body {
 /* เวลาใกล้หมด (ต่ำกว่า 1 นาที) เตือนด้วยสีแดงกะพริบ */
 .battle-timer.urgent { color: #d63a3a; animation: hint-pulse 0.9s ease-in-out infinite; }
 
-.battle-hearts { display: flex; gap: 8px; }
+.battle-hearts { display: flex; flex-wrap: wrap; gap: clamp(3px, 0.6vw, 8px); }
 
 /* หัวใจพิกเซล (วาดเองเป็น SVG 13x11 ช่อง): แดง = ยังมี | ขาวเทา = เสียไปแล้ว */
 .heart {
-  width: clamp(28px, 3.2vw, 46px);
+  width: clamp(22px, 2.6vw, 40px);
   aspect-ratio: 13 / 11;
   background: url("img/game/heart-full.svg") center / contain no-repeat;
   image-rendering: pixelated;
