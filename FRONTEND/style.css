@@ -4094,20 +4094,6 @@ html.dark-mode body .reader-pdf-viewer {
     text-align: left;
 }
 
-.weekly-summary ul {
-    margin: 0;
-    padding-left: 20px;
-    line-height: 1.7;
-}
-
-.weekly-summary-tip {
-    margin: 10px 0 0;
-    padding: 8px 12px;
-    background: #eef5e2;
-    border-radius: 10px;
-    font-weight: 600;
-}
-
 .weekly-summary-note {
     margin: 10px 0 0;
     font-size: 12px;
@@ -4121,15 +4107,13 @@ html.dark-mode body .weekly-summary-card {
     color: #e8e8e8;
 }
 
-html.dark-mode body .weekly-summary-tip {
-    background: #2b3a22;
-}
-
 html.dark-mode body .weekly-summary-note {
     color: #aaa;
 }
 
-/* ---- การ์ดสัปดาห์นี้เทียบสัปดาห์ก่อน (ตัวเลข 3 ช่อง + กราฟ + ข้อความ) ---- */
+/* ---- การ์ด 1: สัปดาห์นี้เทียบสัปดาห์ก่อน / การ์ด 2: สรุป 7 วันจากน้องหมา ----
+   ขอบดำหนาเฉพาะกรอบการ์ดกับปุ่ม (ชิ้นข้างในใช้สีพื้น ไม่งั้นหนักตา)
+   สี: เขียวของเว็บ #8db754 = ดี/เด่น | ส้มเหลือง #f0b23d = ต้องระวัง | เบจ #e3dcc6 = ข้อมูลประกอบ | น้ำตาล #8b6655 = ป้ายหัวข้อ */
 .wp-head {
     display: flex;
     flex-wrap: wrap;
@@ -4157,8 +4141,7 @@ html.dark-mode body .weekly-summary-note {
 
 .wp-kpi {
     padding: 12px 14px;
-    background: #fff;
-    border: 2px solid #000;
+    background: #f5efe0;
     border-radius: 15px;
 }
 
@@ -4168,7 +4151,7 @@ html.dark-mode body .weekly-summary-note {
 
 .wp-kpi-label {
     font-size: 14px;
-    color: #555;
+    color: #666;
 }
 
 .wp-kpi-value {
@@ -4183,15 +4166,15 @@ html.dark-mode body .weekly-summary-note {
     font-weight: 600;
 }
 
-.wp-kpi-delta.is-up { color: #2e7d32; }
-.wp-kpi-delta.is-down { color: #9a5b00; }
-.wp-kpi-delta.is-flat { color: #777; font-weight: 400; }
+.wp-kpi-delta.is-up { color: #4f7d1f; }
+.wp-kpi-delta.is-down { color: #b9770e; }
+.wp-kpi-delta.is-flat { color: #888; font-weight: 400; }
 
 /* จอแคบ: ยังเรียง 3 ช่องในแถวเดียว แต่ย่อตัวอักษร */
 @media (max-width: 560px) {
-    .wp-kpis { gap: 8px; }
     .weekly-summary-card { padding: 16px; }
-    .wp-kpi { padding: 8px; border-radius: 12px; }
+    .wp-kpis { gap: 8px; }
+    .wp-kpi { padding: 8px 10px; border-radius: 12px; }
     .wp-kpi-label { font-size: 12px; line-height: 1.3; }
     .wp-kpi-value { font-size: 17px; white-space: nowrap; }
     .wp-kpi-delta { font-size: 11px; line-height: 1.35; }
@@ -4200,7 +4183,7 @@ html.dark-mode body .weekly-summary-note {
 .wp-chart-label {
     margin: 0 0 6px;
     font-size: 13px;
-    color: #555;
+    color: #666;
 }
 
 .wp-chart {
@@ -4210,8 +4193,8 @@ html.dark-mode body .weekly-summary-note {
 
 .wp-message {
     margin-top: 14px;
-    padding: 10px 14px;
-    border-radius: 12px;
+    padding: 12px 14px;
+    border-radius: 15px;
     line-height: 1.6;
 }
 
@@ -4219,13 +4202,14 @@ html.dark-mode body .weekly-summary-note {
     margin: 0;
 }
 
-.wp-message.is-up { background: #eef5e2; color: #2e5d14; }
-.wp-message.is-flat { background: #f3f1ea; color: #4a4943; }
-.wp-message.is-down { background: #fff3d6; color: #7a4a00; border: 2px solid #e8b04a; }
-
 .wp-message-title {
     font-weight: 600;
+    font-size: 15px;
 }
+
+.wp-message.is-up { background: #eef5e2; color: #3f6b1c; }
+.wp-message.is-flat { background: #f5efe0; color: #4a4943; }
+.wp-message.is-down { background: #fff3d6; color: #7a4a00; }
 
 .wp-actions {
     display: flex;
@@ -4252,41 +4236,202 @@ html.dark-mode body .weekly-summary-note {
     box-shadow: none;
 }
 
-.wp-ai {
-    margin-top: 14px;
+/* ---- การ์ด 2 ---- */
+
+.ws-section {
+    padding: 14px 0;
 }
 
-.wp-ai summary {
-    cursor: pointer;
-    font-size: 14px;
+.ws-section + .ws-section {
+    border-top: 1.5px dashed #e3dcc6;
+}
+
+.ws-section:first-child {
+    padding-top: 2px;
+}
+
+.ws-section p {
+    margin: 0;
+}
+
+.ws-kicker {
+    font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: #8b6655;
 }
 
-.wp-ai .weekly-summary {
-    margin-top: 8px;
+.ws-take {
+    margin: 2px 0 10px !important;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.ws-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 64px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.ws-row-label { color: #666; }
+.ws-row-value { text-align: right; font-variant-numeric: tabular-nums; }
+
+.ws-track {
+    height: 12px;
+}
+
+.ws-bar {
+    height: 100%;
+    background: #e3dcc6;
+    border-radius: 0 6px 6px 0;
+}
+
+.ws-bar.is-top { background: #8db754; }
+
+/* ก่อน → หลังอ่าน: วงกลมกลวง = ก่อน, วงกลมทึบ = หลัง (เขียวถ้าผ่าน), เส้นประ = เกณฑ์ผ่าน */
+.ws-dumbbell {
+    position: relative;
+    height: 18px;
+}
+
+.ws-db-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 8px;
+    height: 2px;
+    background: #ece5d3;
+}
+
+.ws-db-pass {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1.5px dashed #8b6655;
+}
+
+.ws-db-gap {
+    position: absolute;
+    top: 7px;
+    height: 4px;
+    background: #e3dcc6;
+}
+
+.ws-db-gap.is-ok { background: #c5df9f; }
+
+.ws-db-pre,
+.ws-db-post {
+    position: absolute;
+    top: 3px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+.ws-db-pre {
+    border: 2px solid #999;
+    background: #fdfaf0;
+}
+
+.ws-db-post { background: #b9770e; }
+.ws-db-post.is-ok { background: #8db754; }
+
+.ws-legend {
+    font-size: 12px;
+    color: #888;
+}
+
+.ws-weak {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.ws-weak li {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.ws-chip {
+    flex-shrink: 0;
+    padding: 0 8px;
+    background: #f0e2cc;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #6b3f1a;
+}
+
+.ws-empty {
+    margin: 0;
+    color: #777;
+}
+
+.ws-ai {
+    margin-top: 6px;
+    padding: 12px 14px;
+    background: #f5efe0;
+    border-radius: 15px;
+}
+
+.ws-ai-text {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.ws-ai-text::before {
+    content: "🐾 ";
+}
+
+.ws-ai .weekly-summary-note {
+    margin-top: 4px;
 }
 
 html.dark-mode body .wp-range,
 html.dark-mode body .wp-kpi-label,
 html.dark-mode body .wp-chart-label,
-html.dark-mode body .wp-ai summary {
+html.dark-mode body .ws-row-label,
+html.dark-mode body .ws-legend,
+html.dark-mode body .ws-empty {
     color: #aaa;
 }
 
 html.dark-mode body .wp-kpi,
+html.dark-mode body .ws-ai {
+    background: #2a2f35;
+    color: #e8e8e8;
+}
+
 html.dark-mode body .wp-action {
     background: #2a2f35;
     border-color: #555;
     color: #e8e8e8;
 }
 
-html.dark-mode body .wp-kpi-delta.is-up { color: #8fd16a; }
+html.dark-mode body .wp-kpi-delta.is-up { color: #a6d27a; }
 html.dark-mode body .wp-kpi-delta.is-down { color: #f0b54a; }
 html.dark-mode body .wp-kpi-delta.is-flat { color: #aaa; }
 html.dark-mode body .wp-message.is-up { background: #2b3a22; color: #cfe8bb; }
 html.dark-mode body .wp-message.is-flat { background: #2a2d31; color: #d8d6cf; }
-html.dark-mode body .wp-message.is-down { background: #3d3020; color: #f3d9a8; border-color: #8a6420; }
+html.dark-mode body .wp-message.is-down { background: #3d3020; color: #f3d9a8; }
+html.dark-mode body .ws-kicker { color: #c9a58f; }
+html.dark-mode body .ws-section + .ws-section { border-top-color: #3a3d42; }
+html.dark-mode body .ws-bar,
+html.dark-mode body .ws-db-gap { background: #4a4a44; }
+html.dark-mode body .ws-bar.is-top { background: #8db754; }
+html.dark-mode body .ws-db-gap.is-ok { background: #4f6b35; }
+html.dark-mode body .ws-db-line { background: #3a3d42; }
+html.dark-mode body .ws-db-pre { background: #1f2328; border-color: #888; }
+html.dark-mode body .ws-chip { background: #4a3a2a; color: #f0d6b8; }
 
 /* ================== คำแนะนำการใช้งานแบบชี้ปุ่ม (tour.js) ================== */
 /* อยู่เหนือทุกอย่างในหน้า รวมถึงปุ่มแชทบอทและป๊อปอัพ */

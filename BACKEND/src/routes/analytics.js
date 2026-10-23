@@ -147,6 +147,7 @@ router.get("/weekly-summary", requireAuth, async (req, res, next) => {
     const [result, progress] = await Promise.all([getDailySummary(req.user.id), weeklyProgress(req.user.id)]);
     return res.json({
       progress,
+      stats: result.stats, // ตัวเลขชุดที่ AI ใช้เขียนข้อความ — วาดเป็นกราฟในการ์ด "สรุปจากน้องหมา"
       summary: result.summary,
       source: result.source,
       validation: result.validation,

@@ -768,6 +768,11 @@ await client.execute(`
       PRIMARY KEY (user_id, day)
     )
   `);
+  // format: "list" = สรุปเป็นข้อๆ แบบเดิม | "short" = 1–2 ประโยคใต้กราฟบนแดชบอร์ด (ตั้งแต่ 23 ต.ค. 2569)
+  const summaryColumns = (await client.execute("PRAGMA table_info(reading_summaries)")).rows.map((c) => c.name);
+  if (!summaryColumns.includes("format")) {
+    await client.execute("ALTER TABLE reading_summaries ADD COLUMN format TEXT NOT NULL DEFAULT 'list'");
+  }
 
   // ---- ตาราง review_items / review_log (ทบทวนแบบเว้นระยะ 1/3/7/14 วัน ดู services/spacedReview.js) ----
   // review_items: 1 แถว = ผู้ใช้ 1 คน × คำถามบทเรียน 1 ข้อ | stage 0-4 = ขั้นทบทวน, 5 = จำได้แล้ว (due_at NULL)

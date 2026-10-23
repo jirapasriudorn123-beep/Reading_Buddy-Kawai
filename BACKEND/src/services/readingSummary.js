@@ -8,10 +8,13 @@ const { getReadingStreak } = require("./petCare");
 // 3) ให้ AI เรียบเรียงเป็นภาษาน้องหมา โดยห้ามเพิ่มข้อมูล → 4) ตรวจว่าตัวเลขทุกตัวในข้อความ AI มีอยู่ในข้อมูลจริง
 //    ไม่ผ่าน/AI ตอบไม่ได้ → ใช้ข้อความเทมเพลตแทน (เก็บผลตรวจไว้ใน reading_summaries ใช้รายงานความเที่ยงตรงในเล่มข้อ 12)
 // สร้างวันละครั้งต่อคน (เก็บไว้ใน reading_summaries) ไม่หักโควต้าถาม AI ของผู้ใช้ | ไม่มีกิจกรรมเลย ไม่เรียก AI
+// ตั้งแต่ 23 ต.ค. 2569: แดชบอร์ดวาดตัวเลขเป็นกราฟเอง (การ์ด "สรุปจากน้องหมา") AI เหลือหน้าที่เขียน 1–2 ประโยคใต้กราฟ (format "short")
+//   สรุปที่เก็บไว้ในรูปแบบเดิม (เป็นข้อๆ, format "list") จะถูกสร้างใหม่
 
 const SUMMARY_DAYS = 7;
 const MAX_WEAK_QUESTIONS = 3;
-const MAX_SUMMARY_CHARS = 1200;
+const MAX_SUMMARY_CHARS = 400;
+const SUMMARY_FORMAT = "short";
 const SUMMARY_GENERATION_CONFIG = { temperature: 0.2, topP: 0.9, maxOutputTokens: 500 };
 
 const WINDOW_SQL = (col) => `date(${col}, '+7 hours') > date('now', '+7 hours', '-${SUMMARY_DAYS} days')`;
@@ -165,20 +168,33 @@ function suggestion(stats) {
   return "อ่านต่อเนื่องแบบนี้ทุกวัน แล้วทำแบบทดสอบหลังอ่านให้ครบทุกบทนะ";
 }
 
+// สำรองเมื่อ AI ไม่ผ่านการตรวจ: เรื่องเด่น 1 เรื่อง + คำแนะนำ (สั้นเท่ากับที่ให้ AI เขียน)
+function highlight(stats) {
+  const improved = stats.postTests.filter((t) => t.pre !== null && t.pre !== undefined && t.post > t.pre);
+  if (improved.length) {
+    const t = improved[improved.length - 1];
+    return `บทที่ ${t.chapter} คะแนนขึ้นจาก ${t.pre} เป็น ${t.post} เก่งมาก`;
+  }
+  if (stats.rounds > 0) return `${stats.periodDays} วันที่ผ่านมาอ่านไป ${stats.readingMinutes} นาที`;
+  return "";
+}
+
 function templateSummary(stats) {
-  return [...buildFacts(stats).map((f) => `- ${f}`), `💡 ${suggestion(stats)}`].join("\n");
+  const h = highlight(stats);
+  return h ? `${h} ${suggestion(stats)}` : suggestion(stats);
 }
 
 // ---------- 3) ให้ AI เรียบเรียง ----------
 const SUMMARY_SYSTEM_INSTRUCTION = `คุณคือ "น้องหมาผู้ช่วย" ของเว็บส่งเสริมการอ่าน Reading Buddy
-งาน: เรียบเรียง "ข้อเท็จจริง" ที่ระบบคำนวณมาให้ เป็นสรุปการอ่านสั้นๆ ให้เจ้าของ ด้วยภาษาไทยที่อบอุ่น เป็นกันเอง ใช้คำแทนตัวว่า "ผม"
+งาน: อ่าน "ข้อเท็จจริง" ที่ระบบคำนวณมาให้ แล้วเขียนข้อความสั้นๆ ถึงเจ้าของ ด้วยภาษาไทยที่อบอุ่น เป็นกันเอง ใช้คำแทนตัวว่า "ผม"
+(ตัวเลขทั้งหมดแสดงเป็นกราฟอยู่แล้ว ข้อความนี้วางไว้ใต้กราฟ)
 
 กฎ (สำคัญมาก):
 - ใช้เฉพาะข้อเท็จจริงที่ให้มา ห้ามเพิ่มข้อมูล ห้ามเดา ห้ามสร้างตัวเลขใหม่ ห้ามคำนวณใหม่ (เช่น ห้ามรวมหรือหาเปอร์เซ็นต์เอง)
 - ตัวเลขทุกตัวต้องเขียนเหมือนในข้อเท็จจริงทุกประการ
-- เขียนเป็นข้อๆ ขึ้นต้นด้วย "- " ไม่เกิน 5 ข้อ แล้วปิดท้ายด้วยคำแนะนำ 1 บรรทัดที่ขึ้นต้นด้วย "💡 " ตามคำแนะนำที่ให้มา
-- ถ้ามีคะแนนก่อนอ่าน/หลังอ่าน ชมเมื่อคะแนนเพิ่มขึ้น ถ้ายังไม่ได้อ่านเลย ให้ชวนอย่างอ่อนโยน ไม่ตำหนิ
-- ไม่ใช้หัวข้อหรือตัวหนา ไม่เกิน 120 คำ`;
+- เขียน 1–2 ประโยคต่อกัน ไม่ขึ้นบรรทัดใหม่ ไม่ทำเป็นข้อ ไม่ใช้หัวข้อหรือตัวหนา ไม่เกิน 50 คำ
+- ชมเรื่องที่ทำได้ดีที่สุด 1 เรื่อง (ถ้ามี เช่น คะแนนหลังอ่านเพิ่มขึ้น) แล้วจบด้วยคำแนะนำที่ให้มา
+- ถ้ายังไม่ได้อ่านเลย ให้ชวนอย่างอ่อนโยน ไม่ตำหนิ`;
 
 function buildSummaryPrompt(stats) {
   return `ข้อเท็จจริง:
@@ -205,9 +221,12 @@ function validateSummary(text, stats) {
 async function getDailySummary(userId) {
   const day = thaiToday();
   const cached = await db
-    .prepare("SELECT summary, source, validation, created_at FROM reading_summaries WHERE user_id = ? AND day = ?")
+    .prepare("SELECT summary, source, validation, stats_json, format, created_at FROM reading_summaries WHERE user_id = ? AND day = ?")
     .get(userId, day);
-  if (cached) return { ...cached, day };
+  if (cached && cached.format === SUMMARY_FORMAT) {
+    const { stats_json: statsJson, ...rest } = cached;
+    return { ...rest, day, stats: statsJson ? JSON.parse(statsJson) : null };
+  }
 
   const stats = await collectStats(userId);
   let summary = templateSummary(stats);
@@ -233,12 +252,12 @@ async function getDailySummary(userId) {
 
   await db
     .prepare(
-      `INSERT INTO reading_summaries (user_id, day, summary, source, validation, stats_json) VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO reading_summaries (user_id, day, summary, source, validation, stats_json, format) VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(user_id, day) DO UPDATE SET summary = excluded.summary, source = excluded.source,
-         validation = excluded.validation, stats_json = excluded.stats_json, created_at = datetime('now')`
+         validation = excluded.validation, stats_json = excluded.stats_json, format = excluded.format, created_at = datetime('now')`
     )
-    .run(userId, day, summary, source, validation, JSON.stringify(stats));
-  return { summary, source, validation, day, created_at: null };
+    .run(userId, day, summary, source, validation, JSON.stringify(stats), SUMMARY_FORMAT);
+  return { summary, source, validation, day, created_at: null, stats };
 }
 
 module.exports = {

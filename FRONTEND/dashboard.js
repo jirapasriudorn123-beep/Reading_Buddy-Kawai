@@ -76,9 +76,12 @@ async function loadUserInfo() {
   document.getElementById("coinAmount").textContent = user.coins;
 }
 
-// ================== สัปดาห์นี้เทียบสัปดาห์ก่อน (ตัวเลข/กราฟจาก server ล้วน) + สรุป 7 วันแบบ AI ในส่วนพับได้ ==================
+// ================== การ์ด 1: สัปดาห์นี้เทียบสัปดาห์ก่อน | การ์ด 2: สรุป 7 วันจากน้องหมา ==================
+// ข้อความบนการ์ดใช้คำธรรมดา: บอกตัวเลขทั้งสองสัปดาห์ตรงๆ ("ลดลงจาก 75%") ไม่ใช้คำว่า "จุด"
+// สี: เขียวของเว็บ = ดี/เด่น, ส้มเหลือง = ต้องระวัง, เบจ = ข้อมูลประกอบ
 
 const WP_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const WP_PASS_RATIO = 0.8; // ต้องตรงกับ PASS_RATIO ใน BACKEND/src/services/chapterTests.js
 let wpChart = null;
 let wpProgress = null;
 
@@ -92,11 +95,16 @@ function wpShortDate(iso) {
   return `${d} ${WP_THAI_MONTHS[m - 1]}`;
 }
 
-// ลูกศร + ข้อความเปลี่ยนแปลง: up = เขียว, down = ส้ม (ไม่ใช้แดง), flat = สีเทา
+// บรรทัดใต้ตัวเลข: "▲ เพิ่มขึ้นจาก …" (เขียว) / "▼ ลดลงจาก …" (ส้ม) / ข้อความเฉยๆ (เทา)
 function wpDelta(el, dir, text) {
-  const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "";
   el.className = `wp-kpi-delta is-${dir}`;
-  el.textContent = arrow ? `${arrow} ${text}` : text;
+  el.textContent = dir === "up" ? `▲ ${text}` : dir === "down" ? `▼ ${text}` : text;
+}
+
+function wpChange(el, now, prev, unit, { muted = false } = {}) {
+  if (now === prev) return wpDelta(el, "flat", "เท่ากับสัปดาห์ก่อน");
+  const dir = muted ? "flat" : now > prev ? "up" : "down";
+  wpDelta(el, dir, `${now > prev ? "เพิ่มขึ้น" : "ลดลง"}จาก ${prev}${unit}`);
 }
 
 function renderWeeklyKpis(p) {
@@ -105,38 +113,29 @@ function renderWeeklyKpis(p) {
   document.getElementById("wpRange").textContent =
     `${wpShortDate(now.from)}–${wpShortDate(now.to)} เทียบ ${wpShortDate(prev.from)}–${wpShortDate(prev.to)}`;
 
-  // ความเข้าใจ: เปลี่ยนแปลงเป็น "จุด" (ไม่ใช่ %) — ถ้าข้อมูลน้อยเกินไปโชว์ตัวเลขแต่เป็นสีเทา
   const acc = document.getElementById("wpAccDelta");
   document.getElementById("wpAcc").textContent = now.percent === null ? "–" : `${now.percent}%`;
   if (now.percent === null) wpDelta(acc, "flat", "สัปดาห์นี้ยังไม่ได้ตอบคำถาม");
-  else if (prev.percent === null) wpDelta(acc, "flat", `ตอบ ${now.answered} ข้อ · สัปดาห์ก่อนไม่มีข้อมูล`);
-  else {
-    const diff = now.percent - prev.percent;
-    const dir = p.trend === "up" ? "up" : p.trend === "down" ? "down" : "flat";
-    const sign = diff > 0 ? "+" : diff < 0 ? "−" : "±";
-    wpDelta(acc, dir, `${sign}${Math.abs(diff)} จุด จาก ${prev.percent}%${p.trend === "not_enough" ? " (ข้อมูลยังน้อย)" : ""}`);
-  }
+  else if (prev.percent === null) wpDelta(acc, "flat", "สัปดาห์ก่อนยังไม่มีคำตอบ");
+  // ข้อมูลน้อยหรือต่างกันนิดเดียว: บอกตัวเลขแต่เป็นสีเทา ไม่ขึ้นเขียว/ส้ม
+  else wpChange(acc, now.percent, prev.percent, "%", { muted: p.trend === "not_enough" || p.trend === "steady" });
 
-  const min = document.getElementById("wpMinDelta");
   document.getElementById("wpMin").textContent = `${now.minutes} นาที`;
-  if (p.minutesChangePercent === null) wpDelta(min, "flat", now.minutes > 0 ? "สัปดาห์ก่อนไม่ได้อ่าน" : "ยังไม่ได้อ่าน");
-  else {
-    const c = p.minutesChangePercent;
-    wpDelta(min, c > 0 ? "up" : c < 0 ? "down" : "flat", `${c > 0 ? "+" : c < 0 ? "−" : "±"}${Math.abs(c)}% จาก ${prev.minutes} นาที`);
-  }
+  const min = document.getElementById("wpMinDelta");
+  if (prev.minutes === 0) wpDelta(min, "flat", now.minutes > 0 ? "สัปดาห์ก่อนไม่ได้อ่าน" : "ยังไม่ได้อ่าน");
+  else wpChange(min, now.minutes, prev.minutes, " นาที");
 
-  const days = document.getElementById("wpDaysDelta");
   document.getElementById("wpDays").textContent = `${now.daysRead}/7 วัน`;
-  const dd = now.daysRead - prev.daysRead;
-  wpDelta(days, dd > 0 ? "up" : dd < 0 ? "down" : "flat", dd === 0 ? "เท่าสัปดาห์ก่อน" : `${dd > 0 ? "+" : "−"}${Math.abs(dd)} วัน`);
+  wpChange(document.getElementById("wpDaysDelta"), now.daysRead, prev.daysRead, " วัน");
 }
 
 function renderWeeklyChart(p) {
   const dark = document.documentElement.classList.contains("dark-mode");
   const ink = dark ? "#b4b2a9" : "#6b6a65";
-  const grid = dark ? "#33363b" : "#e1e0d9";
-  const past = dark ? "#55585e" : "#d3d1c7";
-  const current = p.trend === "down" ? (dark ? "#c98500" : "#eda100") : dark ? "#3987e5" : "#2a78d6";
+  const grid = dark ? "#33363b" : "#ece5d3";
+  const past = dark ? "#4a4a44" : "#e3dcc6";
+  const passLine = dark ? "#c9a58f" : "#8b6655";
+  const current = p.trend === "down" ? "#f0b23d" : "#8db754";
   const labels = ["3 สัปดาห์ก่อน", "2 สัปดาห์ก่อน", "สัปดาห์ก่อน", "สัปดาห์นี้"];
   const values = p.weeks.map((w) => w.percent);
   const canvas = document.getElementById("wpChart");
@@ -156,14 +155,14 @@ function renderWeeklyChart(p) {
         {
           data: values,
           backgroundColor: values.map((_, i) => (i === values.length - 1 ? current : past)),
-          borderRadius: { topLeft: 4, topRight: 4 },
+          borderRadius: { topLeft: 6, topRight: 6 },
           borderSkipped: "bottom",
-          maxBarThickness: 32,
+          maxBarThickness: 40,
         },
         {
           type: "line",
           data: labels.map(() => p.passPercent),
-          borderColor: ink,
+          borderColor: passLine,
           borderDash: [5, 4],
           borderWidth: 1.5,
           pointRadius: 0,
@@ -185,7 +184,7 @@ function renderWeeklyChart(p) {
             },
             label: (item) => {
               const w = p.weeks[item.dataIndex];
-              return `ตอบถูก ${w.percent}% (${w.correct}/${w.answered} ข้อ)`;
+              return `ตอบถูก ${w.percent}% (${w.correct} จาก ${w.answered} ข้อ)`;
             },
           },
         },
@@ -198,45 +197,152 @@ function renderWeeklyChart(p) {
   });
 }
 
-// ข้อความ 1 ประโยค + ถ้าแย่ลง: บอกสาเหตุจากข้อมูลจริง และปุ่มทำต่อทันที (ทบทวนในเกม / อ่านบทที่ผิดบ่อยอีกรอบ)
+// กล่องข้อความใต้กราฟ: หัวกล่อง 1 บรรทัด + รายละเอียดเป็นตัวเลขสองสัปดาห์ + (ถ้าแย่ลง/ข้อมูลน้อย) ปุ่มทำต่อ
 function renderWeeklyMessage(p) {
   const box = document.getElementById("wpMessage");
   const now = p.thisWeek;
+  const prev = p.lastWeek;
   const reviewLink = `<a class="wp-action" href="game.html">🎮 ทบทวนในเกม${p.reviewDue > 0 ? ` (${p.reviewDue} ข้อรอทบทวน)` : ""}</a>`;
-  const toPass = now.percent !== null && now.percent < p.passPercent ? `อีก ${p.passPercent - now.percent} จุดถึงเกณฑ์ ${p.passPercent}%` : "";
+  const toPass = now.percent !== null && now.percent < p.passPercent ? ` อีก ${p.passPercent - now.percent}% จะถึงเกณฑ์ผ่าน ${p.passPercent}%` : "";
+  const show = (kind, title, detail, actions = "") => {
+    box.className = `wp-message is-${kind}`;
+    box.innerHTML =
+      `<p class="wp-message-title">${title}</p><p>${detail}</p>` + (actions ? `<div class="wp-actions">${actions}</div>` : "");
+  };
 
   if (p.trend === "up") {
-    box.className = "wp-message is-up";
-    box.innerHTML = `<p>🐾 เก่งมาก! ตอบถูกเพิ่มขึ้น ${p.deltaPoints} จุด ${toPass || `ผ่านเกณฑ์ ${p.passPercent}% แล้ว`}</p>`;
-    return;
+    return show(
+      "up",
+      "สัปดาห์นี้ตอบถูกมากกว่าสัปดาห์ก่อน",
+      `สัปดาห์ก่อนตอบถูก ${prev.percent}% สัปดาห์นี้ได้ ${now.percent}%${toPass || " ผ่านเกณฑ์แล้ว เก่งมาก!"}`
+    );
   }
   if (p.trend === "steady") {
-    box.className = "wp-message is-flat";
-    box.innerHTML = `<p>🐾 ตอบถูกพอๆ กับสัปดาห์ก่อน (${now.percent}%)${toPass ? ` · ${toPass} ลองทบทวนข้อที่ยังผิดดูนะ` : " รักษาระดับนี้ไว้นะ"}</p>`;
-    return;
+    return show(
+      "flat",
+      "สัปดาห์นี้ตอบถูกพอๆ กับสัปดาห์ก่อน",
+      `สัปดาห์ก่อนตอบถูก ${prev.percent}% สัปดาห์นี้ได้ ${now.percent}%${toPass ? `${toPass} ลองทบทวนข้อที่ยังผิดดูนะ` : " รักษาระดับนี้ไว้นะ"}`
+    );
   }
   if (p.trend === "not_enough") {
-    box.className = "wp-message is-flat";
-    box.innerHTML =
-      `<p>🐾 สัปดาห์นี้ตอบคำถามไป ${now.answered} ข้อ ต้องมีอย่างน้อย ${p.minAnswers} ข้อทั้งสองสัปดาห์ถึงจะเทียบได้ชัด ลองเล่นด่านบทเรียนในเกมสัก 1 ด่านนะ</p>` +
-      `<div class="wp-actions">${reviewLink}</div>`;
-    return;
+    return show(
+      "flat",
+      "ยังเทียบกับสัปดาห์ก่อนไม่ได้",
+      `ต้องตอบคำถามอย่างน้อย ${p.minAnswers} ข้อในแต่ละสัปดาห์ถึงจะเทียบได้ (สัปดาห์นี้ตอบไป ${now.answered} ข้อ) ลองเล่นด่านบทเรียนในเกมสัก 1 ด่านนะ`,
+      reviewLink
+    );
   }
 
-  const reasons = [];
-  if (p.readingDropped) reasons.push(`สัปดาห์นี้อ่านน้อยลง (${now.minutes} จาก ${p.lastWeek.minutes} นาที)`);
-  if (p.weakChapter) reasons.push(`ตอบผิดบ่อยในบทที่ ${p.weakChapter.number} ${p.weakChapter.title} (${p.weakChapter.wrong} ข้อ)`);
-  box.className = "wp-message is-down";
-  box.innerHTML =
-    `<p class="wp-message-title">⚠️ ความเข้าใจลดลง ${-p.deltaPoints} จุด</p>` +
-    `<p>${reasons.length ? `น่าจะเพราะ${reasons.join(" และ")}` : "ลองทบทวนข้อที่ยังผิดแล้วกลับไปอ่านบทที่ไม่แน่ใจอีกรอบนะ"}</p>` +
-    `<div class="wp-actions">${reviewLink}${
-      p.weakChapter ? `<a class="wp-action" href="index.html?chapter=${p.weakChapter.number}">📖 อ่านบทที่ ${p.weakChapter.number} อีก 1 รอบ</a>` : ""
-    }</div>`;
+  let detail = `สัปดาห์ก่อนตอบถูก ${prev.percent}% สัปดาห์นี้เหลือ ${now.percent}%`;
+  if (p.readingDropped) detail += ` และสัปดาห์นี้อ่านแค่ ${now.minutes} นาที น้อยกว่าสัปดาห์ก่อนที่อ่าน ${prev.minutes} นาที ลองอ่านเพิ่มอีกหน่อยนะ`;
+  else if (p.weakChapter) detail += ` ข้อที่ผิดส่วนใหญ่อยู่ในบทที่ ${p.weakChapter.number} ลองกลับไปอ่านบทนี้อีกรอบนะ`;
+  else detail += " ลองทบทวนข้อที่ยังผิดในเกมดูนะ";
+  show(
+    "down",
+    "สัปดาห์นี้ตอบถูกน้อยกว่าสัปดาห์ก่อน",
+    detail,
+    reviewLink +
+      (p.weakChapter ? `<a class="wp-action" href="index.html?chapter=${p.weakChapter.number}">📖 อ่านบทที่ ${p.weakChapter.number} อีก 1 รอบ</a>` : "")
+  );
+}
+
+// ---------- การ์ด 2: 3 หัวข้อ (ประโยคสรุปตัวหนามาก่อน กราฟเล็กประกอบ) — หัวข้อที่ไม่มีข้อมูลจะไม่แสดง ----------
+
+// หมายเลขหัวข้อใส่ตอนรวม (หัวข้อที่ไม่มีข้อมูลถูกข้าม เลขจะได้ไม่กระโดด)
+function wsSection(kicker, takeaway, body) {
+  return { kicker, html: `<p class="ws-take">${takeaway}</p>${body}` };
+}
+
+function wsChapterMinutes(stats) {
+  const rows = stats.chapterMinutes || [];
+  if (!rows.length) return null;
+  const max = Math.max(...rows.map((r) => r.minutes), 1);
+  const top = rows[0];
+  const least = rows.length >= 2 ? rows[rows.length - 1] : null;
+  const takeaway = least && least.chapter !== top.chapter
+    ? `อ่านบทที่ ${top.chapter} มากที่สุด ส่วนบทที่ ${least.chapter} อ่านน้อย`
+    : `สัปดาห์นี้อ่านบทที่ ${top.chapter}`;
+  const bars = rows
+    .map(
+      (r, i) => `
+        <div class="ws-row">
+          <span class="ws-row-label">บทที่ ${r.chapter}</span>
+          <div class="ws-track"><div class="ws-bar${i === 0 ? " is-top" : ""}" style="width:${Math.max(4, (r.minutes / max) * 100)}%" title="บทที่ ${r.chapter} ${escapeHtml(r.title)}: ${r.minutes} นาที"></div></div>
+          <span class="ws-row-value">${r.minutes} นาที</span>
+        </div>`
+    )
+    .join("");
+  return wsSection("อ่านบทไหนไปบ้าง", takeaway, bars);
+}
+
+function wsPrePost(stats) {
+  // บทเดียวกันทำหลายชุดในสัปดาห์นี้ → ใช้ชุดล่าสุด
+  const byChapter = new Map();
+  for (const t of stats.postTests || []) byChapter.set(t.chapter, t);
+  const tests = [...byChapter.values()].sort((a, b) => a.chapter - b.chapter);
+  if (!tests.length) return null;
+  const passOf = (t) => Math.ceil(t.total * WP_PASS_RATIO);
+  const parts = tests.map((t) =>
+    t.post >= passOf(t) ? `บทที่ ${t.chapter} ผ่านแล้ว` : `บทที่ ${t.chapter} ยังขาดอีก ${passOf(t) - t.post} คะแนน`
+  );
+  const rows = tests
+    .map((t) => {
+      const pct = (v) => (v / t.total) * 100;
+      const ok = t.post >= passOf(t);
+      const hasPre = t.pre !== null && t.pre !== undefined;
+      const from = hasPre ? Math.min(t.pre, t.post) : t.post;
+      return `
+        <div class="ws-row">
+          <span class="ws-row-label">บทที่ ${t.chapter}</span>
+          <div class="ws-dumbbell">
+            <div class="ws-db-line"></div>
+            <div class="ws-db-pass" style="left:${pct(passOf(t))}%"></div>
+            ${hasPre ? `<div class="ws-db-gap${ok ? " is-ok" : ""}" style="left:${pct(from)}%;width:${pct(Math.abs(t.post - t.pre))}%"></div>` : ""}
+            ${hasPre ? `<div class="ws-db-pre" style="left:${pct(t.pre)}%" title="ก่อนอ่าน ${t.pre}/${t.total}"></div>` : ""}
+            <div class="ws-db-post${ok ? " is-ok" : ""}" style="left:${pct(t.post)}%" title="หลังอ่าน ${t.post}/${t.total}"></div>
+          </div>
+          <span class="ws-row-value">${hasPre ? `${t.pre} → ${t.post}` : `${t.post}/${t.total}`}</span>
+        </div>`;
+    })
+    .join("");
+  const total = tests[0].total;
+  return wsSection(
+    "คะแนนดีขึ้นแค่ไหน",
+    parts.join(" · "),
+    rows + `<p class="ws-legend">○ ก่อนอ่าน &nbsp; ● หลังอ่าน &nbsp; ┆ ต้องได้ ${Math.ceil(total * WP_PASS_RATIO)} ใน ${total} ถึงจะผ่าน</p>`
+  );
+}
+
+function wsWeakSpots(stats) {
+  const weak = (stats.weakQuestions || []).slice(0, 2);
+  if (!stats.gameAnswers && !weak.length) return null;
+  const game = stats.gameAnswers ? `ในเกมตอบถูก ${stats.gameCorrect} จาก ${stats.gameAnswers} ข้อ` : "";
+  const takeaway = weak.length
+    ? `${game ? `${game} ` : ""}เหลือ ${weak.length} ข้อที่ยังผิดบ่อย`
+    : `${game} ไม่มีข้อที่ผิดซ้ำ เยี่ยมมาก`;
+  const list = weak
+    .map(
+      (w) => `<li>${w.chapter ? `<span class="ws-chip">บทที่ ${w.chapter}</span>` : ""}<span>${escapeHtml(w.question)}</span></li>`
+    )
+    .join("");
+  return wsSection("ยังพลาดเรื่องอะไร", takeaway, list ? `<ul class="ws-weak">${list}</ul>` : "");
+}
+
+function renderSummarySections(stats) {
+  const box = document.getElementById("wsSections");
+  if (!stats) {
+    box.innerHTML = "";
+    return;
+  }
+  const html = [wsChapterMinutes(stats), wsPrePost(stats), wsWeakSpots(stats)]
+    .filter(Boolean)
+    .map((sec, i) => `<section class="ws-section"><p class="ws-kicker">${i + 1} · ${sec.kicker}</p>${sec.html}</section>`)
+    .join("");
+  box.innerHTML = html || `<p class="ws-empty">7 วันที่ผ่านมายังไม่มีการอ่านหรือทำแบบทดสอบเลย เริ่มอ่านสัก 1 รอบแล้วน้องหมาจะสรุปให้นะ</p>`;
 }
 
 async function loadWeeklySummary() {
-  const box = document.getElementById("weeklySummary");
+  const text = document.getElementById("weeklySummary");
   const note = document.getElementById("weeklySummaryNote");
   try {
     const data = await apiFetch("/analytics/weekly-summary");
@@ -245,20 +351,20 @@ async function loadWeeklySummary() {
       renderWeeklyKpis(data.progress);
       renderWeeklyChart(data.progress);
       renderWeeklyMessage(data.progress);
+      const w = data.progress.thisWeek;
+      document.getElementById("wsRange").textContent = `${wpShortDate(w.from)}–${wpShortDate(w.to)}`;
     }
-    const lines = data.summary.split("\n").map((l) => l.trim()).filter(Boolean);
-    const bullets = lines.filter((l) => !l.startsWith("💡")).map((l) => l.replace(/^[-•*]\s*/, ""));
-    const tips = lines.filter((l) => l.startsWith("💡"));
-    box.innerHTML =
-      (bullets.length ? `<ul>${bullets.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>` : "") +
-      tips.map((l) => `<p class="weekly-summary-tip">${escapeHtml(l)}</p>`).join("");
+    renderSummarySections(data.stats);
+    // สรุปที่เก็บไว้ก่อนเปลี่ยนรูปแบบอาจเป็นข้อๆ — รวมเป็นบรรทัดเดียว
+    text.textContent = data.summary.replace(/^[-•*💡]\s*/gmu, "").split("\n").map((l) => l.trim()).filter(Boolean).join(" ");
     note.textContent =
       data.source === "ai"
-        ? "เรียบเรียงโดย AI จากข้อมูลการอ่านจริงของคุณ (ตรวจตัวเลขแล้ว) · อัปเดตวันละครั้ง"
+        ? "AI เขียนจากตัวเลขด้านบน (ตรวจตัวเลขแล้ว) · อัปเดตวันละครั้ง"
         : "สรุปจากข้อมูลการอ่านจริงของคุณ · อัปเดตวันละครั้ง";
   } catch (err) {
     console.error("โหลดสรุปการอ่านไม่สำเร็จ:", err);
-    box.textContent = "ยังสรุปไม่ได้ตอนนี้ ลองใหม่อีกครั้งนะ";
+    document.getElementById("wsSections").innerHTML = "";
+    text.textContent = "ยังสรุปไม่ได้ตอนนี้ ลองใหม่อีกครั้งนะ";
   }
 }
 
