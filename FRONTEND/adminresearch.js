@@ -1,5 +1,6 @@
-// ================== ข้อมูลวิจัย: ดูข้อมูลชุดเดียวกับไฟล์ CSV เป็นตารางในเว็บ ==================
-// แท็บด้านบน = หมวดข้อมูล | ตารางแบ่งหน้า (ไม่ต้องเลื่อนหน้าลง) | ปุ่มดาวน์โหลด CSV ของหมวดที่เปิดอยู่
+// ================== ข้อมูลวิจัย (ส่วนหนึ่งของหน้าหลักแอดมิน) ==================
+// ดูข้อมูลชุดเดียวกับไฟล์ CSV เป็นตารางในเว็บ
+// แท็บด้านบน = หมวดข้อมูล | ตารางแบ่งหน้าในกรอบ | ปุ่มดาวน์โหลด CSV ของหมวดที่เปิดอยู่
 // ข้อมูลจาก GET /api/admin/export/:kind/data — คอลัมน์/ความหมายดูที่ BACKEND/src/services/researchExport.js
 
 const RS_DATASETS = [
@@ -218,7 +219,7 @@ async function rsSelect(kind) {
   rsRenderTable();
 }
 
-// ดาวน์โหลด CSV ของหมวดที่เปิดอยู่ (ไฟล์เดียวกับปุ่มดาวน์โหลดในหน้าหลักเดิม)
+// ดาวน์โหลด CSV ของหมวดที่เปิดอยู่
 async function rsDownload() {
   const d = rsDataset();
   if (
@@ -265,7 +266,7 @@ async function rsDownload() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (!getAdminToken()) return;
+  if (!getAdminToken() || !document.getElementById("rsTabs")) return;
   document.getElementById("rsDownload").addEventListener("click", rsDownload);
   document.getElementById("rsPrev").addEventListener("click", () => {
     rsState.page -= 1;

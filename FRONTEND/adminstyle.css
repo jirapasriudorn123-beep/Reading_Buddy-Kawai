@@ -1427,22 +1427,3 @@ body {
     opacity: 0.6;
     cursor: default;
 }
-.research-export-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.research-view-btn {
-    display: inline-block;
-    background: #f6bc54;
-    text-decoration: none;
-}
-.research-export-status:empty {
-    display: none;
-}
-/* ตารางรหัส ↔ ชื่อ (ข้อมูลส่วนบุคคล) แยกสีจากปุ่มข้อมูลวิจัย ให้รู้ว่าไม่ใช่ไฟล์สำหรับแนบเล่ม */
-.demo-mode-btn.research-key-btn {
-    background: #fff;
-    color: #8a5a00;
-    border: 2px solid #e0a800;
-}

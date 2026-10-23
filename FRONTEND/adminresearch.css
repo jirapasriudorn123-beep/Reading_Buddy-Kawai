@@ -1,36 +1,39 @@
-/* ================== ข้อมูลวิจัย (adminresearch.html) ==================
-   ทั้งหน้าพอดีความสูงจอ: แท็บหมวดอยู่บน ตารางแบ่งหน้าแทนการเลื่อนลง
+/* ================== ข้อมูลวิจัย (ส่วนหนึ่งของ adminhome.html) ==================
+   แท็บหมวดอยู่บน ตารางแบ่งหน้าในกรอบความสูงคงที่ (หน้าหลักจะได้ไม่ยาวเกินไป)
    ตารางกว้าง (เช่น รายคน 42 คอลัมน์) เลื่อนซ้าย-ขวาได้ในกรอบ หัวตารางกับคอลัมน์แรกติดอยู่กับที่ */
 
-.research-page {
+.research-section {
+    margin-bottom: 22px;
+}
+
+.research-head {
+    margin-bottom: 14px;
+}
+
+.research-head .demo-mode-desc {
+    max-width: 900px;
+}
+
+/* แถบค้นหา + ดาวน์โหลด อยู่ขวาสุดของหัวตาราง (ดาวน์โหลดเฉพาะหมวดที่เปิดอยู่) */
+.rs-toolbar-actions {
     display: flex;
-    flex-direction: column;
-    height: 100vh;
-    box-sizing: border-box;
-    overflow: hidden;
-}
-
-.research-page .header-action {
-    margin-bottom: 6px;
-}
-
-.rs-note {
-    margin: 0 0 14px;
-    font-size: 14px;
-    color: #666;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
 }
 
 .rs-download {
-    padding: 9px 20px;
+    flex-shrink: 0;
+    padding: 7px 16px;
     border: 2.5px solid var(--border-dark);
     border-radius: 999px;
     background: var(--green-btn);
     color: #fff;
     font-family: inherit;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 3px 3px 0 var(--border-dark);
+    box-shadow: 2px 2px 0 var(--border-dark);
 }
 
 .rs-download:active {
@@ -44,17 +47,22 @@
 }
 
 /* ---- แท็บหมวด ---- */
+/* แท็บหมวดเรียงแนวนอนแถวเดียวเสมอ จอแคบให้เลื่อนซ้าย-ขวาแทนการตกบรรทัด */
 .rs-tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
     margin-bottom: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
 }
 
 .rs-tab {
     display: inline-flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
     padding: 8px 16px;
     border: 2.5px solid var(--border-dark);
     border-radius: 999px;
@@ -102,8 +110,7 @@
 
 /* ---- กรอบตาราง (กินพื้นที่ที่เหลือทั้งหมด) ---- */
 .rs-panel {
-    flex: 1;
-    min-height: 0;
+    height: 440px;
     display: flex;
     flex-direction: column;
     background: #fff;
