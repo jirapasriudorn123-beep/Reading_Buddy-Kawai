@@ -421,33 +421,7 @@ html, body {
 }
 
 /* ---------- ปุ่มตั้งค่า/รีเซ็ตความคืบหน้า มุมขวาบน (ไอคอน Settings.png ของจริง) ---------- */
-.map-icon-btn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 20;
-  width: 38px;
-  height: 38px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: none;
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  transition: transform 120ms ease;
-}
 
-.map-icon-btn img {
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-  display: block;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
-}
-
-.map-icon-btn:active { transform: scale(0.9); }
 
 /* ---------- ปุ่มเข้าโลกที่โฟกัสอยู่ (ใช้ภาพ Start_button.png ของจริงทั้งปุ่ม) ---------- */
 #mapPlayBtn {
@@ -780,16 +754,16 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* เว้นซ้ายให้ปุ่มย้อนกลับมุมซ้ายบน (left 14px + กว้าง 38px) ไม่ทับนาฬิกา */
-  padding: 0 3% 0 max(3%, 62px);
+  /* เว้นซ้าย/ขวาให้ปุ่มย้อนกลับ/ปุ่มตั้งค่าที่ลอยอยู่มุมบน (14px + กว้าง 38px) ไม่ทับนาฬิกา/หัวใจ */
+  padding: 0 max(3%, 62px);
   z-index: 5;
 }
 
-/* จอแคบ: นาฬิกา + หัวใจ 7 ดวงยาวเกือบเต็มจอ จะชนปุ่มย้อนกลับ/ปุ่มเพลงที่ลอยอยู่ด้านบน — เลื่อนแถบลงมาใต้ปุ่ม */
+/* จอแคบ: นาฬิกา + หัวใจ 7 ดวงยาวเกือบเต็มจอ จะชนปุ่มย้อนกลับ/ปุ่มตั้งค่าที่ลอยอยู่ด้านบน — เลื่อนแถบลงมาใต้ปุ่ม */
 @media (max-width: 700px) {
   .battle-hud {
     top: 60px;
-    padding-left: 3%;
+    padding: 0 3%;
   }
 }
 
@@ -1188,26 +1162,160 @@ html, body {
 }
 .battle-review-note[hidden] { display: none; }
 
-/* ---------- ปุ่มเปิด/ปิดเพลงประกอบ: ด้านบนกลางจอ (มุมซ้าย/ขวามีปุ่มย้อนกลับ ตั้งค่า เวลา หัวใจอยู่แล้ว) ---------- */
-.game-music-btn {
+/* ---------- ปุ่มตั้งค่ามุมขวาบน (ทุกฉาก) ---------- */
+.game-settings-btn {
   position: fixed;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 14px;
+  right: 14px;
   z-index: 50;
   width: 38px;
   height: 38px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  background: rgba(20, 24, 40, 0.55);
-  color: #fff;
-  font-size: 18px;
-  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.game-settings-btn img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+.game-settings-btn:active { transform: scale(0.9); }
+
+/* ---------- หน้าต่างตั้งค่า: โทนครีม-น้ำตาลแบบพิกเซล (วาดด้วย CSS ไม่ได้ใช้ภาพ) ---------- */
+.sprout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(16, 22, 31, 0.55);
+}
+.sprout-overlay[hidden] { display: none; }
+
+.sprout-panel {
+  position: relative;
+  width: min(360px, 100%);
+  padding: 22px 22px 20px;
+  background: #ecd3a6;
+  border: 4px solid #b4794f;
+  border-radius: 12px;
+  box-shadow: inset 0 -6px 0 #dcb886, inset 0 4px 0 #f6e4c2, 0 6px 0 #8f5a39, 0 10px 20px rgba(0, 0, 0, 0.35);
+  color: #9a6342;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.sprout-title {
+  margin: 0 0 16px;
+  font-size: 22px;
+  color: #8a5636;
+  letter-spacing: 1px;
+}
+
+/* ปุ่มปิด: กล่องสี่เหลี่ยมมุมมน ยื่นออกมุมขวาบน */
+.sprout-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  background: #e2c193;
+  border: 4px solid #b4794f;
+  border-radius: 9px;
+  box-shadow: inset 0 -4px 0 #cfa874, 0 4px 0 #8f5a39;
+  color: #a86a45;
   cursor: pointer;
 }
-.game-music-btn[hidden] { display: none; }
-.game-music-btn:hover { background: rgba(20, 24, 40, 0.75); }
+.sprout-close svg { width: 16px; height: 16px; }
+.sprout-close:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 #cfa874, 0 2px 0 #8f5a39; }
+
+.sprout-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sprout-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: #b07a52;
+}
+.sprout-icon-slash { display: none; }
+.sprout-row.is-off .sprout-icon-slash { display: inline; }
+.sprout-label {
+  flex: 1;
+  font-size: 18px;
+}
+
+/* สวิตช์: ราง (เขียว = เปิด / น้ำตาลเข้ม = ปิด) + ปุ่มกลมสีครีม */
+.sprout-toggle {
+  position: relative;
+  flex-shrink: 0;
+  width: 70px;
+  height: 32px;
+  padding: 0;
+  border: 3px solid #5f4b3c;
+  border-radius: 8px;
+  background: #a9d16c;
+  box-shadow: inset 0 -4px 0 #8db354;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.sprout-toggle[aria-checked="false"] {
+  background: #7f5f57;
+  box-shadow: inset 0 -4px 0 #6a4d46;
+}
+.sprout-knob {
+  position: absolute;
+  top: 50%;
+  left: calc(100% - 22px);
+  width: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+  border: 3px solid #b4794f;
+  border-radius: 50%;
+  background: #f0d6a8;
+  box-shadow: inset 0 -5px 0 #dcb886, 0 3px 0 #8f5a39;
+  transition: left 150ms ease;
+}
+.sprout-toggle[aria-checked="false"] .sprout-knob { left: -18px; }
+.sprout-toggle:focus-visible,
+.sprout-close:focus-visible,
+.sprout-btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.sprout-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: #e2c193;
+  border: 3px solid #b4794f;
+  border-radius: 9px;
+  box-shadow: inset 0 -4px 0 #cfa874, 0 4px 0 #8f5a39;
+  color: #8a5636;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sprout-btn[hidden] { display: none; }
+.sprout-btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 #cfa874, 0 2px 0 #8f5a39; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sprout-toggle, .sprout-knob { transition: none; }
+}

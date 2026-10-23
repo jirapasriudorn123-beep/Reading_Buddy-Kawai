@@ -4,15 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>Phayao Adventure</title>
-    <link rel="stylesheet" href="game.css?v=18b">
+    <link rel="stylesheet" href="game.css?v=19">
     <link rel="stylesheet" href="cursor.css?v=20260926">
 </head>
 <body>
     <a href="Pet.html" class="game-back-btn" aria-label="กลับไปหน้า Pet">
         <img src="img/game/Arrow.png" alt="">
     </a>
-    <!-- เปิด/ปิดเพลงประกอบเกม (จำค่าไว้ในเบราว์เซอร์) -->
-    <button type="button" id="gameMusicBtn" class="game-music-btn" hidden></button>
+    <!-- ปุ่มตั้งค่ามุมขวาบน (ทุกฉาก) → หน้าต่างตั้งค่า: เปิด/ปิดเพลงประกอบ (จำค่าไว้ในเบราว์เซอร์) + ให้น้องหมากลับด่านแรก (เฉพาะหน้าเลือกโลก) -->
+    <button type="button" id="gameSettingsBtn" class="game-settings-btn" aria-label="ตั้งค่า" aria-haspopup="dialog">
+        <img src="img/game/Settings.png" alt="">
+    </button>
+    <div id="gameSettings" class="sprout-overlay" hidden>
+        <div class="sprout-panel" role="dialog" aria-modal="true" aria-labelledby="gameSettingsTitle">
+            <button type="button" id="gameSettingsClose" class="sprout-close" aria-label="ปิด">
+                <svg viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h2v1h1v1h1v1h1V2h1V1h1V0h2v2H8v1H7v1H6v1h1v1h1v1h1v2H7V8H6V7H5V6H4v1H3v1H2v1H0V7h1V6h1V5h1V4H2V3H1V2H0z"/></svg>
+            </button>
+            <h2 id="gameSettingsTitle" class="sprout-title">ตั้งค่า</h2>
+            <div class="sprout-row">
+                <svg class="sprout-icon" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><g fill="currentColor"><rect x="4" y="1" width="7" height="2"/><rect x="4" y="3" width="1" height="6"/><rect x="10" y="3" width="1" height="5"/><rect x="1" y="8" width="4" height="3"/><rect x="7" y="7" width="4" height="3"/></g><g class="sprout-icon-slash" fill="currentColor"><rect x="0" y="0" width="2" height="2"/><rect x="2" y="2" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="6" y="6" width="2" height="2"/><rect x="8" y="8" width="2" height="2"/><rect x="10" y="10" width="2" height="2"/></g></svg>
+                <span class="sprout-label">เพลงประกอบ</span>
+                <button type="button" id="gameMusicToggle" class="sprout-toggle" role="switch" aria-checked="true" aria-label="เพลงประกอบ">
+                    <span class="sprout-knob"></span>
+                </button>
+            </div>
+            <button type="button" id="resetStagesBtn" class="sprout-btn">ให้น้องหมากลับไปด่านแรก</button>
+        </div>
+    </div>
 
     <div id="game-root">
         <div id="screen1" class="game-scene">
@@ -45,10 +63,6 @@
         </div>
 
         <div id="screenMap" class="game-scene">
-            <button id="mapGearBtn" class="map-icon-btn" aria-label="รีเซ็ตความคืบหน้า" title="รีเซ็ตความคืบหน้า">
-                <img src="img/game/Settings.png" alt="">
-            </button>
-
             <div id="worldCardTrack">
                 <!-- การ์ดของแต่ละโลก (x6) ถูกสร้างด้วย JS ใน game.js -->
             </div>
@@ -137,7 +151,7 @@
     <script src="config.js?v=2"></script>
 <script src="consent.js?v=2"></script>
     <script src="game-content.js?v=2"></script>
-    <script src="game.js?v=20261023b"></script>
+    <script src="game.js?v=20261023c"></script>
     <script src="cursor.js?v=2"></script>
 </body>
 </html>

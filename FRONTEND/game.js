@@ -167,15 +167,44 @@ function toggleGameMusic() {
   updateGameMusicButton();
 }
 
+// สวิตช์เพลงในหน้าต่างตั้งค่า (เขียว = เปิด, น้ำตาล = ปิด)
 function updateGameMusicButton() {
-  const btn = document.getElementById("gameMusicBtn");
-  if (!btn) return;
-  const muted = gameMusicMuted();
-  btn.hidden = !gameMusicStarted;
-  btn.textContent = muted ? "🔇" : "🎵";
-  btn.title = muted ? "เปิดเพลงประกอบ" : "ปิดเพลงประกอบ";
-  btn.setAttribute("aria-label", btn.title);
-  btn.setAttribute("aria-pressed", String(!muted));
+  const toggle = document.getElementById("gameMusicToggle");
+  if (!toggle) return;
+  const on = !gameMusicMuted();
+  toggle.setAttribute("aria-checked", String(on));
+  toggle.closest(".sprout-row")?.classList.toggle("is-off", !on);
+}
+
+// ---------- หน้าต่างตั้งค่า (ปุ่มเฟืองมุมขวาบน) ----------
+function openGameSettings() {
+  updateGameMusicButton();
+  // ให้น้องหมากลับด่านแรก ใช้ได้เฉพาะตอนอยู่หน้าเลือกโลก
+  document.getElementById("resetStagesBtn").hidden = currentScene !== "map";
+  document.getElementById("gameSettings").hidden = false;
+  document.getElementById("gameMusicToggle").focus();
+}
+
+function closeGameSettings() {
+  document.getElementById("gameSettings").hidden = true;
+  document.getElementById("gameSettingsBtn").focus();
+}
+
+function setupGameSettings() {
+  const overlay = document.getElementById("gameSettings");
+  document.getElementById("gameSettingsBtn").addEventListener("click", openGameSettings);
+  document.getElementById("gameSettingsClose").addEventListener("click", closeGameSettings);
+  document.getElementById("gameMusicToggle").addEventListener("click", toggleGameMusic);
+  document.getElementById("resetStagesBtn").addEventListener("click", () => {
+    closeGameSettings();
+    resetGameProgress();
+  });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeGameSettings();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !overlay.hidden) closeGameSettings();
+  });
 }
 
 document.addEventListener("visibilitychange", () => {
@@ -220,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const screen2 = document.getElementById("screen2");
   const screenChar = document.getElementById("screenChar");
   const screenMap = document.getElementById("screenMap");
-  document.getElementById("gameMusicBtn")?.addEventListener("click", toggleGameMusic);
+  setupGameSettings();
 
   // ---------- SCREEN 1 -> SCREEN 2 ----------
   let opened1 = false;
@@ -515,7 +544,6 @@ function bindMapControls(track) {
 
   document.getElementById("mapPrevBtn").addEventListener("click", () => goToWorld(worldIdx - 1));
   document.getElementById("mapNextBtn").addEventListener("click", () => goToWorld(worldIdx + 1));
-  document.getElementById("mapGearBtn").addEventListener("click", resetGameProgress);
   document.getElementById("mapPlayBtn").addEventListener("click", enterFocusedWorld);
 
   setupMapDrag(track);
