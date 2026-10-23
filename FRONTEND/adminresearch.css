@@ -1,0 +1,278 @@
+/* ================== ข้อมูลวิจัย (adminresearch.html) ==================
+   ทั้งหน้าพอดีความสูงจอ: แท็บหมวดอยู่บน ตารางแบ่งหน้าแทนการเลื่อนลง
+   ตารางกว้าง (เช่น รายคน 42 คอลัมน์) เลื่อนซ้าย-ขวาได้ในกรอบ หัวตารางกับคอลัมน์แรกติดอยู่กับที่ */
+
+.research-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.research-page .header-action {
+    margin-bottom: 6px;
+}
+
+.rs-note {
+    margin: 0 0 14px;
+    font-size: 14px;
+    color: #666;
+}
+
+.rs-download {
+    padding: 9px 20px;
+    border: 2.5px solid var(--border-dark);
+    border-radius: 999px;
+    background: var(--green-btn);
+    color: #fff;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--border-dark);
+}
+
+.rs-download:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--border-dark);
+}
+
+.rs-download:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* ---- แท็บหมวด ---- */
+.rs-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rs-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 2.5px solid var(--border-dark);
+    border-radius: 999px;
+    background: #fff;
+    color: #333;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rs-tab:hover {
+    background: #f6f1e2;
+}
+
+.rs-tab.is-active {
+    background: var(--header-yellow);
+    color: #fff;
+}
+
+.rs-tab.is-sensitive {
+    border-style: dashed;
+}
+
+.rs-tab-count {
+    min-width: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.08);
+    font-size: 12px;
+    text-align: center;
+}
+
+.rs-tab.is-active .rs-tab-count {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.rs-tab:focus-visible,
+.rs-download:focus-visible,
+.rs-pager button:focus-visible,
+.rs-reveal:focus-visible {
+    outline: 3px solid #2a78d6;
+    outline-offset: 2px;
+}
+
+/* ---- กรอบตาราง (กินพื้นที่ที่เหลือทั้งหมด) ---- */
+.rs-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 2.5px solid var(--border-dark);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.rs-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 12px 16px;
+    border-bottom: 1.5px solid #e6e0cf;
+}
+
+.rs-desc {
+    margin: 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.rs-search {
+    width: 220px;
+    max-width: 100%;
+    padding: 7px 12px;
+    border: 2px solid #ccc;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.rs-search:focus {
+    outline: none;
+    border-color: var(--green-btn);
+}
+
+.rs-table-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.rs-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+    font-size: 14px;
+}
+
+.rs-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 10px 14px;
+    background: var(--header-yellow);
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: center;
+    border-bottom: 2.5px solid var(--border-dark);
+    cursor: help;
+}
+
+.rs-table td {
+    height: 40px;
+    padding: 0 14px;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.rs-table tbody tr:hover td {
+    background: #fbf7ea;
+}
+
+/* คอลัมน์แรก (รหัสผู้ใช้) ติดซ้ายตอนเลื่อนแนวนอน */
+.rs-table th:first-child,
+.rs-table td:first-child {
+    position: sticky;
+    left: 0;
+    border-right: 1.5px solid #e6e0cf;
+}
+
+.rs-table th:first-child {
+    z-index: 3;
+}
+
+.rs-table td:first-child {
+    z-index: 1;
+    background: #fff;
+    font-weight: 600;
+}
+
+.rs-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+}
+
+.rs-message[hidden] {
+    display: none;
+}
+
+.rs-message p {
+    margin: 0;
+}
+
+.rs-reveal {
+    padding: 8px 20px;
+    border: 2.5px dashed var(--border-dark);
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ---- แถบเปลี่ยนหน้า ---- */
+.rs-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 16px;
+    border-top: 1.5px solid #e6e0cf;
+    font-size: 14px;
+}
+
+.rs-count {
+    color: #666;
+}
+
+.rs-pager-btns {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rs-pager button {
+    padding: 6px 14px;
+    border: 2px solid var(--border-dark);
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rs-pager button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.rs-page {
+    min-width: 80px;
+    text-align: center;
+    font-weight: 600;
+}

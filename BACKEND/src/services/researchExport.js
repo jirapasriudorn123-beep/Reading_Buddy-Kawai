@@ -218,7 +218,7 @@ const USER_COLUMNS = [
   "coupons_redeemed",
 ];
 
-async function buildUsersCsv() {
+async function buildUsers() {
   const raw = await loadRaw();
   const daily = buildDailyActivity(raw);
   const sessionsByUser = groupBy(raw.sessions, "user_id");
@@ -309,7 +309,7 @@ async function buildUsersCsv() {
       coupons_redeemed: couponsByUser.get(u.id) || 0,
     };
   });
-  return toCsv(USER_COLUMNS, rows);
+  return { columns: USER_COLUMNS, rows };
 }
 
 // ---------- days.csv ----------
@@ -332,7 +332,7 @@ const DAY_COLUMNS = [
   "purchases",
 ];
 
-async function buildDaysCsv() {
+async function buildDays() {
   const raw = await loadRaw();
   const daily = buildDailyActivity(raw);
   const rows = [];
@@ -352,7 +352,7 @@ async function buildDaysCsv() {
       });
     }
   }
-  return toCsv(DAY_COLUMNS, rows);
+  return { columns: DAY_COLUMNS, rows };
 }
 
 // ---------- sessions.csv ----------
@@ -385,7 +385,7 @@ const SESSION_COLUMNS = [
   "chapter_total",
 ];
 
-async function buildSessionsCsv() {
+async function buildSessions() {
   const raw = await loadRaw();
   const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
   const testById = new Map(raw.tests.map((t) => [t.id, t]));
@@ -436,7 +436,7 @@ async function buildSessionsCsv() {
       };
     })
     .sort((a, b) => (a.user_code === b.user_code ? a.started_at.localeCompare(b.started_at) : a.user_code.localeCompare(b.user_code)));
-  return toCsv(SESSION_COLUMNS, rows);
+  return { columns: SESSION_COLUMNS, rows };
 }
 
 // ---------- reviews.csv ----------
@@ -455,7 +455,7 @@ const REVIEW_COLUMNS = [
   "stage_after",
 ];
 
-async function buildReviewsCsv() {
+async function buildReviews() {
   const raw = await loadRaw();
   const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
   const intervalOf = (stage) => (stage >= 1 && stage <= INTERVAL_DAYS.length ? INTERVAL_DAYS[stage - 1] : "");
@@ -471,14 +471,14 @@ async function buildReviewsCsv() {
     correct: r.correct,
     stage_after: r.stage_after ?? "",
   }));
-  return toCsv(REVIEW_COLUMNS, rows);
+  return { columns: REVIEW_COLUMNS, rows };
 }
 
 // ---------- user-key.csv ----------
 // "กุญแจ" สำหรับย้อนดูว่ารหัสไหนเป็นใคร (pseudonymization) — ข้อมูลวิจัย 4 ชุดข้างบนยังไม่มีชื่อเหมือนเดิม
 const USER_KEY_COLUMNS = ["user_code", "username", "email", "registered_at"];
 
-async function buildUserKeyCsv() {
+async function buildUserKey() {
   const users = await db
     .prepare(`SELECT id, username, email, created_at FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`)
     .all();
@@ -488,15 +488,21 @@ async function buildUserKeyCsv() {
     email: u.email,
     registered_at: thaiDateTime(u.created_at),
   }));
-  return toCsv(USER_KEY_COLUMNS, rows);
+  return { columns: USER_KEY_COLUMNS, rows };
 }
 
-const EXPORTS = {
-  users: buildUsersCsv,
-  days: buildDaysCsv,
-  sessions: buildSessionsCsv,
-  reviews: buildReviewsCsv,
-  "user-key": buildUserKeyCsv,
+// ข้อมูลแต่ละชุดเป็น { columns, rows } — ใช้ทั้งดาวน์โหลด CSV และแสดงเป็นตารางในหน้าแอดมิน (ข้อมูลวิจัย)
+const DATASETS = {
+  users: buildUsers,
+  days: buildDays,
+  sessions: buildSessions,
+  reviews: buildReviews,
+  "user-key": buildUserKey,
 };
 
-module.exports = { EXPORTS };
+async function buildCsv(kind) {
+  const { columns, rows } = await DATASETS[kind]();
+  return toCsv(columns, rows);
+}
+
+module.exports = { DATASETS, buildCsv };

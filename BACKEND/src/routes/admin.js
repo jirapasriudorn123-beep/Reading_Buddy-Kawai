@@ -5,7 +5,7 @@ const { requireAdmin } = require("../middleware/auth");
 const { findChatAnswer } = require("./chat");
 const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
-const { EXPORTS } = require("../services/researchExport");
+const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
 
 const router = express.Router();
@@ -83,12 +83,22 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
 });
 
 // ================== ส่งออกข้อมูลวิจัย (CSV) ==================
-// GET /api/admin/export/users | days | sessions — รายละเอียดคอลัมน์ดูที่ services/researchExport.js
+// GET /api/admin/export/users | days | sessions | reviews | user-key — รายละเอียดคอลัมน์ดูที่ services/researchExport.js
+// GET /api/admin/export/:kind/data — ข้อมูลชุดเดียวกันเป็น JSON { columns, rows } ใช้แสดงเป็นตารางในหน้า "ข้อมูลวิจัย"
+router.get("/export/:kind/data", requireAdmin, async (req, res, next) => {
+  try {
+    const build = DATASETS[req.params.kind];
+    if (!build) return res.status(404).json({ message: "ไม่มีข้อมูลชุดนี้" });
+    return res.json(await build());
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/export/:kind", requireAdmin, async (req, res, next) => {
   try {
-    const build = EXPORTS[req.params.kind];
-    if (!build) return res.status(404).json({ message: "ไม่มีข้อมูลชุดนี้" });
-    const csv = await build();
+    if (!DATASETS[req.params.kind]) return res.status(404).json({ message: "ไม่มีข้อมูลชุดนี้" });
+    const csv = await buildCsv(req.params.kind);
     const stamp = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, "");
     res.set("Content-Type", "text/csv; charset=utf-8");
     res.set("Content-Disposition", `attachment; filename="reading-buddy-${req.params.kind}-${stamp}.csv"`);

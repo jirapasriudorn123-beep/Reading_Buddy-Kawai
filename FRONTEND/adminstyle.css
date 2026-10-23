@@ -1432,6 +1432,11 @@ body {
     flex-wrap: wrap;
     gap: 8px;
 }
+.research-view-btn {
+    display: inline-block;
+    background: #f6bc54;
+    text-decoration: none;
+}
 .research-export-status:empty {
     display: none;
 }
