@@ -74,6 +74,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   bindStaticEventListeners();
+  // ลิงก์จากแดชบอร์ด "อ่านบทที่ N อีก 1 รอบ" (index.html?chapter=N) → เปิดหน้าต่างเริ่มอ่านบทนั้นเลย
+  const chapterParam = Number(new URLSearchParams(location.search).get("chapter"));
+  if (chapterParam) {
+    history.replaceState(null, "", location.pathname);
+    const chapter = chaptersData.find((c) => c.chapter_number === chapterParam);
+    if (chapter) openChapterTimeModal(chapter);
+  }
   // คำแนะนำการใช้งาน (ครั้งแรกที่เข้าหน้านี้) — รอปุ่มแชทบอท (chat.js) สร้างเสร็จก่อน
   // ปุ่ม ? ระหว่างเปิดหน้าอ่านอยู่ ให้เปิดคำแนะนำของหน้าอ่าน
   setTourKeyResolver(() => (document.getElementById("readerView").style.display === "none" ? "home" : "reader"));

@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { getDailySummary, SUMMARY_DAYS } = require("../services/readingSummary");
+const { weeklyProgress } = require("../services/weeklyProgress");
 
 const router = express.Router();
 
@@ -140,10 +141,12 @@ router.get("/trend", requireAuth, async (req, res, next) => {
 
 // ---------- GET /api/analytics/weekly-summary ----------
 // สรุปการอ่าน 7 วันที่ผ่านมา (ตัวเลขจากระบบ ให้ AI เรียบเรียง + ตรวจตัวเลข) วันละครั้งต่อคน ไม่หักโควต้าถาม AI
+// + progress: สัปดาห์นี้เทียบสัปดาห์ก่อน และ % ตอบถูก 4 สัปดาห์ (คำนวณใหม่ทุกครั้ง ไม่ผ่าน AI) ใช้วาดการ์ดกราฟ
 router.get("/weekly-summary", requireAuth, async (req, res, next) => {
   try {
-    const result = await getDailySummary(req.user.id);
+    const [result, progress] = await Promise.all([getDailySummary(req.user.id), weeklyProgress(req.user.id)]);
     return res.json({
+      progress,
       summary: result.summary,
       source: result.source,
       validation: result.validation,

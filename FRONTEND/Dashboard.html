@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261023">
+    <link rel="stylesheet" href="style.css?v=20261023d">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="cursor.css?v=20260926">
@@ -71,11 +71,40 @@
         <div id="themeToggleSlot"></div>
     </div>
 </header>
-    <!-- สรุปการอ่าน 7 วัน: ตัวเลขจากระบบ ให้ AI เรียบเรียง (ตรวจตัวเลขแล้ว) -->
+    <!-- สัปดาห์นี้เทียบสัปดาห์ก่อน: ตัวเลข 3 ช่อง + กราฟ % ตอบถูก 4 สัปดาห์ + ข้อความ 1 ประโยค (ตัวเลขจากระบบล้วน)
+         สรุปแบบ AI (ตรวจตัวเลขแล้ว) ย้ายไปอยู่ในส่วนพับได้ด้านล่าง -->
     <section class="weekly-summary-card" aria-labelledby="weeklySummaryTitle">
-        <h3 id="weeklySummaryTitle">🐶 สรุปการอ่าน 7 วันที่ผ่านมา</h3>
-        <div id="weeklySummary" class="weekly-summary" aria-live="polite">กำลังสรุปให้นะ...</div>
-        <p id="weeklySummaryNote" class="weekly-summary-note"></p>
+        <div class="wp-head">
+            <h3 id="weeklySummaryTitle">🐶 สัปดาห์นี้เทียบกับสัปดาห์ก่อน</h3>
+            <span id="wpRange" class="wp-range"></span>
+        </div>
+        <div class="wp-kpis">
+            <div class="wp-kpi">
+                <p class="wp-kpi-label">ความเข้าใจ (ตอบถูก)</p>
+                <p class="wp-kpi-value" id="wpAcc">…</p>
+                <p class="wp-kpi-delta" id="wpAccDelta"></p>
+            </div>
+            <div class="wp-kpi">
+                <p class="wp-kpi-label">เวลาอ่าน</p>
+                <p class="wp-kpi-value" id="wpMin">…</p>
+                <p class="wp-kpi-delta" id="wpMinDelta"></p>
+            </div>
+            <div class="wp-kpi">
+                <p class="wp-kpi-label">วันที่อ่าน</p>
+                <p class="wp-kpi-value" id="wpDays">…</p>
+                <p class="wp-kpi-delta" id="wpDaysDelta"></p>
+            </div>
+        </div>
+        <p class="wp-chart-label">% ตอบถูก 4 สัปดาห์ล่าสุด (แบบทดสอบหลังอ่าน + ด่านบทเรียนในเกม) · เส้นประ = เกณฑ์ผ่าน 80%</p>
+        <div class="wp-chart">
+            <canvas id="wpChart" role="img" aria-label="กราฟแท่ง % ตอบถูกรายสัปดาห์ 4 สัปดาห์ล่าสุด เทียบเส้นเกณฑ์ผ่าน 80%">% ตอบถูกรายสัปดาห์</canvas>
+        </div>
+        <div id="wpMessage" class="wp-message" aria-live="polite"></div>
+        <details class="wp-ai">
+            <summary>อ่านสรุป 7 วันจากน้องหมา (AI)</summary>
+            <div id="weeklySummary" class="weekly-summary">กำลังสรุปให้นะ...</div>
+            <p id="weeklySummaryNote" class="weekly-summary-note"></p>
+        </details>
     </section>
 
     <section class="goal-section">
@@ -113,8 +142,8 @@
 <script src="config.js"></script>
 <script src="consent.js?v=2"></script>
 <script src="notifications.js?v=4"></script>
-<script src="tour.js?v=4"></script>
-<script src="dashboard.js?v=20261014b"></script>
+<script src="tour.js?v=5"></script>
+<script src="dashboard.js?v=20261023c"></script>
 <script src="theme.js"></script>
 <script src="chat.js"></script>
     <script src="cursor.js"></script>
