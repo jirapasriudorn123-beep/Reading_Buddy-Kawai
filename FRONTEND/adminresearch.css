@@ -2,8 +2,13 @@
    แท็บหมวดอยู่บน ตารางแบ่งหน้าในกรอบความสูงคงที่ (หน้าหลักจะได้ไม่ยาวเกินไป)
    ตารางกว้าง (เช่น รายคน 42 คอลัมน์) เลื่อนซ้าย-ขวาได้ในกรอบ หัวตารางกับคอลัมน์แรกติดอยู่กับที่ */
 
+/* การ์ดแนวนอนยาวเต็มความกว้าง ให้ขอบตรงกับแถวการ์ดสถิติด้านบน */
 .research-section {
-    margin-bottom: 22px;
+    margin: 0 20px 22px;
+    padding: 20px;
+    background: #fff;
+    border: 2.5px solid var(--border-dark);
+    border-radius: 20px;
 }
 
 .research-head {
@@ -110,12 +115,12 @@
 
 /* ---- กรอบตาราง (กินพื้นที่ที่เหลือทั้งหมด) ---- */
 .rs-panel {
-    height: 440px;
+    height: 420px;
     display: flex;
     flex-direction: column;
     background: #fff;
-    border: 2.5px solid var(--border-dark);
-    border-radius: 20px;
+    border: 2px solid #e6e0cf;
+    border-radius: 16px;
     overflow: hidden;
 }
 

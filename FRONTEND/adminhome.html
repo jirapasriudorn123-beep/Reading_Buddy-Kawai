@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=6">
-    <link rel="stylesheet" href="adminresearch.css?v=3">
+    <link rel="stylesheet" href="adminresearch.css?v=4">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -75,39 +75,6 @@
         <button type="button" class="demo-mode-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>...</button>
     </div>
 
-    <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
-    <section class="research-section">
-        <div class="research-head">
-            <div class="demo-mode-title">📊 ข้อมูลวิจัย (Learning Analytics)</div>
-            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
-        </div>
-
-        <!-- หมวดข้อมูล (แท็บ) -->
-        <div class="rs-tabs" role="tablist" id="rsTabs"></div>
-
-        <div class="rs-panel" id="rsPanel" role="tabpanel">
-            <div class="rs-toolbar">
-                <p class="rs-desc" id="rsDesc"></p>
-                <div class="rs-toolbar-actions">
-                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหา เช่น U0001" aria-label="ค้นหาในตาราง">
-                    <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
-                </div>
-            </div>
-            <div class="rs-table-wrap" id="rsTableWrap">
-                <table class="rs-table" id="rsTable"></table>
-                <div class="rs-message" id="rsMessage" hidden></div>
-            </div>
-            <div class="rs-pager">
-                <span id="rsCount" class="rs-count"></span>
-                <div class="rs-pager-btns">
-                    <button type="button" id="rsPrev" aria-label="หน้าก่อนหน้า">‹ ก่อนหน้า</button>
-                    <span id="rsPage" class="rs-page"></span>
-                    <button type="button" id="rsNext" aria-label="หน้าถัดไป">ถัดไป ›</button>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <div class="dashboard-grid">
         <div class="stat-card">
             <div class="stat-icon icon-green-light">
@@ -157,6 +124,39 @@
             <div class="stat-value" id="statMiniGamePlayers">0</div>
         </div>
     </div>
+
+    <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
+    <section class="research-section">
+        <div class="research-head">
+            <div class="demo-mode-title">📊 ข้อมูลวิจัย (Learning Analytics)</div>
+            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
+        </div>
+
+        <!-- หมวดข้อมูล (แท็บ) -->
+        <div class="rs-tabs" role="tablist" id="rsTabs"></div>
+
+        <div class="rs-panel" id="rsPanel" role="tabpanel">
+            <div class="rs-toolbar">
+                <p class="rs-desc" id="rsDesc"></p>
+                <div class="rs-toolbar-actions">
+                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหา เช่น U0001" aria-label="ค้นหาในตาราง">
+                    <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
+                </div>
+            </div>
+            <div class="rs-table-wrap" id="rsTableWrap">
+                <table class="rs-table" id="rsTable"></table>
+                <div class="rs-message" id="rsMessage" hidden></div>
+            </div>
+            <div class="rs-pager">
+                <span id="rsCount" class="rs-count"></span>
+                <div class="rs-pager-btns">
+                    <button type="button" id="rsPrev" aria-label="หน้าก่อนหน้า">‹ ก่อนหน้า</button>
+                    <span id="rsPage" class="rs-page"></span>
+                    <button type="button" id="rsNext" aria-label="หน้าถัดไป">ถัดไป ›</button>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <h3 class="chart-outer-title">ภาพรวมของเวลาอ่านและคะแนนรวมของผู้ใช้</h3>
     <div class="chart-container">
