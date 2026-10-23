@@ -189,6 +189,32 @@ const GAME_START_SOUND = new Audio("sound/game-start.m4a");
 GAME_START_SOUND.preload = "auto";
 GAME_START_SOUND.volume = 0.8;
 
+// ฉากที่เปิดอยู่ตอนนี้ — ปุ่มย้อนกลับมุมซ้ายบนทำงานต่างกันตามฉาก (ดู onGameBackClick)
+// intro = หน้าเปิดเครื่อง/เลือกตัวละคร | map = เลือกโลก | explore = เดินในด่าน | battle = ต่อสู้
+let currentScene = "intro";
+
+// ปุ่มย้อนกลับมุมซ้ายบน: ในด่าน/ต่อสู้ → กลับหน้าเลือกโลก | หน้าเลือกโลก (และก่อนหน้านั้น) → ไปหน้า Pet (ลิงก์ปกติ)
+function onGameBackClick(e) {
+  if (currentScene === "explore") {
+    e.preventDefault();
+    backToWorldMap(e);
+  } else if (currentScene === "battle") {
+    e.preventDefault();
+    quitBattle(e);
+  }
+}
+
+function updateGameBackLabel() {
+  const btn = document.querySelector(".game-back-btn");
+  if (!btn) return;
+  btn.setAttribute("aria-label", currentScene === "explore" || currentScene === "battle" ? "กลับไปหน้าเลือกโลก" : "กลับไปหน้า Pet");
+}
+
+function setScene(scene) {
+  currentScene = scene;
+  updateGameBackLabel();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const screen1 = document.getElementById("screen1");
   const screen2 = document.getElementById("screen2");
@@ -222,6 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
       opened3 = true;
       setPlayerBreed(card.dataset.breed);
       circleReveal(screenChar, screenMap, e);
+      setScene("map");
       // รอวงกลมเปิดฉากจบก่อน (900ms) ค่อยเล่นเดินข้ามสะพาน ถ้าเพิ่งปลดล็อคโลกใหม่
       setTimeout(() => {
         mapScreenShown = true;
@@ -239,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
     maybePlayUnlockWalk();
   });
 
-  document.getElementById("exploreBackBtn").addEventListener("click", backToWorldMap);
+  document.querySelector(".game-back-btn").addEventListener("click", onGameBackClick);
 });
 
 // ================== หน้าเลือกโลก (World Select) ==================
@@ -560,6 +587,7 @@ function enterFocusedWorld(e) {
   initExploreCharacter();
 
   circleReveal(screenMapEl, screenExploreEl, e);
+  setScene("explore");
 }
 
 function backToWorldMap(e) {
@@ -568,6 +596,7 @@ function backToWorldMap(e) {
   screenMapEl.style.display = "block";
   screenMapEl.style.pointerEvents = "";
   circleReveal(screenExploreEl, screenMapEl, e);
+  setScene("map");
 
   playerMoveDir = 0;
   if (dialogueActive) endDialogue(); // กันกล่องคำพูดค้างตอนกดกลับกลางบทสนทนา
@@ -1091,6 +1120,7 @@ async function startBattle(e) {
   screenBattleEl.style.display = "block";
   screenBattleEl.style.pointerEvents = "";
   circleReveal(screenExploreEl, screenBattleEl, e);
+  setScene("battle");
   switchMusic(BATTLE_MUSIC);
 }
 
@@ -1302,6 +1332,7 @@ function leaveBattle(e) {
   screenMapEl.style.display = "block";
   screenMapEl.style.pointerEvents = "";
   circleReveal(screenBattleEl, screenMapEl, e);
+  setScene("map");
 
   // ฉากสำรวจถูกซ่อนไว้ตอนเข้าต่อสู้ ต้องรีเซ็ตให้พร้อมสำหรับรอบหน้า
   document.getElementById("screenExplore").style.display = "none";
@@ -1310,6 +1341,18 @@ function leaveBattle(e) {
 
   // โหลดด่านที่ผ่าน/ดาวล่าสุดจาก server แล้วค่อยวาดแผนที่ใหม่
   loadGameProgress().then(rebuildWorldMap);
+}
+
+// กดย้อนกลับกลางการต่อสู้: ยืนยันก่อน แล้วออกไปหน้าเลือกโลก (รอบนี้ไม่นับ server ยกเลิกเองตอนเริ่มรอบใหม่)
+// ถ้าขึ้นหน้าผลแล้ว ออกได้เลยเหมือนกดปุ่มบนหน้าผล
+function quitBattle(e) {
+  if (battleActive) {
+    if (!confirm("ออกจากการต่อสู้ตอนนี้? รอบนี้จะไม่นับ ต้องเริ่มด่านนี้ใหม่")) return;
+    clearInterval(battleTimerId);
+    battleActive = false;
+    setReviewModeNote(null);
+  }
+  leaveBattle(e);
 }
 
 function setupBattleControls() {
