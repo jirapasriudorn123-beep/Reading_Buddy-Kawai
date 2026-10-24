@@ -251,7 +251,7 @@ function renderHeatmap(days) {
   ];
 
   document.getElementById("udHeatmap").innerHTML = `<svg viewBox="0 0 ${width} ${legendY + 18}"
-    style="width:100%; max-width:${width * 1.5}px; height:auto" role="img" aria-label="ปฏิทินแสดงวันที่อ่านย้อนหลัง 12 สัปดาห์">
+    style="display:block; margin:0 auto; width:100%; max-width:${width * 1.5}px; height:auto" role="img" aria-label="ปฏิทินแสดงวันที่อ่านย้อนหลัง 12 สัปดาห์">
     ${months.join("")}${labels}${squares}${legend}</svg>
     <ul class="ud-cal-stats">${stats
       .map((s) => `<li><span>${escapeHtml(s[0])}</span><strong>${escapeHtml(s[1])}</strong></li>`)
