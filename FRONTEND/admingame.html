@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=3">
-    <link rel="stylesheet" href="admingame.css?v=3">
+    <link rel="stylesheet" href="admingame.css?v=4">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -92,10 +92,7 @@
             <input class="edit-form-input" id="editRequiredMinutes" type="number" min="0" max="240">
         </div>
 
-        <div class="edit-form-group">
-            <label class="edit-form-label" for="editQuestionCount">จำนวนคำถาม (ข้อ)</label>
-            <input class="edit-form-input" id="editQuestionCount" type="number" min="1" max="50">
-        </div>
+        <p class="edit-form-hint">จำนวนข้อตั้งเองไม่ได้ — ด่านหนึ่งสุ่มจากคลังคำถามของบทนี้ไม่เกิน 30 ข้อ</p>
 
         <div class="edit-form-actions">
             <button class="edit-cancel-btn" onclick="closeEditModal()">ยกเลิก</button>
@@ -106,6 +103,6 @@
 
 <script src="config.js?v=2"></script>
 <script src="adminAuth.js?v=2"></script>
-<script src="admingame.js?v=3"></script>
+<script src="admingame.js?v=5"></script>
 </body>
 </html>

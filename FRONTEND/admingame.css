@@ -61,7 +61,16 @@
   word-break: break-word;
 }
 
+/* บรรทัดบน: จำนวนคำถามของด่าน | บรรทัดล่าง: เงื่อนไขเข้าเล่น */
+.game-card-questions {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.5;
+}
+
 .game-card-conditions {
+  margin-top: 2px;
   font-size: 14px;
   color: #666;
   line-height: 1.5;
@@ -372,4 +381,8 @@ html.dark-mode body .game-card-conditions {
   margin-top: 4px;
   color: #b0661a;
   font-weight: 600;
+}
+
+html.dark-mode body .game-card-questions {
+  color: #eee;
 }

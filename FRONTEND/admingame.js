@@ -1,12 +1,15 @@
 // ================== หน้าจัดการมินิเกม ==================
-// แอดมินตั้งเงื่อนไข "ต้องอ่านกี่นาที + จำนวนคำถาม" และเปิด/ปิดใช้งาน มินิเกมของแต่ละบท
+// แอดมินตั้งเงื่อนไข "ต้องอ่านกี่นาที" และเปิด/ปิดใช้งาน มินิเกมของแต่ละบท
+// จำนวนข้อตั้งเองไม่ได้: ด่านหนึ่งสุ่มจากคลังคำถามของบทนั้นไม่เกิน battle.maxQuestions ข้อ (ดู routes/game.js)
 
 let currentChapters = [];
+let battleRules = { maxQuestions: 30, passRatio: 0.8 };
 
 async function loadGameConfig() {
   try {
-    const { chapters } = await adminApiFetch("/admin/game-config");
+    const { chapters, battle } = await adminApiFetch("/admin/game-config");
     currentChapters = chapters;
+    if (battle) battleRules = battle;
     renderGameCards();
   } catch (err) {
     console.error("โหลดค่ามินิเกมไม่สำเร็จ:", err);
@@ -30,6 +33,16 @@ async function addWorld() {
   }
 }
 
+// ข้อความจำนวนคำถาม: สุ่มกี่ข้อจากคลัง และต้องถูกกี่ข้อถึงผ่าน
+function questionText(ch) {
+  const bank = Number(ch.question_bank) || 0;
+  if (!bank) return "คำถาม: ยังไม่มีข้อในคลัง";
+  const asked = Math.min(bank, battleRules.maxQuestions);
+  const pass = Math.ceil(asked * battleRules.passRatio);
+  const from = bank > asked ? ` (สุ่มจากคลัง ${bank} ข้อ)` : " (ถามทั้งคลัง)";
+  return `คำถาม: ด่านละ ${asked} ข้อ${from} · ผ่านที่ ${pass} ข้อ`;
+}
+
 function renderGameCards() {
   const wrap = document.getElementById("gameCards");
   if (!currentChapters.length) {
@@ -46,10 +59,9 @@ function renderGameCards() {
         <div class="game-card-left">
           <span class="game-ch-badge">World ${ch.chapter_number}</span>
           <div class="game-card-info">
+            <div class="game-card-questions">${questionText(ch)}</div>
             <div class="game-card-conditions">
               เงื่อนไข : อ่านบทเรียน ${ch.game_required_minutes} นาที แล้วทำแบบทดสอบหลังอ่าน
-              <span class="separator">|</span>
-              คำถาม: ${ch.game_question_count} ข้อ
             </div>
           </div>
         </div>
@@ -118,7 +130,6 @@ function openEditModal(id) {
   document.getElementById("editChapterTitle").textContent =
     `Chapter ${chapter.chapter_number} : ${chapter.title}`;
   document.getElementById("editRequiredMinutes").value = chapter.game_required_minutes;
-  document.getElementById("editQuestionCount").value = chapter.game_question_count;
   document.getElementById("gameEditModal").classList.add("active");
 }
 
@@ -129,14 +140,9 @@ function closeEditModal() {
 async function saveGameConfig() {
   const id = document.getElementById("editChapterId").value;
   const requiredMinutes = Number(document.getElementById("editRequiredMinutes").value);
-  const questionCount = Number(document.getElementById("editQuestionCount").value);
 
   if (!Number.isInteger(requiredMinutes) || requiredMinutes < 0 || requiredMinutes > 240) {
     alert("เวลาต้องเป็นจำนวนเต็ม 0-240 นาที");
-    return;
-  }
-  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 50) {
-    alert("จำนวนคำถามต้องเป็น 1-50 ข้อ");
     return;
   }
 
@@ -146,7 +152,7 @@ async function saveGameConfig() {
   try {
     const { chapter: updated } = await adminApiFetch(`/admin/game-config/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ requiredMinutes, questionCount }),
+      body: JSON.stringify({ requiredMinutes }),
     });
     const chapter = currentChapters.find((c) => c.id === Number(id));
     if (chapter) Object.assign(chapter, updated);

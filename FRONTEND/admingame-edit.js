@@ -2,6 +2,8 @@
 // เข้ามาที่ admingame-edit.html?chapterId=1 → โหลด chapter + questions ของ chapter นั้น
 
 const chapterId = Number(new URLSearchParams(location.search).get("chapterId"));
+const BATTLE_MAX_QUESTIONS = 30; // ต้องตรงกับ routes/game.js
+
 let currentChapter = null;
 let currentQuestions = [];
 let currentLevelFilter = "all";
@@ -53,7 +55,7 @@ function renderConditionBar() {
   document.getElementById("conditionText").textContent =
     `บทที่ ${currentChapter.chapter_number} ${currentChapter.title} : ` +
     `อ่านบทเรียน ${currentChapter.game_required_minutes} นาที แล้วทำแบบทดสอบหลังอ่าน | ` +
-    `คำถาม: ${currentChapter.game_question_count} ข้อ`;
+    `คำถามในคลัง: ${Number(currentChapter.question_bank) || 0} ข้อ (ด่านหนึ่งสุ่มไม่เกิน ${BATTLE_MAX_QUESTIONS} ข้อ)`;
 }
 
 // คำถามวิชา (บทเรียน) ใช้ได้เฉพาะด่าน 1, 3, 5 ของโลก (ด่าน 2, 4 เป็นคำถามพันธุ์สุนัข — จัดการที่ admingame-dogs.html)
@@ -245,11 +247,10 @@ async function deleteQuestion(id) {
   }
 }
 
-// ---- Modal แก้เงื่อนไขบท (reading time + num questions) ----
+// ---- Modal แก้เงื่อนไขบท (เวลาที่ต้องอ่านก่อนเข้าเล่น) ----
 function openChapterConfigModal() {
   if (!currentChapter) return;
   document.getElementById("cfgRequiredMinutes").value = currentChapter.game_required_minutes;
-  document.getElementById("cfgQuestionCount").value = currentChapter.game_question_count;
   document.getElementById("chapterConfigModal").classList.add("active");
 }
 
@@ -259,17 +260,13 @@ function closeChapterConfigModal() {
 
 async function saveChapterConfig() {
   const requiredMinutes = Number(document.getElementById("cfgRequiredMinutes").value);
-  const questionCount = Number(document.getElementById("cfgQuestionCount").value);
   if (!Number.isInteger(requiredMinutes) || requiredMinutes < 0 || requiredMinutes > 240) {
     return alert("เวลาต้องเป็น 0-240 นาที");
-  }
-  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 50) {
-    return alert("จำนวนคำถามต้องเป็น 1-50 ข้อ");
   }
   try {
     const { chapter } = await adminApiFetch(`/admin/game-config/${chapterId}`, {
       method: "PUT",
-      body: JSON.stringify({ requiredMinutes, questionCount }),
+      body: JSON.stringify({ requiredMinutes }),
     });
     currentChapter = { ...currentChapter, ...chapter };
     renderConditionBar();

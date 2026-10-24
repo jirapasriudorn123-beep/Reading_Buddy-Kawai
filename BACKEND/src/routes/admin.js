@@ -932,16 +932,24 @@ router.post("/chat-answers/test", requireAdmin, async (req, res, next) => {
 });
 
 // ================== จัดการมินิเกม (game config ต่อบทเรียน) ==================
-// GET รายการบท + ค่ามินิเกมที่แอดมินตั้งไว้ (required_minutes, question_count, enabled)
+// กติกาจริงของมินิเกม — ต้องตรงกับ BATTLE_MAX_QUESTIONS / BATTLE_PASS_RATIO ใน routes/game.js
+const BATTLE_MAX_QUESTIONS = 30;
+const BATTLE_PASS_RATIO = 0.8;
+
+// GET รายการบท + เงื่อนไขเข้าเล่นของแต่ละบท พร้อมจำนวนข้อในคลังคำถาม (ที่เปิดใช้งาน)
 router.get("/game-config", requireAdmin, async (req, res, next) => {
   try {
     const chapters = await db
       .prepare(
-        `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
-         FROM chapters ORDER BY chapter_number ASC`
+        `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled,
+                (SELECT COUNT(*) FROM quiz_questions q WHERE q.chapter_id = c.id AND q.enabled = 1) AS question_bank
+         FROM chapters c ORDER BY c.chapter_number ASC`
       )
       .all();
-    return res.json({ chapters });
+    return res.json({
+      chapters,
+      battle: { maxQuestions: BATTLE_MAX_QUESTIONS, passRatio: BATTLE_PASS_RATIO },
+    });
   } catch (err) {
     next(err);
   }
@@ -952,11 +960,11 @@ router.put("/game-config/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const chapter = await db
-      .prepare("SELECT id, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?")
+      .prepare("SELECT id, game_required_minutes, game_enabled FROM chapters WHERE id = ?")
       .get(id);
     if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
 
-    const { requiredMinutes, questionCount, enabled } = req.body;
+    const { requiredMinutes, enabled } = req.body;
 
     // validate เฉพาะฟิลด์ที่ส่งมา (ไม่บังคับส่งครบทุกฟิลด์)
     let newRequiredMinutes = chapter.game_required_minutes;
@@ -968,29 +976,20 @@ router.put("/game-config/:id", requireAdmin, async (req, res) => {
       newRequiredMinutes = n;
     }
 
-    let newQuestionCount = chapter.game_question_count;
-    if (questionCount !== undefined) {
-      const n = Number(questionCount);
-      if (!Number.isInteger(n) || n < 1 || n > 50) {
-        return res.status(400).json({ message: "จำนวนคำถามต้องเป็น 1-50 ข้อ" });
-      }
-      newQuestionCount = n;
-    }
-
     let newEnabled = chapter.game_enabled;
     if (enabled !== undefined) {
       newEnabled = enabled ? 1 : 0;
     }
 
     await db
-      .prepare(
-        "UPDATE chapters SET game_required_minutes = ?, game_question_count = ?, game_enabled = ? WHERE id = ?"
-      )
-      .run(newRequiredMinutes, newQuestionCount, newEnabled, id);
+      .prepare("UPDATE chapters SET game_required_minutes = ?, game_enabled = ? WHERE id = ?")
+      .run(newRequiredMinutes, newEnabled, id);
 
     const updated = await db
       .prepare(
-        "SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled FROM chapters WHERE id = ?"
+        `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled,
+                (SELECT COUNT(*) FROM quiz_questions q WHERE q.chapter_id = c.id AND q.enabled = 1) AS question_bank
+         FROM chapters c WHERE c.id = ?`
       )
       .get(id);
     return res.json({ message: "บันทึกสำเร็จ", chapter: updated });
@@ -1008,7 +1007,8 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
     const [chapter, questions] = await Promise.all([
       db
         .prepare(
-          `SELECT id, chapter_number, title, game_required_minutes, game_question_count, game_enabled
+          `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled,
+                (SELECT COUNT(*) FROM quiz_questions q WHERE q.chapter_id = c.id AND q.enabled = 1) AS question_bank
            FROM chapters WHERE id = ?`
         )
         .get(chapterId),
