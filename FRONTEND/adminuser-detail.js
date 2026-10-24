@@ -189,10 +189,10 @@ const HEAT_WEEKDAYS = ["จ.", "", "พ.", "", "ศ.", "", "อา."];
 
 function renderHeatmap(days) {
   const level = (m) => (m === 0 ? 0 : m < 15 ? 1 : m < 40 ? 2 : 3);
-  const cell = 26;
-  const gap = 6;
-  const left = 34;
-  const top = 26;
+  const cell = 18;
+  const gap = 5;
+  const left = 26;
+  const top = 20;
 
   // คอลัมน์ = สัปดาห์ (เริ่มวันจันทร์) · แถว = วันในสัปดาห์
   const first = new Date(`${days[0].day}T00:00:00Z`);
@@ -202,13 +202,13 @@ function renderHeatmap(days) {
       const idx = i + offset;
       const x = left + Math.floor(idx / 7) * (cell + gap);
       const y = top + (idx % 7) * (cell + gap);
-      return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="7" fill="${HEAT_COLORS[level(d.minutes)]}">
+      return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="5" fill="${HEAT_COLORS[level(d.minutes)]}">
         <title>${escapeHtml(d.day)} · ${d.minutes ? `${d.minutes} นาที` : "ไม่ได้อ่าน"}</title></rect>`;
     })
     .join("");
 
   const labels = HEAT_WEEKDAYS.map((w, i) =>
-    w ? `<text x="0" y="${top + i * (cell + gap) + 18}" font-size="15" fill="#8a8373">${w}</text>` : ""
+    w ? `<text x="0" y="${top + i * (cell + gap) + 13}" font-size="12" fill="#8a8373">${w}</text>` : ""
   ).join("");
 
   // ป้ายเดือนที่คอลัมน์แรกของแต่ละเดือน
@@ -220,17 +220,17 @@ function renderHeatmap(days) {
     lastMonth = month;
     const x = left + Math.floor((i + offset) / 7) * (cell + gap);
     const name = new Date(`${d.day}T00:00:00Z`).toLocaleDateString("th-TH", { month: "short" });
-    months.push(`<text x="${x}" y="16" font-size="15" fill="#8a8373">${escapeHtml(name)}</text>`);
+    months.push(`<text x="${x}" y="12" font-size="12" fill="#8a8373">${escapeHtml(name)}</text>`);
   });
 
   const width = left + Math.ceil((days.length + offset) / 7) * (cell + gap) + 4;
-  const legendY = top + 7 * (cell + gap) + 22;
+  const legendY = top + 7 * (cell + gap) + 16;
   const legend =
-    `<text x="${left}" y="${legendY + 14}" font-size="14" fill="#8a8373">น้อย</text>` +
+    `<text x="${left}" y="${legendY + 11}" font-size="12" fill="#8a8373">น้อย</text>` +
     HEAT_COLORS.map(
-      (c, i) => `<rect x="${left + 44 + i * 24}" y="${legendY}" width="18" height="18" rx="5" fill="${c}"/>`
+      (c, i) => `<rect x="${left + 34 + i * 18}" y="${legendY}" width="13" height="13" rx="4" fill="${c}"/>`
     ).join("") +
-    `<text x="${left + 44 + HEAT_COLORS.length * 24 + 6}" y="${legendY + 14}" font-size="14" fill="#8a8373">มาก</text>`;
+    `<text x="${left + 34 + HEAT_COLORS.length * 18 + 5}" y="${legendY + 11}" font-size="12" fill="#8a8373">มาก</text>`;
 
   // สรุปใต้ปฏิทิน: อ่านไปกี่วัน ติดกันนานสุดกี่วัน และเฉลี่ยวันละกี่นาที (เฉพาะช่วง 12 สัปดาห์นี้)
   const readDays = days.filter((d) => d.minutes > 0);
@@ -250,8 +250,8 @@ function renderHeatmap(days) {
     ["อ่านมากที่สุด", busiest ? `${num(busiest.minutes)} นาที (${busiest.day.slice(5)})` : "—"],
   ];
 
-  document.getElementById("udHeatmap").innerHTML = `<svg viewBox="0 0 ${width} ${legendY + 24}"
-    style="width:100%; height:auto" role="img" aria-label="ปฏิทินแสดงวันที่อ่านย้อนหลัง 12 สัปดาห์">
+  document.getElementById("udHeatmap").innerHTML = `<svg viewBox="0 0 ${width} ${legendY + 18}"
+    style="width:100%; max-width:${width * 1.5}px; height:auto" role="img" aria-label="ปฏิทินแสดงวันที่อ่านย้อนหลัง 12 สัปดาห์">
     ${months.join("")}${labels}${squares}${legend}</svg>
     <ul class="ud-cal-stats">${stats
       .map((s) => `<li><span>${escapeHtml(s[0])}</span><strong>${escapeHtml(s[1])}</strong></li>`)
