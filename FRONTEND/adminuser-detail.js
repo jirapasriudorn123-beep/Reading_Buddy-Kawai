@@ -307,6 +307,7 @@ function renderRadar(accuracy) {
 function renderWeakSpots(accuracy, weakSpots) {
   const lead = document.getElementById("udWeakLead");
   const list = document.getElementById("udWeakList");
+  const summary = document.getElementById("udWeakSummary");
 
   // บทที่อ่อนที่สุด = ความแม่นต่ำสุดในบทที่ตอบไปแล้วอย่างน้อย 5 ข้อ
   const scored = accuracy.filter((a) => a.percent !== null && a.answers >= 5);
@@ -323,8 +324,10 @@ function renderWeakSpots(accuracy, weakSpots) {
         : gap === 0
         ? " (เท่ากับค่าเฉลี่ยทุกคน)"
         : ` (สูงกว่าค่าเฉลี่ยทุกคน ${gap} จุด)`);
+    summary.textContent = `บทที่ ${weakest.chapter} ${weakest.title} · ตอบถูก ${weakest.percent}%`;
   } else {
     lead.textContent = "ยังตอบคำถามไม่พอจะบอกว่าอ่อนบทไหน (ต้องมีอย่างน้อย 5 ข้อในบทนั้น)";
+    summary.textContent = "ยังมีข้อมูลไม่พอ";
   }
 
   list.innerHTML = weakSpots.length
@@ -452,6 +455,14 @@ async function deleteFeedback(id) {
 
 let currentFeedback = [];
 
+function openWeakModal() {
+  document.getElementById("udWeakModal").classList.add("active");
+}
+
+function closeWeakModal() {
+  document.getElementById("udWeakModal").classList.remove("active");
+}
+
 function openFeedbackModal() {
   document.getElementById("udFeedbackWho").textContent = document.getElementById("udName").textContent;
   document.getElementById("udFeedbackModal").classList.add("active");
@@ -528,13 +539,20 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
   document.getElementById("udPrint").addEventListener("click", () => window.print());
   document.getElementById("udCsv").addEventListener("click", downloadCsv);
+  document.getElementById("udWeakOpen").addEventListener("click", openWeakModal);
+  document.getElementById("udWeakClose").addEventListener("click", closeWeakModal);
+  document.getElementById("udWeakModal").addEventListener("click", (e) => {
+    if (e.target.id === "udWeakModal") closeWeakModal(); // คลิกพื้นหลัง = ปิด
+  });
   document.getElementById("udFeedbackOpen").addEventListener("click", openFeedbackModal);
   document.getElementById("udFeedbackClose").addEventListener("click", closeFeedbackModal);
   document.getElementById("udFeedbackModal").addEventListener("click", (e) => {
     if (e.target.id === "udFeedbackModal") closeFeedbackModal(); // คลิกพื้นหลัง = ปิด
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeFeedbackModal();
+    if (e.key !== "Escape") return;
+    closeFeedbackModal();
+    closeWeakModal();
   });
   document.getElementById("udFeedbackForm").addEventListener("submit", sendFeedback);
   document.getElementById("udFeedbackText").addEventListener("input", (e) => {

@@ -328,7 +328,7 @@ async function buildWeakSpots(userId) {
        GROUP BY l.question_id
        HAVING asked - correct > 0
        ORDER BY (correct * 1.0 / asked) ASC, asked DESC
-       LIMIT 5`
+       LIMIT 10`
     )
     .all(userId);
 

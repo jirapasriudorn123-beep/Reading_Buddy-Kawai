@@ -6,7 +6,7 @@
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=3">
     <link rel="stylesheet" href="adminhome.css?v=4">
-    <link rel="stylesheet" href="adminuser.css?v=10">
+    <link rel="stylesheet" href="adminuser.css?v=11">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -111,9 +111,13 @@
                 </div>
             </div>
             <div id="udRadar"></div>
-            <strong class="ad-subhead">จุดที่อ่อนที่สุด</strong>
-            <p class="ud-weak-lead" id="udWeakLead">—</p>
-            <ol class="ud-weak-list" id="udWeakList"></ol>
+            <button type="button" class="ud-weak-btn" id="udWeakOpen">
+                <span>
+                    <strong>จุดที่อ่อนที่สุด</strong>
+                    <span class="ud-weak-btn-sub" id="udWeakSummary">—</span>
+                </span>
+                <span class="ud-weak-btn-go">ดูข้อที่ตอบผิดบ่อย →</span>
+            </button>
         </section>
     </div>
 
@@ -192,6 +196,19 @@
 </main>
 </div>
 
+<!-- กล่องเด้ง: จุดที่อ่อนที่สุด -->
+<div id="udWeakModal" class="edit-overlay">
+    <div class="edit-modal-box ud-fb-box">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" type="button" id="udWeakClose" aria-label="ปิด">&#8592;</button>
+            <span class="edit-modal-title">จุดที่อ่อนที่สุด</span>
+        </div>
+        <p class="ud-weak-lead" id="udWeakLead">—</p>
+        <strong class="ad-subhead">ข้อที่ตอบผิดบ่อยที่สุด</strong>
+        <ol class="ud-weak-list" id="udWeakList"></ol>
+    </div>
+</div>
+
 <!-- กล่องเด้ง: ส่งฟีดแบ็กถึงนิสิต -->
 <div id="udFeedbackModal" class="edit-overlay">
     <div class="edit-modal-box ud-fb-box">
@@ -216,6 +233,6 @@
 </div>
 <script src="config.js?v=2"></script>
 <script src="adminAuth.js?v=2"></script>
-<script src="adminuser-detail.js?v=7"></script>
+<script src="adminuser-detail.js?v=8"></script>
 </body>
 </html>

@@ -418,7 +418,48 @@
     color: #999;
 }
 
-/* ---- จุดที่อ่อนที่สุด (ในการ์ดความแม่นรายบท) ---- */
+/* ---- ปุ่มเปิดกล่อง "จุดที่อ่อนที่สุด" ในการ์ดความแม่นรายบท ---- */
+.ud-weak-btn {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    border: 2px solid #f0cfc3;
+    border-radius: 16px;
+    background: #fbeee9;
+    color: #8a4030;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ud-weak-btn:hover {
+    background: #f8e4dc;
+}
+
+.ud-weak-btn strong {
+    display: block;
+    font-size: 14.5px;
+}
+
+.ud-weak-btn-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: #a06a55;
+}
+
+.ud-weak-btn-go {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---- จุดที่อ่อนที่สุด (ในกล่องเด้ง) ---- */
 .ud-weak-lead {
     margin: 0 0 8px;
     font-size: 14px;
