@@ -40,7 +40,7 @@ function renderUserTable() {
                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M6 16v-4M11 16V8M16 16v-7"/></svg>
                    รายละเอียด
                  </a>
-                 <button class="coin-adjust-btn" onclick="openCoinModal(${u.id})">🪙 ปรับคอยน์</button>
+                 <button class="coin-adjust-btn" onclick="openCoinModal(${u.id})">${COIN_ICON_HTML} ปรับคอยน์</button>
                  <button class="delete-item-btn user-delete-btn" onclick="deleteUser(${u.id})">ลบ</button>
                </div>`
         }

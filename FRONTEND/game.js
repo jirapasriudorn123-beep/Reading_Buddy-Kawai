@@ -1322,8 +1322,9 @@ function endBattle(won, message) {
 
   const box = document.getElementById("battleResult");
   document.getElementById("battleResultTitle").textContent = won ? "ผ่านด่าน!" : "แพ้แล้ว";
-  document.getElementById("battleResultText").textContent =
-    won && battleReward ? `${message}\n${rewardMessage(battleReward)}` : message;
+  document.getElementById("battleResultText").innerHTML = coinTextHtml(
+    won && battleReward ? `${message}\n${rewardMessage(battleReward)}` : message
+  );
   // หมดเวลาจะไม่มีผลจาก server (ไม่ได้ตอบข้อสุดท้าย) เลยใช้ตัวนับฝั่งหน้าเว็บแทน
   const correctCount = battleReward ? battleReward.correctCount : battleQuiz.length - enemyHp;
   const totalAnswered = battleReward ? battleReward.totalAnswered : correctCount + (PLAYER_MAX_HEARTS - playerHearts);

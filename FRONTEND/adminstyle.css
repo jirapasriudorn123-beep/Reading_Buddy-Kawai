@@ -1427,3 +1427,11 @@ body {
     opacity: 0.6;
     cursor: default;
 }
+
+/* รูปคอยน์ในบรรทัดข้อความ (แทนอิโมจิ 🪙) */
+.coin-inline {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: -3px;
+}

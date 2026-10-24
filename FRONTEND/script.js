@@ -328,7 +328,7 @@ function openChapterTimeModal(chapter) {
   }
 
   document.getElementById("chapterStatus").innerHTML = chapterStatusLines(progress)
-    .map((line) => `<p>${escapeHtml(line)}</p>`)
+    .map((line) => `<p>${coinTextHtml(line)}</p>`)
     .join("");
 
   if (!readingRules.presets.some((p) => p.id === selectedPresetId)) {
@@ -806,7 +806,7 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
     hint: progress.canPostTest ? "อ่านบทนี้ครบเวลาแล้ว ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ทั้งหมด + โบนัสข้อที่ตอบถูก" : "",
   });
   document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
-    .map((l) => `<p>${escapeHtml(l)}</p>`)
+    .map((l) => `<p>${coinTextHtml(l)}</p>`)
     .join("")}</div>`;
 
   const done = () => {
@@ -1038,7 +1038,7 @@ function showTestResults(summary) {
       <div class="quiz-verdict is-fail">
         <p class="quiz-verdict-title">ยังไม่ผ่าน · ได้ ${summary.postScore}/${summary.total} คะแนน</p>
         <p>ต้องได้ ${summary.passScore}/${summary.total} คะแนนขึ้นไปถึงจะผ่าน (ขาดอีก ${missing} คะแนน)</p>
-        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} 🪙 เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
+        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} ${COIN_ICON_HTML} เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
       </div>
       <ol class="quiz-results">${rows}</ol>
       <p class="quiz-hint">ไม่เฉลยข้อที่ผิดนะ ลองอีกครั้ง (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านบทเรียนก่อนก็ได้</p>
@@ -1150,7 +1150,7 @@ function showBreakOverPanel(completedNaturally) {
     hint: "",
   });
   document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
-    .map((l) => `<p>${escapeHtml(l)}</p>`)
+    .map((l) => `<p>${coinTextHtml(l)}</p>`)
     .join("")}</div>`;
 
   const done = () => {

@@ -258,7 +258,7 @@ function renderTourStep() {
         <button type="button" class="tour-next">${last ? "เข้าใจแล้ว!" : "ถัดไป"}</button>
       </span>
     </div>`;
-  tip.querySelector(".tour-title").textContent = step.title;
+  tip.querySelector(".tour-title").innerHTML = coinTextHtml(step.title);
   tip.querySelector(".tour-text").textContent = step.text;
   tip.querySelector(".tour-next").addEventListener("click", nextTourStep);
   const skip = tip.querySelector(".tour-skip");

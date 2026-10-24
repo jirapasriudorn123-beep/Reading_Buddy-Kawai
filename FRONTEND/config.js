@@ -16,3 +16,15 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// รูปคอยน์ของเราเอง (img/coin_ja.png) ใช้แทนอิโมจิ 🪙 ทุกหน้า
+// withCoinIcon ใช้กับ HTML ที่ escape แล้ว / coinTextHtml ใช้กับข้อความล้วนที่ขึ้นบรรทัดใหม่ด้วย \n
+const COIN_ICON_HTML = '<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">';
+
+function withCoinIcon(html) {
+  return String(html ?? "").split("🪙").join(COIN_ICON_HTML);
+}
+
+function coinTextHtml(text) {
+  return withCoinIcon(escapeHtml(text).replace(/\n/g, "<br>"));
+}

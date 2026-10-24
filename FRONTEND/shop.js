@@ -366,7 +366,9 @@ function showDetail(id) {
         (couponUnlocked(product) ? "\nปลดล็อคแล้ว!" : "") +
         "\n\n"
       : "";
-    document.getElementById("modalDesc").innerText = priceLine + header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`;
+    document.getElementById("modalDesc").innerHTML = coinTextHtml(
+      priceLine + header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`
+    );
   } else {
     document.getElementById("modalDesc").innerText = desc;
   }

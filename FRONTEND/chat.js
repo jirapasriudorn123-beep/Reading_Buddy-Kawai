@@ -182,7 +182,7 @@
     const messagesEl = document.getElementById("chatMessages");
     const bubbleEl = document.createElement("div");
     bubbleEl.className = `chat-message chat-message-${role}`;
-    bubbleEl.textContent = text;
+    bubbleEl.innerHTML = coinTextHtml(text);
     messagesEl.appendChild(bubbleEl);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return bubbleEl;
