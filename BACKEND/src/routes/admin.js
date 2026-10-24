@@ -1009,7 +1009,7 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
         .prepare(
           `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled,
                 (SELECT COUNT(*) FROM quiz_questions q WHERE q.chapter_id = c.id AND q.enabled = 1) AS question_bank
-           FROM chapters WHERE id = ?`
+           FROM chapters c WHERE c.id = ?`
         )
         .get(chapterId),
       db
