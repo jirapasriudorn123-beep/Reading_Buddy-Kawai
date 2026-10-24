@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=3">
-    <link rel="stylesheet" href="adminscore.css?v=4">
+    <link rel="stylesheet" href="adminscore.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -145,7 +145,7 @@
         </table>
     </div>
 
-    <!-- คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ ด่าน 1,3,5 / เกี่ยวกับสุนัข ด่าน 2,4) คิดสะสมจากทุกครั้งที่เคยตอบ -->
+    <!-- คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ ด่าน 1,3,5 / ความรู้เกี่ยวกับสุนัข ด่าน 2,4) คิดสะสมจากทุกครั้งที่เคยตอบ -->
     <h3 class="score-section-title">🎮 คะแนนมินิเกม (ทบทวน)</h3>
     <p class="score-section-hint">สะสมจากทุกครั้งที่ตอบในเกม เล่นซ้ำได้และเกมเฉลยทุกข้อ จึงใช้ดูการทบทวน ไม่ใช่ตัววัดว่าอ่านจริง</p>
     <div class="qs-panel">
@@ -161,7 +161,7 @@
                 <div class="qs-threshold-bar"><div class="qs-threshold-fill" id="fillSubject"></div></div>
             </div>
             <div class="qs-threshold-row">
-                <span class="qs-threshold-label">คะแนนเกี่ยวกับสุนัข ≥</span>
+                <span class="qs-threshold-label">คะแนนความรู้เกี่ยวกับสุนัข ≥</span>
                 <input type="number" id="thresholdDog" value="80" min="0" max="100" oninput="onThresholdChange()">
                 <div class="qs-threshold-bar"><div class="qs-threshold-fill" id="fillDog"></div></div>
             </div>
@@ -179,7 +179,7 @@
                 <tr>
                     <th>ชื่อ</th>
                     <th>วิชาสถาปัตย์คอมฯ</th>
-                    <th>เกี่ยวกับสุนัข</th>
+                    <th>ความรู้เกี่ยวกับสุนัข</th>
                     <th>ทั้งหมด</th>
                     <th>โบนัสมินิเกม</th>
                     <th>สถานะ</th>
@@ -194,7 +194,7 @@
 
     <div class="dashboard-grid" style="grid-template-columns: repeat(2, 1fr);">
         <div class="chart-container" style="margin:0;">
-            <h3>🪙 อันดับคอยน์สูงสุด</h3>
+            <h3><img src="img/coin_ja.png" alt="" class="qs-coin"> อันดับคอยน์สูงสุด</h3>
             <div class="table-container" style="margin-top:10px;">
                 <table class="lesson-table">
                     <thead>
@@ -242,6 +242,6 @@
 <script src="config.js?v=2"></script>
 <script src="adminAuth.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="adminscore.js?v=4"></script>
+<script src="adminscore.js?v=5"></script>
 </body>
 </html>

@@ -382,3 +382,13 @@
     .rp-summary { margin-left: 0; width: 100%; }
     .rp-chart-wrap { height: 240px; }
 }
+
+/* รูปคอยน์ชุดเดียวกับหน้าผู้ใช้ (img/coin_ja.png) */
+.qs-coin {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: -3px;
+    margin-right: 2px;
+}
+

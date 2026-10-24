@@ -10,7 +10,7 @@ async function loadScores() {
         <tr>
           <td>${i + 1}</td>
           <td>${escapeHtml(u.username)}</td>
-          <td>🪙 ${u.coins.toLocaleString()}</td>
+          <td><img src="img/coin_ja.png" alt="คอยน์" class="qs-coin"> ${u.coins.toLocaleString()}</td>
         </tr>`
           )
           .join("")
@@ -163,7 +163,7 @@ async function openTestDetail(userId) {
   }
 }
 
-// ================== คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ / เกี่ยวกับสุนัข) ==================
+// ================== คะแนนควิซแยกหมวด (วิชาสถาปัตย์คอมฯ / ความรู้เกี่ยวกับสุนัข) ==================
 // % คิดสะสมจากทุกครั้งที่ผู้เล่นเคยตอบคำถามในมินิเกม (ไม่ใช่แค่รอบล่าสุด)
 // เกณฑ์ผ่าน/ไม่ผ่าน อิงจาก "คะแนนทั้งหมด" เท่านั้น — แถบคะแนนวิชา/สุนัขแยกไว้เป็นข้อมูลอ้างอิงเฉย ๆ
 
@@ -216,7 +216,7 @@ function renderQuizScoreTable() {
         <td>${u.subjectPercent}%</td>
         <td>${u.dogPercent}%</td>
         <td>${u.overallPercent}%</td>
-        <td>🪙 ${u.gameBonusCoins.toLocaleString()} <span style="color:#999;">(${u.gameStagesRewarded} ด่าน)</span></td>
+        <td><img src="img/coin_ja.png" alt="คอยน์" class="qs-coin"> ${u.gameBonusCoins.toLocaleString()} <span style="color:#999;">(${u.gameStagesRewarded} ด่าน)</span></td>
         <td><span class="qs-status-pill ${passed ? "pass" : "fail"}">${passed ? "ผ่าน" : "ไม่ผ่าน"}</span></td>
         <td>
           <button class="qs-detail-btn" onclick="openScoreDetail(${u.id})" title="ดูรายละเอียด">
@@ -265,7 +265,7 @@ async function loadStageRewards(userId) {
                 <td>${s.stage}</td>
                 <td class="qs-stars">${"★".repeat(s.stars)}<span class="qs-stars-off">${"★".repeat(3 - s.stars)}</span></td>
                 <td>${s.scorePercent}%</td>
-                <td>🪙 +${s.coins}</td>
+                <td><img src="img/coin_ja.png" alt="คอยน์" class="qs-coin"> +${s.coins}</td>
                 <td>${escapeHtml(formatThaiDate(s.rewardedAt))}</td>
               </tr>`
             )
@@ -307,19 +307,19 @@ function openScoreDetail(userId) {
         <div class="qs-detail-card-score">${u.subjectPercent}<span class="qs-detail-card-max">/100</span></div>
       </div>
       <div class="qs-detail-card">
-        <span class="qs-detail-card-label">คะแนนเกี่ยวกับสุนัข</span>
+        <span class="qs-detail-card-label">คะแนนความรู้เกี่ยวกับสุนัข</span>
         <div class="qs-detail-card-score">${u.dogPercent}<span class="qs-detail-card-max">/100</span></div>
       </div>
     </div>
     <hr class="qs-detail-divider">
     <div class="qs-detail-summary">
       <p>คะแนนวิชาสถาปัตย์คอมฯ = ${u.subjectPercent}</p>
-      <p>คะแนนเกี่ยวกับสุนัข = ${u.dogPercent}</p>
+      <p>คะแนนความรู้เกี่ยวกับสุนัข = ${u.dogPercent}</p>
     </div>
     <p class="qs-detail-total">คะแนนทั้งหมด = ${u.overallPercent}</p>
     <hr class="qs-detail-divider">
     <p class="qs-stage-heading">
-      โบนัสมินิเกม (ชนะด่านด้วยคะแนน 80% ขึ้นไป ได้ครั้งเดียวต่อด่าน) — รวม 🪙 ${u.gameBonusCoins.toLocaleString()}
+      โบนัสมินิเกม (ชนะด่านด้วยคะแนน 80% ขึ้นไป ได้ครั้งเดียวต่อด่าน) — รวม <img src="img/coin_ja.png" alt="คอยน์" class="qs-coin"> ${u.gameBonusCoins.toLocaleString()}
     </p>
     <div id="stageRewardBox"><p class="qs-stage-empty">กำลังโหลด...</p></div>
   `;
