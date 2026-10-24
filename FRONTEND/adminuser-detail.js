@@ -169,7 +169,7 @@ function renderFlags(flags) {
   if (!flags.length) {
     list.innerHTML = `<div class="ud-flag is-ok">
       <span class="ud-flag-dot"></span>
-      <span><strong>ไม่พบประเด็นที่ต้องติดตาม</strong><br>เข้าใช้งานสม่ำเสมอ คะแนนและการทบทวนอยู่ในเกณฑ์</span>
+      <span><strong>ยังไม่มีข้อมูลพอจะสรุป</strong><br>ยังไม่ได้อ่านหรือทำแบบทดสอบมากพอ</span>
     </div>`;
     return;
   }

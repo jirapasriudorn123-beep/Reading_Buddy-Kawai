@@ -300,6 +300,16 @@
     background: #d9a441;
 }
 
+.ud-flag.is-good {
+    background: #eef5e4;
+    border: 2px solid #cfe0b4;
+    color: #456b23;
+}
+
+.ud-flag.is-good .ud-flag-dot {
+    background: #6f9440;
+}
+
 .ud-flag.is-ok {
     background: #eef5e4;
     border: 2px solid #cfe0b4;

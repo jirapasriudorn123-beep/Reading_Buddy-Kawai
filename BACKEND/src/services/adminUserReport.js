@@ -415,7 +415,75 @@ function buildFlags({ profile, chapters, review, attempts, daysSinceRead }) {
     });
   }
 
-  return flags.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "red" ? -1 : 1));
+  if (flags.length) {
+    return flags.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "red" ? -1 : 1));
+  }
+
+  // ไม่มีประเด็นที่ต้องติดตาม → บอกว่าดีขึ้นยังไง (ธงเขียว) แทนที่จะบอกแค่ว่า "ไม่พบอะไร"
+  return buildGoodFlags({ profile, chapters, review, daysSinceRead });
+}
+
+// ธงเขียว: เรื่องที่ทำได้ดี — เลือกเฉพาะข้อที่คิดจากข้อมูลจริงได้
+function buildGoodFlags({ profile, chapters, review, daysSinceRead }) {
+  const good = [];
+  const gains = chapters.filter((c) => c.gain !== null);
+
+  if (gains.length) {
+    const avgGain = Math.round(gains.reduce((a, c) => a + c.gain, 0) / gains.length);
+    const best = gains.reduce((a, c) => (c.gain > a.gain ? c : a));
+    if (avgGain > 0) {
+      good.push({
+        severity: "good",
+        title: `คะแนนหลังอ่านดีขึ้นเฉลี่ย ${avgGain} จุด`,
+        detail: `ดีขึ้นมากที่สุดที่บทที่ ${best.chapter} (${best.prePercent}% → ${best.postPercent}%)`,
+      });
+    }
+  }
+
+  if (profile.chaptersPassed > 0) {
+    good.push({
+      severity: "good",
+      title:
+        profile.chaptersPassed >= profile.chaptersTotal
+          ? "ผ่านครบทุกบทแล้ว"
+          : `ผ่านแล้ว ${profile.chaptersPassed} จาก ${profile.chaptersTotal} บท`,
+      detail: profile.avgPostPercent !== null ? `คะแนนหลังอ่านเฉลี่ย ${profile.avgPostPercent}%` : "",
+    });
+  }
+
+  if (profile.longestStreak >= 3) {
+    good.push({
+      severity: "good",
+      title: `อ่านติดกันนานสุด ${profile.longestStreak} วัน`,
+      detail: `อ่านไปแล้ว ${profile.readingDays} วัน รวม ${profile.readMinutes} นาที`,
+    });
+  }
+
+  if (profile.rounds >= 5 && profile.stoppedEarly / profile.rounds <= 0.2) {
+    good.push({
+      severity: "good",
+      title: `อ่านครบเวลาที่ตั้งไว้ ${pct(profile.rounds - profile.stoppedEarly, profile.rounds)}% ของรอบ`,
+      detail: `จาก ${profile.rounds} รอบที่อ่านจบ หยุดก่อนครบเพียง ${profile.stoppedEarly} รอบ`,
+    });
+  }
+
+  if (review.dueAnswers >= 5 && review.dueCorrectPercent >= 70) {
+    good.push({
+      severity: "good",
+      title: `ตอบตอนถึงรอบทบทวนถูก ${review.dueCorrectPercent}%`,
+      detail: `จำได้แล้ว ${review.mastered} จาก ${review.items} ข้อ`,
+    });
+  }
+
+  if (daysSinceRead !== null && daysSinceRead <= 2) {
+    good.push({
+      severity: "good",
+      title: daysSinceRead === 0 ? "เข้ามาอ่านวันนี้" : `เพิ่งอ่านเมื่อ ${daysSinceRead} วันก่อน`,
+      detail: `อ่านครั้งล่าสุด ${profile.lastReadDate}`,
+    });
+  }
+
+  return good.slice(0, 4);
 }
 
 // ---------- ฟีดแบ็กที่เคยเขียนถึงนิสิตคนนี้ ----------
