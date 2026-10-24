@@ -163,15 +163,17 @@ function renderGameAndPet(game, pet, ai) {
 }
 
 
-// ---------- ธงเตือน "สิ่งที่ควรดู" ----------
+// ---------- สรุปสถานะการเรียน (ธงจากข้อมูลการใช้งาน) ----------
 function renderFlags(flags) {
-  const box = document.getElementById("udFlags");
+  const list = document.getElementById("udFlagList");
   if (!flags.length) {
-    box.hidden = true;
+    list.innerHTML = `<div class="ud-flag is-ok">
+      <span class="ud-flag-dot"></span>
+      <span><strong>ไม่พบประเด็นที่ต้องติดตาม</strong><br>เข้าใช้งานสม่ำเสมอ คะแนนและการทบทวนอยู่ในเกณฑ์</span>
+    </div>`;
     return;
   }
-  box.hidden = false;
-  document.getElementById("udFlagList").innerHTML = flags
+  list.innerHTML = flags
     .map(
       (f) => `<div class="ud-flag is-${f.severity}">
         <span class="ud-flag-dot"></span>

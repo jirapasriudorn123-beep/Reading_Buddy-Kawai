@@ -300,6 +300,17 @@
     background: #d9a441;
 }
 
+.ud-flag.is-ok {
+    background: #eef5e4;
+    border: 2px solid #cfe0b4;
+    color: #456b23;
+    grid-column: 1 / -1;
+}
+
+.ud-flag.is-ok .ud-flag-dot {
+    background: #6f9440;
+}
+
 .ud-weekly-card {
     margin: 0 20px 14px;
 }

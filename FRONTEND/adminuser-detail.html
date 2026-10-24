@@ -6,7 +6,7 @@
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=3">
     <link rel="stylesheet" href="adminhome.css?v=4">
-    <link rel="stylesheet" href="adminuser.css?v=7">
+    <link rel="stylesheet" href="adminuser.css?v=8">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -82,9 +82,9 @@
 
     <p class="ad-demo-note" id="udNoConsent" hidden>ผู้ใช้คนนี้ยังไม่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย — ข้อมูลในหน้านี้ใช้ดูแลระบบเท่านั้น ห้ามนำไปวิเคราะห์หรือแนบในเล่ม</p>
 
-    <!-- ธงเตือน: สิ่งที่ควรดูของคนนี้ -->
-    <section class="ud-flags" id="udFlags" hidden>
-        <strong class="ud-flags-title">สิ่งที่ควรดู</strong>
+    <!-- สรุปสถานะการเรียน: ธงจากข้อมูลการใช้งาน (ไม่มีธง = ขึ้นแถบเขียวว่าปกติ) -->
+    <section class="ud-flags" id="udFlags">
+        <strong class="ud-flags-title">สรุปสถานะการเรียน</strong>
         <div class="ud-flag-grid" id="udFlagList"></div>
     </section>
 
@@ -213,6 +213,6 @@
 </div>
 <script src="config.js?v=2"></script>
 <script src="adminAuth.js?v=2"></script>
-<script src="adminuser-detail.js?v=4"></script>
+<script src="adminuser-detail.js?v=6"></script>
 </body>
 </html>

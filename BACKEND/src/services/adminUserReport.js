@@ -360,8 +360,8 @@ async function buildWeekly(userId, weeks = 8) {
   return out;
 }
 
-// ---------- ธงเตือน "สิ่งที่ควรดู" ----------
-// severity: "red" = ควรทักเลย | "amber" = เฝ้าดู
+// ---------- ประเด็นที่ควรติดตาม ----------
+// severity: "red" = ควรติดต่อนิสิต | "amber" = เฝ้าติดตาม
 function buildFlags({ profile, chapters, review, attempts, daysSinceRead }) {
   const flags = [];
 
