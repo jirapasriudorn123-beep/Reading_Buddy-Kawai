@@ -96,6 +96,44 @@ router.get("/users/:id/report", requireAdmin, async (req, res, next) => {
   }
 });
 
+// ================== ฟีดแบ็กถึงนิสิตรายคน ==================
+// POST /api/admin/users/:id/feedback — เขียนฟีดแบ็ก (นิสิตเห็นในกระดิ่งแจ้งเตือนของตัวเอง)
+router.post("/users/:id/feedback", requireAdmin, async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const message = String(req.body?.message || "").trim();
+    if (!message) return res.status(400).json({ message: "พิมพ์ข้อความก่อนส่งนะ" });
+    if (message.length > 500) return res.status(400).json({ message: "ข้อความยาวเกิน 500 ตัวอักษร" });
+
+    const user = await db.prepare("SELECT id FROM users WHERE id = ? AND is_admin = 0").get(userId);
+    if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้คนนี้" });
+
+    const result = await db
+      .prepare("INSERT INTO user_feedback (user_id, admin_id, message) VALUES (?, ?, ?)")
+      .run(userId, req.user.id, message);
+    const created = await db
+      .prepare(
+        `SELECT f.id, f.message, datetime(f.created_at, '+7 hours') created_at, u.username admin_name
+         FROM user_feedback f LEFT JOIN users u ON u.id = f.admin_id WHERE f.id = ?`
+      )
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "ส่งฟีดแบ็กแล้ว", feedback: created });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/feedback/:id — ลบฟีดแบ็กที่เขียนไว้
+router.delete("/feedback/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const result = await db.prepare("DELETE FROM user_feedback WHERE id = ?").run(Number(req.params.id));
+    if (!result.changes) return res.status(404).json({ message: "ไม่พบฟีดแบ็กนี้" });
+    return res.json({ message: "ลบแล้ว" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== ตัวเลขทุกส่วนของหน้าแอดมินหลัก ==================
 // GET /api/admin/stats/dashboard?range=7|30|90|365 — รายละเอียดการคำนวณดูที่ services/adminDashboard.js
 router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {

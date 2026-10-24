@@ -418,10 +418,25 @@ function buildFlags({ profile, chapters, review, attempts, daysSinceRead }) {
   return flags.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "red" ? -1 : 1));
 }
 
+// ---------- ฟีดแบ็กที่เคยเขียนถึงนิสิตคนนี้ ----------
+async function buildFeedback(userId) {
+  try {
+    return await db
+      .prepare(
+      `SELECT f.id, f.message, datetime(f.created_at, '${THAI}') created_at, u.username admin_name
+       FROM user_feedback f LEFT JOIN users u ON u.id = f.admin_id
+         WHERE f.user_id = ? ORDER BY f.created_at DESC LIMIT 20`
+      )
+      .all(userId);
+  } catch {
+    return []; // ตารางยังไม่ถูกสร้าง (เซิร์ฟเวอร์ยังไม่ได้รีสตาร์ทหลังอัปเดต)
+  }
+}
+
 async function buildUserReport(userId) {
   const profile = await buildProfile(userId);
   if (!profile) return null;
-  const [chapters, review, sessions, game, extras, heatmap, accuracy, weekly, attempts, lastRead] = await Promise.all([
+  const [chapters, review, sessions, game, extras, heatmap, accuracy, weekly, feedback, attempts, lastRead] = await Promise.all([
     buildChapters(userId),
     buildReview(userId),
     buildSessions(userId),
@@ -430,6 +445,7 @@ async function buildUserReport(userId) {
     buildHeatmap(userId),
     buildAccuracy(userId),
     buildWeekly(userId),
+    buildFeedback(userId),
     db
       .prepare(
         `SELECT c.chapter_number, t.post_tries, t.total, t.last_post_score
@@ -471,6 +487,7 @@ async function buildUserReport(userId) {
     sessions,
     heatmap,
     weekly,
+    feedback,
     game,
     ...extras,
   };

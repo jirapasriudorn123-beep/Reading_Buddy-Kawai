@@ -829,6 +829,19 @@ await client.execute(`
       AND NOT EXISTS (SELECT 1 FROM review_log rl WHERE rl.user_id = t.user_id)
   `);
 
+  // ---- ตาราง user_feedback (อาจารย์/แอดมินเขียนฟีดแบ็กถึงนิสิตรายคน) ----
+  // นิสิตเห็นข้อความนี้ในกระดิ่งแจ้งเตือนของตัวเอง | ลบได้เฉพาะแอดมิน (ผู้เขียน)
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS user_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      message TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_user_feedback_user ON user_feedback (user_id, created_at)");
+
   // ---- ตาราง site_meta ----
   await client.execute(`
     CREATE TABLE IF NOT EXISTS site_meta (

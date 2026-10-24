@@ -355,6 +355,63 @@ function renderWeekly(weeks) {
     </div>`;
 }
 
+// ---------- ฟีดแบ็กถึงนิสิต ----------
+function renderFeedback(items) {
+  const list = document.getElementById("udFeedbackList");
+  list.innerHTML = items.length
+    ? items
+        .map(
+          (f) => `<li>
+            <div class="ud-fb-head">
+              <span>${escapeHtml(f.created_at?.slice(0, 16) || "")} · โดย ${escapeHtml(f.admin_name || "แอดมิน")}</span>
+              <button type="button" class="ud-fb-del" data-id="${f.id}" aria-label="ลบฟีดแบ็กนี้">ลบ</button>
+            </div>
+            <p>${escapeHtml(f.message)}</p>
+          </li>`
+        )
+        .join("")
+    : '<li class="ud-fb-empty">ยังไม่เคยส่งฟีดแบ็กถึงคนนี้</li>';
+}
+
+async function sendFeedback(e) {
+  e.preventDefault();
+  const input = document.getElementById("udFeedbackText");
+  const btn = document.getElementById("udFeedbackSend");
+  const message = input.value.trim();
+  if (!message) return;
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "กำลังส่ง...";
+  try {
+    const { feedback } = await adminApiFetch(`/admin/users/${userId}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+    input.value = "";
+    document.getElementById("udFeedbackCount").textContent = "0 / 500";
+    currentFeedback = [feedback, ...currentFeedback];
+    renderFeedback(currentFeedback);
+  } catch (err) {
+    alert("ส่งไม่สำเร็จ: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function deleteFeedback(id) {
+  if (!confirm("ลบฟีดแบ็กนี้? นิสิตจะไม่เห็นข้อความนี้อีก")) return;
+  try {
+    await adminApiFetch(`/admin/feedback/${id}`, { method: "DELETE" });
+    currentFeedback = currentFeedback.filter((f) => f.id !== id);
+    renderFeedback(currentFeedback);
+  } catch (err) {
+    alert("ลบไม่สำเร็จ: " + err.message);
+  }
+}
+
+let currentFeedback = [];
+
 async function loadReport() {
   if (!userId) {
     document.getElementById("udName").textContent = "ไม่พบผู้ใช้ที่ต้องการดู";
@@ -368,6 +425,8 @@ async function loadReport() {
     renderHeatmap(data.heatmap || []);
     renderRadar(data.accuracy || []);
     renderWeekly(data.weekly || []);
+    currentFeedback = data.feedback || [];
+    renderFeedback(currentFeedback);
     renderSlopes(data.chapters);
     renderReview(data.review);
     renderSessions(data.sessions);
@@ -418,5 +477,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
   document.getElementById("udPrint").addEventListener("click", () => window.print());
   document.getElementById("udCsv").addEventListener("click", downloadCsv);
+  document.getElementById("udFeedbackForm").addEventListener("submit", sendFeedback);
+  document.getElementById("udFeedbackText").addEventListener("input", (e) => {
+    document.getElementById("udFeedbackCount").textContent = `${e.target.value.length} / 500`;
+  });
+  document.getElementById("udFeedbackList").addEventListener("click", (e) => {
+    const btn = e.target.closest(".ud-fb-del");
+    if (btn) deleteFeedback(Number(btn.dataset.id));
+  });
   loadReport();
 });

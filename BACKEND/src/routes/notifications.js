@@ -73,6 +73,23 @@ router.get("/", requireAuth, async (req, res, next) => {
       });
     });
 
+    // ---- 4) ฟีดแบ็กจากอาจารย์/แอดมิน (เขียนในหน้ารายละเอียดผู้เรียน) ----
+    const feedback = await db
+      .prepare(
+        `SELECT id, message, created_at FROM user_feedback
+         WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`
+      )
+      .all(req.user.id);
+
+    feedback.forEach((f) => {
+      notifications.push({
+        id: `feedback-${f.id}`,
+        type: "feedback",
+        message: `อาจารย์ฝากข้อความถึงคุณ: ${f.message}`,
+        createdAt: f.created_at,
+      });
+    });
+
     return res.json({ notifications, unreadCount: notifications.length });
   } catch (err) {
     next(err);

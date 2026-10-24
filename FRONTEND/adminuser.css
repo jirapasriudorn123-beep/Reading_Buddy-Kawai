@@ -309,3 +309,80 @@
     }
 }
 
+/* ---- ฟีดแบ็กถึงนิสิต ---- */
+.ud-fb-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 2px solid #ddd3b8;
+    border-radius: 16px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14.5px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.ud-fb-form textarea:focus {
+    outline: none;
+    border-color: var(--green-btn);
+}
+
+.ud-fb-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.ud-fb-count {
+    font-size: 13px;
+    color: #8a8373;
+}
+
+.ud-fb-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ud-fb-list li {
+    padding: 10px 0;
+    border-bottom: 1px dotted #ece6d6;
+}
+
+.ud-fb-list li:last-child {
+    border-bottom: none;
+}
+
+.ud-fb-list p {
+    margin: 4px 0 0;
+    font-size: 14.5px;
+    line-height: 1.7;
+}
+
+.ud-fb-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12.5px;
+    color: #8a8373;
+}
+
+.ud-fb-del {
+    border: none;
+    background: none;
+    color: #b35a3a;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ud-fb-empty {
+    font-size: 14px;
+    color: #999;
+}
+
