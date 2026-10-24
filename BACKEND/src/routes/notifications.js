@@ -90,6 +90,10 @@ router.get("/", requireAuth, async (req, res, next) => {
       });
     });
 
+    // เรียงใหม่ให้ของล่าสุดอยู่บนสุด — แจ้งเตือนที่ไม่มีเวลา (น้องหมาหิว/สกปรก) คือเรื่องที่เป็นอยู่ตอนนี้ จึงอยู่บนสุดเสมอ
+    const NOW = "9999-99-99";
+    notifications.sort((a, b) => String(b.createdAt || NOW).localeCompare(String(a.createdAt || NOW)));
+
     return res.json({ notifications, unreadCount: notifications.length });
   } catch (err) {
     next(err);
