@@ -244,135 +244,145 @@ html.dark-mode body .noti-item:hover {
     flex: 1;
     list-style: none;
     margin: 0;
-    padding: 14px 16px;
+    padding: 0;
     overflow-y: auto;
     background: #faf7ef;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
 }
 
-.inbox-msg {
-    display: flex;
-    flex-direction: column;
-    max-width: 80%;
+.inbox-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid #ece6d7;
 }
 
-.inbox-msg.is-teacher {
-    align-self: flex-start;
+.inbox-item:last-child {
+    border-bottom: none;
 }
 
-.inbox-msg.is-mine {
-    align-self: flex-end;
-    align-items: flex-end;
-}
-
-.inbox-who {
-    font-size: 12px;
-    color: #8a8a7d;
-    margin-bottom: 3px;
-}
-
-.inbox-bubble {
-    padding: 9px 13px;
-    border-radius: 14px;
-    font-size: 14.5px;
-    line-height: 1.65;
-    white-space: pre-line;
-    word-break: break-word;
-}
-
-.is-teacher .inbox-bubble {
-    background: #fff;
-    border: 1px solid #e3ddcd;
-    border-top-left-radius: 4px;
-}
-
-.is-mine .inbox-bubble {
-    background: #97BC62;
-    color: #27300f;
-    border-top-right-radius: 4px;
+.inbox-item.is-new {
+    background: #fffdf5;
+    border-left: 4px solid #E38A4D;
+    padding-left: 14px;
 }
 
 .inbox-when {
-    font-size: 11.5px;
-    color: #aaa;
-    margin-top: 3px;
+    font-size: 12.5px;
+    color: #9a9484;
 }
 
 .inbox-new {
     display: inline-block;
-    margin-left: 4px;
-    padding: 0 7px;
+    margin-left: 6px;
+    padding: 1px 8px;
     border-radius: 999px;
     background: #ffeae5;
     color: #c0533a;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
 }
 
-.inbox-msg.is-new .inbox-bubble {
-    border-color: #f0b9a8;
-    box-shadow: 0 0 0 2px #ffeae5;
+.inbox-text {
+    margin: 5px 0 0;
+    font-size: 15px;
+    line-height: 1.75;
+    white-space: pre-line;
+    word-break: break-word;
 }
 
-.inbox-empty {
-    margin: auto;
-    color: #999;
+/* คำตอบที่เคยส่งไปแล้ว — เยื้องเข้ามาใต้ข้อความของอาจารย์ */
+.inbox-answer {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-left: 3px solid #97BC62;
+    border-radius: 0 10px 10px 0;
+    background: #f2f6e9;
+}
+
+.inbox-answer-label {
+    font-size: 12px;
+    color: #6f7f52;
+}
+
+.inbox-answer p {
+    margin: 3px 0 0;
     font-size: 14.5px;
-    text-align: center;
+    line-height: 1.7;
+    white-space: pre-line;
+    word-break: break-word;
 }
 
-.inbox-reply {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 10px 12px;
-    border-top: 1px solid #e6e0d2;
+/* เว็บนี้ตั้ง button { width: 100% } ไว้ทั้งเว็บ ปุ่มในกล่องนี้เลยต้องกำหนดขนาดเอง */
+.inbox-reply-btn {
+    width: auto;
+    margin-top: 10px;
+    padding: 6px 16px;
+    border: 1px solid #97BC62;
+    border-radius: 999px;
     background: #fff;
+    color: #5f7f3a;
+    font-family: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
 }
 
-.inbox-reply[hidden] {
+.inbox-reply-btn:hover {
+    background: #f2f6e9;
+}
+
+.inbox-reply-btn[hidden] {
     display: none;
 }
 
-.inbox-reply textarea {
-    flex: 1;
-    max-height: 110px;
-    padding: 9px 12px;
-    border: 1px solid #ddd6c4;
-    border-radius: 14px;
-    background: #faf7ef;
-    font-family: inherit;
-    font-size: 14.5px;
-    line-height: 1.5;
-    resize: none;
-    overflow-y: auto;
+.inbox-reply-form {
+    margin-top: 10px;
 }
 
-.inbox-reply textarea:focus {
+.inbox-reply-form[hidden] {
+    display: none;
+}
+
+.inbox-reply-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid #ddd6c4;
+    border-radius: 12px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14.5px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.inbox-reply-form textarea:focus {
     outline: none;
     border-color: #97BC62;
 }
 
-.inbox-send {
-    flex-shrink: 0;
-    width: 38px;
-    height: 38px;
-    padding: 0;
+.inbox-form-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.inbox-form-actions button {
+    width: auto;
+    padding: 6px 16px;
     border: none;
-    border-radius: 50%;
-    background: #97BC62;
-    color: #fff;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13.5px;
     cursor: pointer;
 }
 
-.inbox-send svg {
-    width: 19px;
-    height: 19px;
+.inbox-cancel {
+    background: #eee9dc;
+    color: #6b6558;
+}
+
+.inbox-send {
+    background: #97BC62;
+    color: #fff;
 }
 
 .inbox-send:disabled {
@@ -381,14 +391,20 @@ html.dark-mode body .noti-item:hover {
 }
 
 .inbox-error {
-    margin: 0;
-    padding: 0 16px 10px;
+    margin: 8px 0 0;
     color: #c0392b;
     font-size: 13px;
 }
 
 .inbox-error[hidden] {
     display: none;
+}
+
+.inbox-empty {
+    padding: 40px 18px;
+    color: #999;
+    font-size: 14.5px;
+    text-align: center;
 }
 
 html.dark-mode body .inbox-box {
@@ -404,19 +420,25 @@ html.dark-mode body .inbox-list {
     background: #1f2328;
 }
 
-html.dark-mode body .is-teacher .inbox-bubble {
-    background: #30363d;
-    border-color: #3d444d;
-    color: #eee;
+html.dark-mode body .inbox-item {
+    border-bottom-color: #3d444d;
 }
 
-html.dark-mode body .inbox-reply {
+html.dark-mode body .inbox-item.is-new {
+    background: #272b2f;
+}
+
+html.dark-mode body .inbox-answer {
+    background: #2b3326;
+}
+
+html.dark-mode body .inbox-answer-label {
+    color: #a9bd86;
+}
+
+html.dark-mode body .inbox-reply-btn,
+html.dark-mode body .inbox-reply-form textarea {
     background: #262b31;
-    border-top-color: #3d444d;
-}
-
-html.dark-mode body .inbox-reply textarea {
-    background: #1f2328;
-    border-color: #3d444d;
     color: #eee;
+    border-color: #3d444d;
 }

@@ -84,41 +84,51 @@ router.get("/", requireAuth, async (req, res, next) => {
 });
 
 // ---------- GET /api/notifications/feedback ----------
-// บทสนทนากับอาจารย์ของนิสิตคนนี้ (ปุ่มจดหมายข้างกระดิ่ง) — แยกจากแจ้งเตือนทั่วไป
-// เรียงเก่า → ใหม่ เพราะหน้าเว็บแสดงเป็นแชต (ข้อความล่าสุดอยู่ล่างสุด ติดช่องพิมพ์ตอบ)
+// ข้อความจากอาจารย์ถึงนิสิตคนนี้ (ปุ่มจดหมายข้างกระดิ่ง) — แยกจากแจ้งเตือนทั่วไป
+// ใหม่สุดอยู่บน แต่ละข้อความพ่วงคำตอบของนิสิต (ถ้าเคยตอบไว้) มาด้วย
 router.get("/feedback", requireAuth, async (req, res, next) => {
   try {
     const rows = await db
       .prepare(
-        `SELECT id, message, sender, datetime(created_at, '+7 hours') created_at
-         FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 50`
+        `SELECT id, message, sender, reply_to, datetime(created_at, '+7 hours') created_at
+         FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 60`
       )
       .all(req.user.id);
-    return res.json({ messages: rows.reverse() });
+    const replies = new Map(rows.filter((r) => r.sender === "student" && r.reply_to).map((r) => [r.reply_to, r]));
+    const messages = rows
+      .filter((r) => r.sender !== "student")
+      .map((m) => ({ ...m, reply: replies.get(m.id) || null }));
+    return res.json({ messages });
   } catch {
     return res.json({ messages: [] }); // ตารางยังไม่ถูกสร้าง (เซิร์ฟเวอร์ยังไม่ได้รีสตาร์ทหลังอัปเดต)
   }
 });
 
 // ---------- POST /api/notifications/feedback/reply ----------
-// นิสิตตอบกลับอาจารย์ — ตอบได้เฉพาะเมื่ออาจารย์ทักมาก่อน (กันใช้เป็นช่องส่งข้อความอิสระ)
+// นิสิตตอบข้อความของอาจารย์ — ตอบได้ข้อความละครั้ง ไม่ใช่กล่องแชตที่พิมพ์ได้เรื่อยๆ
 router.post("/feedback/reply", requireAuth, async (req, res, next) => {
   try {
     const message = String(req.body?.message || "").trim();
+    const replyTo = Number(req.body?.replyTo);
     if (!message) return res.status(400).json({ message: "พิมพ์ข้อความก่อนส่งนะ" });
     if (message.length > 5000) return res.status(400).json({ message: "ข้อความยาวเกินไป (เกิน 5,000 ตัวอักษร)" });
 
-    const fromAdmin = await db
-      .prepare("SELECT id FROM user_feedback WHERE user_id = ? AND sender = 'admin' LIMIT 1")
-      .get(req.user.id);
-    if (!fromAdmin) return res.status(400).json({ message: "ยังไม่มีข้อความจากอาจารย์ให้ตอบกลับ" });
+    const target = await db
+      .prepare("SELECT id FROM user_feedback WHERE id = ? AND user_id = ? AND sender = 'admin'")
+      .get(replyTo, req.user.id);
+    if (!target) return res.status(404).json({ message: "ไม่พบข้อความที่จะตอบกลับ" });
+
+    const already = await db
+      .prepare("SELECT id FROM user_feedback WHERE reply_to = ? AND sender = 'student'")
+      .get(replyTo);
+    if (already) return res.status(400).json({ message: "ตอบข้อความนี้ไปแล้ว" });
 
     const result = await db
-      .prepare("INSERT INTO user_feedback (user_id, admin_id, sender, message) VALUES (?, NULL, 'student', ?)")
-      .run(req.user.id, message);
+      .prepare("INSERT INTO user_feedback (user_id, admin_id, sender, reply_to, message) VALUES (?, NULL, 'student', ?, ?)")
+      .run(req.user.id, replyTo, message);
     const created = await db
       .prepare(
-        `SELECT id, message, sender, datetime(created_at, '+7 hours') created_at
+        `SELECT id, message, sender, reply_to, datetime(created_at, '+7 hours') created_at
          FROM user_feedback WHERE id = ?`
       )
       .get(result.lastInsertRowid);

@@ -561,11 +561,23 @@
     white-space: nowrap;
 }
 
-/* คำตอบจากนิสิตในกล่องสนทนา — เยื้องเข้ามาและใช้พื้นหลังอ่อนให้ต่างจากข้อความของอาจารย์ */
-.ud-fb-list li.is-reply {
-    margin-left: 22px;
-    padding-left: 12px;
+/* คำตอบของนิสิต — อยู่ใต้ข้อความที่เขาตอบถึง เยื้องเข้ามาให้เห็นว่าเป็นคนละฝั่ง */
+.ud-fb-reply {
+    margin: 8px 0 0 16px;
+    padding: 7px 12px;
     border-left: 3px solid #97BC62;
-    background: #f6f9ef;
     border-radius: 0 8px 8px 0;
+    background: #f2f6e9;
+}
+
+.ud-fb-reply-label {
+    font-size: 12px;
+    color: #6f7f52;
+}
+
+.ud-fb-reply p {
+    margin: 3px 0 0;
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-line;
 }

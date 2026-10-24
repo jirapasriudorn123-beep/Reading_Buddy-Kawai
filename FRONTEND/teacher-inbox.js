@@ -1,7 +1,7 @@
 // ================== กล่องข้อความจากอาจารย์ (ปุ่มจดหมายข้างกระดิ่ง) ==================
 // ใช้ร่วมกันทุกหน้าที่มี .noti-icon-wrap — แทรกปุ่มจดหมายไว้ก่อนกระดิ่ง
-// บทสนทนามาจาก GET /api/notifications/feedback (อาจารย์เขียนในหน้ารายละเอียดผู้เรียน)
-// แสดงเป็นแชต: ข้อความอาจารย์ชิดซ้าย คำตอบของเราชิดขวา ตอบกลับได้ที่ช่องล่างสุด
+// ข้อความมาจาก GET /api/notifications/feedback (อาจารย์เขียนในหน้ารายละเอียดผู้เรียน)
+// แสดงเป็นรายการจดหมาย ใหม่สุดอยู่บน ตอบกลับได้ฉบับละครั้ง ตอบแล้วคำตอบค้างไว้ใต้ข้อความนั้น
 // จุดแดงนับเฉพาะข้อความของอาจารย์ที่ยังไม่เคยเปิดอ่าน (จำ id ไว้ใน localStorage ของเครื่องนี้)
 
 const INBOX_SEEN_KEY = "teacherInboxSeenIds";
@@ -11,11 +11,6 @@ INBOX_SOUND.preload = "auto";
 INBOX_SOUND.volume = 0.5;
 
 let inboxMessages = [];
-
-// ข้อความฝั่งอาจารย์เท่านั้น (ใช้นับจุดแดง — คำตอบของเราเองไม่ต้องเตือน)
-function fromTeacher() {
-  return inboxMessages.filter((m) => m.sender !== "student");
-}
 
 function getInboxSeenIds() {
   try {
@@ -27,7 +22,7 @@ function getInboxSeenIds() {
 
 function markInboxSeen() {
   try {
-    localStorage.setItem(INBOX_SEEN_KEY, JSON.stringify(fromTeacher().map((m) => m.id)));
+    localStorage.setItem(INBOX_SEEN_KEY, JSON.stringify(inboxMessages.map((m) => m.id)));
   } catch {
     /* โหมดส่วนตัว: ซ่อนจุดแดงไปก่อน แล้วค่อยนับใหม่ตอนโหลดหน้า */
   }
@@ -78,118 +73,124 @@ function buildInboxModal() {
       <div class="inbox-head">
         <div class="inbox-head-text">
           <strong id="inboxTitle">ข้อความจากอาจารย์</strong>
-          <span class="inbox-sub">คุยกับอาจารย์ได้ที่นี่</span>
+          <span class="inbox-sub">ตอบกลับได้ข้อความละหนึ่งครั้ง</span>
         </div>
         <button type="button" class="inbox-close" id="inboxClose" aria-label="ปิด">✕</button>
       </div>
       <ul class="inbox-list" id="inboxList"></ul>
-      <form class="inbox-reply" id="inboxReplyForm">
-        <textarea id="inboxReplyText" rows="1" placeholder="พิมพ์ตอบกลับอาจารย์..." maxlength="5000"></textarea>
-        <button type="submit" class="inbox-send" id="inboxSend" aria-label="ส่ง">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 12l16-8-6 16-2.5-6.5z"/>
-          </svg>
-        </button>
-      </form>
-      <p class="inbox-error" id="inboxError" hidden></p>
     </div>`;
   document.body.appendChild(modal);
   document.getElementById("inboxClose").addEventListener("click", closeInbox);
-  document.getElementById("inboxReplyForm").addEventListener("submit", sendReply);
-  const box = document.getElementById("inboxReplyText");
-  box.addEventListener("input", () => {
-    box.style.height = "auto"; // ช่องพิมพ์สูงขึ้นตามข้อความ (สูงสุดกำหนดไว้ใน CSS)
-    box.style.height = `${box.scrollHeight}px`;
-  });
-  box.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault(); // Enter = ส่ง, Shift+Enter = ขึ้นบรรทัดใหม่
-      document.getElementById("inboxReplyForm").requestSubmit();
-    }
-  });
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeInbox();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeInbox();
   });
+  const list = document.getElementById("inboxList");
+  list.addEventListener("click", onInboxListClick);
+  list.addEventListener("submit", sendReply);
 }
 
 function renderInboxBadge() {
   const badge = document.getElementById("inboxBadge");
   if (!badge) return;
   const seen = getInboxSeenIds();
-  const unseen = fromTeacher().filter((m) => !seen.has(m.id));
+  const unseen = inboxMessages.filter((m) => !seen.has(m.id));
   badge.hidden = unseen.length === 0;
   badge.textContent = unseen.length;
   if (unseen.length) playInboxSound(unseen[0].id);
 }
 
+// จดหมายหนึ่งฉบับ: วันที่ + ข้อความของอาจารย์ + คำตอบที่เคยส่ง หรือปุ่มตอบกลับถ้ายังไม่เคยตอบ
+function inboxItemHtml(m, seen) {
+  const isNew = !seen.has(m.id);
+  const answer = m.reply
+    ? `<div class="inbox-answer">
+         <span class="inbox-answer-label">คำตอบของเรา · ${escapeHtml(formatInboxDate(m.reply.created_at))}</span>
+         <p>${escapeHtml(m.reply.message)}</p>
+       </div>`
+    : `<button type="button" class="inbox-reply-btn" data-id="${m.id}">ตอบกลับ</button>
+       <form class="inbox-reply-form" data-id="${m.id}" hidden>
+         <textarea rows="3" maxlength="5000" placeholder="พิมพ์คำตอบถึงอาจารย์..."></textarea>
+         <div class="inbox-form-actions">
+           <button type="button" class="inbox-cancel" data-id="${m.id}">ยกเลิก</button>
+           <button type="submit" class="inbox-send">ส่งคำตอบ</button>
+         </div>
+         <p class="inbox-error" hidden></p>
+       </form>`;
+
+  return `<li class="inbox-item${isNew ? " is-new" : ""}">
+      <div class="inbox-when">${escapeHtml(formatInboxDate(m.created_at))}${
+        isNew ? ' <span class="inbox-new">ใหม่</span>' : ""
+      }</div>
+      <p class="inbox-text">${escapeHtml(m.message)}</p>
+      ${answer}
+    </li>`;
+}
+
 function renderInboxList() {
-  const list = document.getElementById("inboxList");
   const seen = getInboxSeenIds();
-  list.innerHTML = inboxMessages.length
-    ? inboxMessages
-        .map((m) => {
-          const mine = m.sender === "student";
-          const isNew = !mine && !seen.has(m.id);
-          return `<li class="inbox-msg ${mine ? "is-mine" : "is-teacher"}${isNew ? " is-new" : ""}">
-            <div class="inbox-who">${mine ? "เรา" : "อาจารย์"}${isNew ? ' <span class="inbox-new">ใหม่</span>' : ""}</div>
-            <div class="inbox-bubble">${escapeHtml(m.message)}</div>
-            <div class="inbox-when">${escapeHtml(formatInboxDate(m.created_at))}</div>
-          </li>`;
-        })
-        .join("")
+  document.getElementById("inboxList").innerHTML = inboxMessages.length
+    ? inboxMessages.map((m) => inboxItemHtml(m, seen)).join("")
     : '<li class="inbox-empty">ยังไม่มีข้อความจากอาจารย์</li>';
-  list.scrollTop = list.scrollHeight; // ข้อความล่าสุดอยู่ล่างสุด เปิดมาเห็นอันใหม่ก่อน
 }
 
-// ตอบกลับได้ต่อเมื่ออาจารย์เคยทักมาก่อน (หลังบ้านก็กันไว้อีกชั้น)
-function updateReplyBox() {
-  const canReply = fromTeacher().length > 0;
-  const box = document.getElementById("inboxReplyText");
-  document.getElementById("inboxReplyForm").hidden = !canReply;
-  if (canReply) box.placeholder = "พิมพ์ตอบกลับอาจารย์...";
+// เปิด/ปิดช่องพิมพ์ของจดหมายฉบับนั้น (ปุ่มตอบกลับ / ยกเลิก)
+function onInboxListClick(e) {
+  const open = e.target.closest(".inbox-reply-btn");
+  const cancel = e.target.closest(".inbox-cancel");
+  if (!open && !cancel) return;
+
+  const id = (open || cancel).dataset.id;
+  const form = document.querySelector(`.inbox-reply-form[data-id="${id}"]`);
+  if (!form) return;
+  form.hidden = !open;
+  document.querySelector(`.inbox-reply-btn[data-id="${id}"]`).hidden = !!open;
+  if (open) {
+    form.querySelector("textarea").focus();
+  } else {
+    form.querySelector("textarea").value = "";
+    showFormError(form, "");
+  }
 }
 
-function openInbox() {
-  renderInboxList();
-  updateReplyBox();
-  showInboxError("");
-  document.getElementById("inboxModal").classList.add("open");
-  markInboxSeen();
-}
-
-function showInboxError(text) {
-  const el = document.getElementById("inboxError");
+function showFormError(form, text) {
+  const el = form.querySelector(".inbox-error");
   el.textContent = text;
   el.hidden = !text;
 }
 
 async function sendReply(e) {
   e.preventDefault();
-  const box = document.getElementById("inboxReplyText");
-  const btn = document.getElementById("inboxSend");
+  const form = e.target;
+  const replyTo = Number(form.dataset.id);
+  const box = form.querySelector("textarea");
+  const btn = form.querySelector(".inbox-send");
   const message = box.value.trim();
   if (!message) return;
 
   btn.disabled = true;
-  showInboxError("");
+  btn.textContent = "กำลังส่ง...";
+  showFormError(form, "");
   try {
     const { reply } = await inboxFetch("/notifications/feedback/reply", {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, replyTo }),
     });
-    inboxMessages = [...inboxMessages, reply];
-    box.value = "";
-    box.style.height = "auto";
-    renderInboxList();
+    inboxMessages = inboxMessages.map((m) => (m.id === replyTo ? { ...m, reply } : m));
+    renderInboxList(); // ช่องพิมพ์หายไป เหลือคำตอบที่ส่งแล้วใต้ข้อความนั้น
   } catch (err) {
-    showInboxError(err.message || "ส่งไม่สำเร็จ ลองใหม่อีกครั้งนะ");
-  } finally {
+    showFormError(form, err.message || "ส่งไม่สำเร็จ ลองใหม่อีกครั้งนะ");
     btn.disabled = false;
-    box.focus();
+    btn.textContent = "ส่งคำตอบ";
   }
+}
+
+function openInbox() {
+  renderInboxList();
+  document.getElementById("inboxModal").classList.add("open");
+  markInboxSeen();
 }
 
 function closeInbox() {
@@ -219,7 +220,6 @@ async function loadInbox() {
     const { messages } = await inboxFetch("/notifications/feedback");
     inboxMessages = messages || [];
     renderInboxBadge();
-    if (document.getElementById("inboxModal")?.classList.contains("open")) renderInboxList();
   } catch {
     /* ยังไม่ได้ล็อกอิน / เครือข่ายมีปัญหา: ไม่ต้องรบกวนผู้ใช้ */
   }

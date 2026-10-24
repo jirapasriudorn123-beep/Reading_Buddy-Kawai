@@ -408,20 +408,29 @@ function renderWeekly(weeks) {
 }
 
 // ---------- ฟีดแบ็กถึงนิสิต ----------
-// รายการเดียวกันมีทั้งข้อความของเราและคำตอบของนิสิต (sender = admin | student)
+// แถวที่ได้มามีทั้งข้อความของเรา (sender = admin) และคำตอบของนิสิต (student + reply_to)
+// แสดงเป็นจดหมายทีละฉบับ โดยเอาคำตอบของนิสิตไปไว้ใต้ข้อความที่เขาตอบถึง
 function renderFeedback(items) {
+  const replies = new Map(items.filter((f) => f.sender === "student" && f.reply_to).map((f) => [f.reply_to, f]));
+  const sent = items.filter((f) => f.sender !== "student");
   const list = document.getElementById("udFeedbackList");
-  list.innerHTML = items.length
-    ? items
+  list.innerHTML = sent.length
+    ? sent
         .map((f) => {
-          const fromStudent = f.sender === "student";
-          const who = fromStudent ? "นิสิตตอบกลับ" : `โดย ${escapeHtml(f.admin_name || "แอดมิน")}`;
-          return `<li class="${fromStudent ? "is-reply" : ""}">
+          const reply = replies.get(f.id);
+          const answer = reply
+            ? `<div class="ud-fb-reply">
+                 <span class="ud-fb-reply-label">นิสิตตอบกลับ · ${escapeHtml(reply.created_at?.slice(0, 16) || "")}</span>
+                 <p>${escapeHtml(reply.message)}</p>
+               </div>`
+            : "";
+          return `<li>
             <div class="ud-fb-head">
-              <span>${escapeHtml(f.created_at?.slice(0, 16) || "")} · ${who}</span>
+              <span>${escapeHtml(f.created_at?.slice(0, 16) || "")} · โดย ${escapeHtml(f.admin_name || "แอดมิน")}</span>
               <button type="button" class="ud-fb-del" data-id="${f.id}" aria-label="ลบข้อความนี้">ลบ</button>
             </div>
             <p>${escapeHtml(f.message)}</p>
+            ${answer}
           </li>`;
         })
         .join("")
@@ -455,7 +464,7 @@ async function sendFeedback(e) {
 }
 
 async function deleteFeedback(id) {
-  if (!confirm("ลบข้อความนี้? ทั้งสองฝ่ายจะไม่เห็นข้อความนี้อีก")) return;
+  if (!confirm("ลบข้อความนี้? นิสิตจะไม่เห็นข้อความนี้และคำตอบของมันอีก")) return;
   try {
     await adminApiFetch(`/admin/feedback/${id}`, { method: "DELETE" });
     currentFeedback = currentFeedback.filter((f) => f.id !== id);
