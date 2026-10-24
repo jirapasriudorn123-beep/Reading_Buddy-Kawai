@@ -71,17 +71,6 @@
         </div>
 
         <div class="ad-top-actions">
-            <div class="ad-bell-wrap">
-                <button type="button" class="ad-bell-btn" id="adBellBtn" aria-expanded="false" aria-controls="adBellPanel" aria-label="อัปเดตล่าสุดจากแอดมิน">
-                    <img src="img/bell-icon.png" alt="">
-                    <span class="ad-bell-dot" id="adBellCount" hidden>0</span>
-                </button>
-                <div class="ad-bell-panel" id="adBellPanel" hidden>
-                    <strong>อัปเดตล่าสุดจากแอดมิน</strong>
-                    <ul id="adBellList"></ul>
-                </div>
-            </div>
-
             <label class="ad-range" for="adRangeSelect">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
                 <span>
@@ -96,6 +85,17 @@
             </label>
 
             <button type="button" class="ad-demo-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>กำลังโหลด...</button>
+
+            <div class="ad-bell-wrap">
+                <button type="button" class="ad-bell-btn" id="adBellBtn" aria-expanded="false" aria-controls="adBellPanel" aria-label="อัปเดตล่าสุดจากแอดมิน">
+                    <img src="img/bell-icon.png" alt="">
+                    <span class="ad-bell-dot" id="adBellCount" hidden>0</span>
+                </button>
+                <div class="ad-bell-panel" id="adBellPanel" hidden>
+                    <strong>อัปเดตล่าสุดจากแอดมิน</strong>
+                    <ul id="adBellList"></ul>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -356,7 +356,7 @@
 </div>
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=9"></script>
+<script src="adminhome.js?v=10"></script>
 <script src="adminresearch.js?v=4"></script>
 </body>
 </html>

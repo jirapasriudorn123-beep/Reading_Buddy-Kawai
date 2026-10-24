@@ -402,6 +402,28 @@ function renderAtRisk(atRisk) {
 }
 
 // ---------- กระดิ่ง: สิ่งที่แอดมินแก้ล่าสุด ----------
+// เลขบนหัวกระดิ่ง = รายการที่ใหม่กว่าครั้งล่าสุดที่กดเปิดดู (จำไว้ใน localStorage ของเครื่องนี้)
+const BELL_SEEN_KEY = "adminUpdatesSeenAt";
+let bellLatestAt = "";
+
+function bellSeenAt() {
+  try {
+    return localStorage.getItem(BELL_SEEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function markUpdatesSeen() {
+  try {
+    if (bellLatestAt) localStorage.setItem(BELL_SEEN_KEY, bellLatestAt);
+  } catch {
+    /* โหมดส่วนตัว / ปิด storage: ซ่อนเลขไปก่อน แล้วค่อยกลับมาใหม่ตอนโหลดหน้า */
+  }
+  const count = document.getElementById("adBellCount");
+  count.hidden = true;
+}
+
 function renderUpdates(items) {
   const list = document.getElementById("adBellList");
   const count = document.getElementById("adBellCount");
@@ -410,8 +432,12 @@ function renderUpdates(items) {
         .map((u) => `<li>${escapeHtml(u.text)}<span class="ad-bell-when">${escapeHtml(adAgo(u.minutesAgo))}</span></li>`)
         .join("")
     : adEmpty("ยังไม่มีการแก้ไขจากแอดมิน");
-  count.hidden = !items.length;
-  count.textContent = items.length;
+
+  bellLatestAt = items.reduce((max, u) => (String(u.at) > max ? String(u.at) : max), "");
+  const seen = bellSeenAt();
+  const unseen = items.filter((u) => String(u.at) > seen).length;
+  count.hidden = unseen === 0;
+  count.textContent = unseen;
 }
 
 // ---------- สถิติมินิเกมรายโลก ----------
@@ -520,6 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const open = bellPanel.hidden;
     bellPanel.hidden = !open;
     bellBtn.setAttribute("aria-expanded", String(open));
+    if (open) markUpdatesSeen(); // กดดูแล้ว = เลขบนหัวหาย
   });
   document.addEventListener("click", (e) => {
     if (!bellPanel.hidden && !e.target.closest(".ad-bell-wrap")) {
