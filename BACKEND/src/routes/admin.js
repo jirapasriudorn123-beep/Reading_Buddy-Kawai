@@ -7,6 +7,7 @@ const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
+const { buildDashboard } = require("../services/adminDashboard");
 
 const router = express.Router();
 
@@ -77,6 +78,16 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       gamePlayers: gamePlayersRow.c,
       chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== ตัวเลขทุกส่วนของหน้าแอดมินหลัก ==================
+// GET /api/admin/stats/dashboard?range=7|30|90|365 — รายละเอียดการคำนวณดูที่ services/adminDashboard.js
+router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json(await buildDashboard(Number(req.query.range)));
   } catch (err) {
     next(err);
   }

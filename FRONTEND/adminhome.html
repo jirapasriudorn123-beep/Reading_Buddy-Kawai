@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=6">
-    <link rel="stylesheet" href="adminresearch.css?v=4">
+    <link rel="stylesheet" href="adminhome.css?v=3">
+    <link rel="stylesheet" href="adminresearch.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -62,68 +63,238 @@
         </nav>
     </aside>
 <main class="main-content">
-    <header class="top-nav">
-        <h2>หน้าหลัก สวัสดี, <span id="adminNameDisplay">ชื่อผู้ดูแล</span></h2>
+    <!-- แถบหัว: ชื่อแอดมินที่ล็อกอิน + กระดิ่งอัปเดต + ช่วงเวลา + โหมดสาธิต -->
+    <header class="ad-top">
+        <div class="ad-top-title">
+            <img src="img/logo_dogeyes.gif" alt="" class="ad-top-dog">
+            <h2>หน้าหลัก สวัสดี, <span id="adminNameDisplay">ชื่อผู้ดูแล</span></h2>
+        </div>
+
+        <div class="ad-top-actions">
+            <div class="ad-bell-wrap">
+                <button type="button" class="ad-icon-btn" id="adBellBtn" aria-expanded="false" aria-controls="adBellPanel" aria-label="อัปเดตล่าสุดจากแอดมิน">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9z"/><path d="M10.5 19.5a2 2 0 0 0 3 0"/></svg>
+                    <span class="ad-bell-dot" id="adBellCount" hidden>0</span>
+                </button>
+                <div class="ad-bell-panel" id="adBellPanel" hidden>
+                    <strong>อัปเดตล่าสุดจากแอดมิน</strong>
+                    <ul id="adBellList"></ul>
+                </div>
+            </div>
+
+            <label class="ad-range" for="adRangeSelect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+                <span>
+                    <span class="ad-range-label">ช่วงเวลา</span>
+                    <select id="adRangeSelect">
+                        <option value="7">7 วันล่าสุด</option>
+                        <option value="30" selected>30 วันล่าสุด</option>
+                        <option value="90">90 วันล่าสุด</option>
+                        <option value="365">1 ปีล่าสุด</option>
+                    </select>
+                </span>
+            </label>
+
+            <button type="button" class="ad-demo-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>กำลังโหลด...</button>
+        </div>
     </header>
 
-    <!-- โหมดสาธิตจับเวลาอ่าน: เปิดตอนนำเสนอ ปิดหลังใช้งานเสร็จ -->
-    <div class="demo-mode-card" id="demoModeCard">
-        <div>
-            <div class="demo-mode-title">🧪 โหมดสาธิตจับเวลาอ่าน <span id="demoModeBadge" class="demo-mode-badge">กำลังโหลด...</span></div>
-            <div class="demo-mode-desc" id="demoModeDesc">ปกติ: ตั้งเวลาอ่านขั้นต่ำ 10 นาที · ได้ 10 คอยน์ทุก 5 นาที</div>
-        </div>
-        <button type="button" class="demo-mode-btn" id="demoModeBtn" onclick="toggleDemoMode()" disabled>...</button>
-    </div>
+    <!-- เตือนเมื่อโหมดสาธิตเปิดอยู่ (กติกาการอ่านเปลี่ยนทั้งระบบ) -->
+    <p class="ad-demo-note" id="demoModeDesc" hidden></p>
 
-    <div class="dashboard-grid">
-        <div class="stat-card">
-            <div class="stat-icon icon-green-light">
-                <svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-            </div>
-            <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+    <!-- การ์ดสรุปของทั้งระบบ -->
+    <div class="ad-tiles">
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-green-light"><svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>ผู้ใช้ทั้งหมด</div>
             <div class="stat-value" id="statTotalUsers">0</div>
             <span class="trend-pill" id="statUsersTrend">—</span>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-icon icon-green-dark">
-                <svg viewBox="0 0 24 24" fill="white"><circle cx="8.5" cy="8.2" r="3.2"/><path d="M2.5 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="16.5" cy="9" r="2.6" opacity="0.85"/><path d="M13.2 19c0-2.7 2.1-5 5-5s5 2.3 5 5" opacity="0.85"/></svg>
-                <span class="notify-dot"></span>
-            </div>
-            <div class="stat-label">ผู้ใช้ที่ออนไลน์ขณะนี้</div>
-            <div class="stat-value" id="statOnlineUsers">0</div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-green-dark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2z"/></svg></span>บทเรียนทั้งหมด</div>
+            <div class="stat-value" id="statChapters">0</div>
+            <span class="stat-note" id="statChaptersNote">—</span>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-icon icon-yellow">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M12 6.2c-1.8-1.3-4.1-2-6.3-2v12.6c2.2 0 4.5.7 6.3 2 1.8-1.3 4.1-2 6.3-2V4.2c-2.2 0-4.5.7-6.3 2z"/></svg>
-            </div>
-            <div class="stat-label">เวลาการอ่านรวม (ชม.)</div>
-            <div class="stat-value" id="statTotalReadingHours">0</div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-orange"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg></span>ด่านมินิเกม</div>
+            <div class="stat-value" id="statStages">0</div>
+            <span class="stat-note" id="statStagesNote">—</span>
         </div>
-    </div>
-
-    <div class="dashboard-row-bottom">
-        <div class="stat-card">
-            <div class="stat-icon icon-gold">
-                <svg viewBox="0 0 24 24" fill="white"><ellipse cx="10" cy="15.5" rx="7" ry="3"/><ellipse cx="10" cy="12" rx="7" ry="3"/><ellipse cx="10" cy="8.5" rx="7" ry="3"/></svg>
-            </div>
-            <div class="stat-label">คอยน์ที่ถูกใช้ไป</div>
-            <div class="stat-value" id="statTotalCoins">0</div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-gold"><svg viewBox="0 0 24 24" fill="white"><ellipse cx="10" cy="15.5" rx="7" ry="3"/><ellipse cx="10" cy="12" rx="7" ry="3"/><ellipse cx="10" cy="8.5" rx="7" ry="3"/></svg></span>คอยน์ในระบบ</div>
+            <div class="stat-value" id="statCoins">0</div>
+            <span class="trend-pill" id="statCoinsTrend">—</span>
         </div>
-
-        <div class="dashboard-mascot">
-            <img src="img/logo_dogeyes.gif" alt="น้องหมา">
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon icon-orange">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg>
-            </div>
-            <div class="stat-label">ผู้เล่นมินิเกม</div>
-            <div class="stat-value" id="statMiniGamePlayers">0</div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-green-light"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><line x1="10" y1="7" x2="10" y2="17" stroke-dasharray="2 2"/></svg></span>คูปองที่แลกแล้ว</div>
+            <div class="stat-value" id="statCoupons">0</div>
+            <span class="stat-note" id="statCouponsNote">—</span>
         </div>
     </div>
+
+    <!-- แถว 1: แนวโน้ม · สัดส่วนรายบท · น้องหมา -->
+    <!-- แถว 1: แนวโน้มการใช้งาน · สัดส่วนการอ่านรายบท -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>แนวโน้มการใช้งานระบบ</h3>
+                    <p class="ad-sub">ผู้ใช้ที่เข้าใช้งาน การอ่าน มินิเกม และการถาม AI</p>
+                </div>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#D9714E"></span>ผู้ใช้ที่เข้าใช้งาน</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>รอบอ่านที่จบ</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>ด่านมินิเกม</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#9aa08f"></span>ถาม AI</span>
+            </div>
+            <div class="ad-chart"><canvas id="adTrendChart"></canvas></div>
+        </section>
+
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สัดส่วนการอ่านรายบท</h3>
+                    <p class="ad-sub">รอบอ่านที่จบในช่วงที่เลือก</p>
+                </div>
+            </div>
+            <div class="ad-donut">
+                <canvas id="adChapterChart"></canvas>
+                <div class="ad-donut-center">
+                    <strong id="adChapterTotal">0</strong>
+                    <span>รอบอ่าน</span>
+                </div>
+            </div>
+            <ul class="ad-legend-list" id="adChapterLegend"></ul>
+        </section>
+
+
+    </div>
+
+    <!-- แถว 2: สถิติการอ่านรายคน · รายวัน -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการอ่าน (รายคน)</h3>
+                    <p class="ad-sub">10 อันดับแรก นับจากเวลาอ่านรวมทั้งหมด</p>
+                </div>
+                <div class="ad-head-actions">
+                    <label class="ad-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+                        <span class="sr-only">ค้นหาผู้ใช้</span>
+                        <input type="search" id="adReaderSearch" placeholder="ค้นหาชื่อผู้ใช้">
+                    </label>
+                    <button type="button" class="ad-csv-btn" id="adReadersCsv">ส่งออก CSV</button>
+                </div>
+            </div>
+            <table class="ad-table" id="adTopReaders"></table>
+        </section>
+
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการอ่าน (รายวัน)</h3>
+                    <p class="ad-sub">เวลาอ่านและจำนวนรอบย้อนหลัง 7 วัน</p>
+                </div>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>เวลาอ่าน (ชม.)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>รอบอ่าน (ครั้ง)</span>
+            </div>
+            <div class="ad-chart"><canvas id="adReadingChart"></canvas></div>
+        </section>
+
+
+    </div>
+
+    <!-- แถว 3: น้องหมา · การทบทวน · การใช้ AI -->
+    <div class="ad-cols ad-cols-3">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ระดับความสุขน้องหมา</h3>
+                    <p class="ad-sub">ค่าเฉลี่ยของน้องหมาทุกตัวในระบบ</p>
+                </div>
+            </div>
+            <div class="ad-pet">
+                <div class="ad-ring" id="adPetRing" style="--value:0"><span id="adPetHappiness">0%</span></div>
+                <div class="ad-pet-text">
+                    <strong id="adPetTitle">ความสุขเฉลี่ย</strong>
+                    <p id="adPetDesc">กำลังโหลด...</p>
+                </div>
+            </div>
+            <strong class="ad-subhead">พฤติกรรมล่าสุด</strong>
+            <ul class="ad-legend-list" id="adPetRecent"></ul>
+        </section>
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการทบทวน</h3>
+                    <p class="ad-sub">ระบบทบทวนตามรอบ 1 / 3 / 7 / 14 วัน</p>
+                </div>
+            </div>
+            <div class="ad-pet">
+                <div class="ad-ring" id="adReviewRing" style="--value:0"><span id="adReviewPercent">0%</span></div>
+                <div class="ad-pet-text">
+                    <strong>ข้อที่จำได้แล้ว</strong>
+                    <p class="ad-trend-line" id="adReviewTrend" hidden></p>
+                    <p id="adReviewDesc">กำลังโหลด...</p>
+                </div>
+            </div>
+            <strong class="ad-subhead">บทที่ถูกทบทวนมากที่สุด</strong>
+            <ul class="ad-bars" id="adReviewTopics"></ul>
+        </section>
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>การใช้งาน AI</h3>
+                    <p class="ad-sub">คำถามที่ผู้ใช้ถามน้อง AI ในช่วงที่เลือก</p>
+                </div>
+            </div>
+            <div class="ad-mini-tiles">
+                <div class="ad-mini-tile"><strong id="adAiQuestions">0</strong><span>ครั้งที่ถาม</span></div>
+                <div class="ad-mini-tile"><strong id="adAiUsers">0</strong><span>ผู้ใช้ที่ถาม</span></div>
+            </div>
+            <strong class="ad-subhead">คำถามที่พบบ่อย</strong>
+            <ol class="ad-rank-list" id="adAiTop"></ol>
+            <strong class="ad-subhead">คำแนะนำจากข้อมูล</strong>
+            <ul class="ad-advice" id="adAiAdvice"></ul>
+        </section>
+
+    </div>
+
+    <!-- แถว 4: ผลการเรียนรู้ · มินิเกม -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ผลการเรียนรู้ (ก่อน / หลังอ่าน)</h3>
+                    <p class="ad-sub">คะแนนเฉลี่ยของแต่ละบท คิดเป็นเปอร์เซ็นต์</p>
+                </div>
+            </div>
+            <table class="ad-table" id="adLearning"></table>
+        </section>
+
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการใช้งานมินิเกม</h3>
+                    <p class="ad-sub">โลกที่ n = บทที่ n · อัตราผ่านด่าน</p>
+                </div>
+                <span class="ad-chip" id="adGameChip">—</span>
+            </div>
+            <table class="ad-table" id="adGames"></table>
+        </section>
+
+
+    </div>
+
+
 
     <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
     <section class="research-section">
@@ -135,16 +306,24 @@
         <!-- หมวดข้อมูล (แท็บ) -->
         <div class="rs-tabs" role="tablist" id="rsTabs"></div>
 
+        <!-- ตัวเลขสรุปของหมวดที่เปิดอยู่ -->
+        <div class="rs-summary" id="rsSummary"></div>
+
         <div class="rs-panel" id="rsPanel" role="tabpanel">
             <div class="rs-toolbar">
                 <p class="rs-desc" id="rsDesc"></p>
                 <div class="rs-toolbar-actions">
-                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหา เช่น U0001" aria-label="ค้นหาในตาราง">
+                    <div class="rs-view-toggle" id="rsViewToggle" role="group" aria-label="รูปแบบการแสดงผล">
+                        <button type="button" data-view="cards" class="is-active">การ์ด</button>
+                        <button type="button" data-view="table">ตาราง</button>
+                    </div>
+                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหา เช่น U0001" aria-label="ค้นหาในข้อมูล">
                     <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
                 </div>
             </div>
             <div class="rs-table-wrap" id="rsTableWrap">
-                <table class="rs-table" id="rsTable"></table>
+                <div class="rs-cards" id="rsCards"></div>
+                <table class="rs-table" id="rsTable" hidden></table>
                 <div class="rs-message" id="rsMessage" hidden></div>
             </div>
             <div class="rs-pager">
@@ -158,21 +337,13 @@
         </div>
     </section>
 
-    <h3 class="chart-outer-title">ภาพรวมของเวลาอ่านและคะแนนรวมของผู้ใช้</h3>
-    <div class="chart-container">
-        <h4 class="chart-inner-title">เวลาอ่าน (นาที)</h4>
-        <div class="chart-legend">
-            <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>คะแนนที่ได้ (coins)</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#D9714E"></span>เวลาอ่านรวม (นาที)</span>
-        </div>
-        <canvas id="dashboardChart"></canvas>
-    </div>
+    <p class="ad-updated" id="adUpdatedAt"></p>
 </main>
 </div>
 </div>
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=6"></script>
-<script src="adminresearch.js?v=2"></script>
+<script src="adminhome.js?v=8"></script>
+<script src="adminresearch.js?v=3"></script>
 </body>
 </html>

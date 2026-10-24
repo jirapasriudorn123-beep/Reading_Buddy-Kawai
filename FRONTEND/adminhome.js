@@ -1,43 +1,114 @@
-const CHART_COLORS = {
-  green: "#8db754",
+// ================== สถิติทั้งหมดของหน้าแอดมินหลัก ==================
+// ข้อมูลทุกส่วนมาจาก GET /api/admin/stats/dashboard?range=7|30 (ดู BACKEND/src/services/adminDashboard.js)
+const AD_COLORS = {
+  users: "#D9714E",
+  reading: "#8DB754",
+  game: "#F0B23D",
+  ai: "#9AA08F",
   grid: "rgba(0,0,0,0.08)",
-  minutes: "#D9714E",
-  minutesFill: "rgba(217, 113, 78, 0.55)",
-  coins: "#F0B23D",
-  coinsFill: "rgba(240, 178, 61, 0.55)",
+};
+const AD_DONUT_COLORS = ["#8DB754", "#F0B23D", "#D9714E", "#C2D8A4", "#9AA08F", "#E0C36B", "#B6CE8E"];
+const THAI_WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const PET_ACTION_COLORS = {
+  visit: "#9AA08F",
+  pet: "#8DB754",
+  feed: "#F0B23D",
+  bath: "#7FA8C9",
+  happiness: "#D9714E",
+  sleep: "#9B86BD",
+};
+const PET_ACTION_LABELS = {
+  visit: "เปิดหน้าน้องหมา",
+  pet: "ลูบหัว / เล่นด้วย (ฟรี)",
+  feed: "ให้อาหาร",
+  bath: "อาบน้ำ",
+  happiness: "ของเล่นเพิ่มความสุข",
+  sleep: "พาไปนอน",
 };
 
-const THAI_WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+let adRange = 30;
+let adReaders = []; // เก็บไว้กรองตอนพิมพ์ค้นหา
+const adCharts = {}; // เก็บกราฟไว้ทำลายก่อนวาดใหม่ตอนเปลี่ยนช่วงเวลา
 
-async function loadStats() {
-  try {
-    const data = await adminApiFetch("/admin/stats");
-    document.getElementById("statTotalUsers").textContent = data.totalUsers.toLocaleString();
-    document.getElementById("statOnlineUsers").textContent = data.onlineUsers.toLocaleString();
-    document.getElementById("statTotalReadingHours").textContent = data.totalReadingHours.toLocaleString();
-    document.getElementById("statTotalCoins").textContent = data.totalCoinsSpent.toLocaleString();
-    document.getElementById("statMiniGamePlayers").textContent = data.gamePlayers.toLocaleString();
-    renderUsersTrend(data.usersChangePercent, data.newSinceLastMonth);
-    renderChart(data.chart);
-  } catch (err) {
-    console.error("โหลดสถิติแอดมินไม่สำเร็จ:", err);
+const num = (n) => Number(n || 0).toLocaleString("th-TH");
+
+// 7 วัน = ชื่อวัน, 30 วัน = วัน/เดือน (ไม่งั้นชื่อวันซ้ำกันจนอ่านไม่ออก)
+function adDayLabel(day) {
+  const d = new Date(`${day}T00:00:00`);
+  return adRange === 7 ? THAI_WEEKDAYS[d.getDay()] : `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+function adLine(ctx, labels, datasets) {
+  return new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: datasets.map((d) => ({ ...d, tension: 0.35, pointRadius: 0, borderWidth: 2.5, fill: false })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: AD_COLORS.grid }, ticks: { precision: 0 } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
+}
+
+function adBars(items) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return items
+    .map(
+      (i) => `<li>
+        <div class="ad-bar-top"><span>${escapeHtml(i.label)}</span><span class="ad-bar-value">${escapeHtml(i.note)}</span></div>
+        <div class="ad-bar-track"><div class="ad-bar-fill" style="width:${Math.round((i.value / max) * 100)}%"></div></div>
+      </li>`
+    )
+    .join("");
+}
+
+function adEmpty(text) {
+  return `<p class="ad-empty">${escapeHtml(text)}</p>`;
+}
+
+// ---------- การ์ดสรุปด้านบน ----------
+function renderTiles(t) {
+  document.getElementById("statTotalUsers").textContent = num(t.users.total);
+  renderUsersTrend(t.users.changePercent, t.users.newSinceLastMonth);
+
+  document.getElementById("statChapters").textContent = num(t.chapters.total);
+  document.getElementById("statChaptersNote").textContent = `มีมินิเกม ${num(t.chapters.withGame)} บท`;
+
+  document.getElementById("statStages").textContent = num(t.game.stages);
+  document.getElementById("statStagesNote").textContent = `${num(t.game.worlds)} โลก · เล่นไปแล้ว ${num(t.game.battles)} ครั้ง`;
+
+  document.getElementById("statCoins").textContent = num(t.coins.inCirculation);
+  const coinPill = document.getElementById("statCoinsTrend");
+  if (t.coins.changePercent === null || t.coins.changePercent === undefined) {
+    coinPill.textContent = `เดือนนี้แจกไป ${num(t.coins.thisMonth)} คอยน์`;
+    coinPill.className = "trend-pill";
+  } else {
+    const up = t.coins.changePercent >= 0;
+    coinPill.textContent = `${up ? "มากกว่า" : "น้อยกว่า"}เดือนที่แล้ว ${Math.abs(t.coins.changePercent)}% ${up ? "📈" : "📉"}`;
+    coinPill.className = `trend-pill ${up ? "trend-up" : "trend-down"}`;
   }
+
+  document.getElementById("statCoupons").textContent = num(t.coupons.issued);
+  document.getElementById("statCouponsNote").textContent = `มูลค่ารวม ${num(t.coupons.baht)} บาท`;
 }
 
 // อัปเดต pill "มากกว่าเดือนที่แล้ว X%" ให้เป็นตัวเลขจริงจาก backend
 // - percent = null → ไม่มี baseline (เดือนที่แล้ว 0 user) → โชว์เป็นจำนวน user ใหม่แทน
-// - percent > 0 → มากกว่า (📈)
-// - percent < 0 → น้อยกว่า (📉)
-// - percent = 0 → เท่าเดิม
 function renderUsersTrend(percent, newSince) {
   const pill = document.getElementById("statUsersTrend");
   if (!pill) return;
   if (percent === null || percent === undefined) {
     pill.textContent = newSince > 0 ? `+${newSince} คนใหม่เดือนนี้ 📈` : "ยังไม่มี user 🐾";
     pill.className = "trend-pill";
-    return;
-  }
-  if (percent > 0) {
+  } else if (percent > 0) {
     pill.textContent = `มากกว่าเดือนที่แล้ว ${percent}% 📈`;
     pill.className = "trend-pill trend-up";
   } else if (percent < 0) {
@@ -49,60 +120,385 @@ function renderUsersTrend(percent, newSince) {
   }
 }
 
-function renderChart(chartRows) {
-  const canvas = document.getElementById("dashboardChart");
+// ---------- แนวโน้มการใช้งาน ----------
+function renderTrend(rows) {
+  const canvas = document.getElementById("adTrendChart");
   if (!canvas || typeof Chart === "undefined") return;
+  adCharts.trend?.destroy();
+  adCharts.trend = adLine(
+    canvas,
+    rows.map((r) => adDayLabel(r.day)),
+    [
+      { label: "ผู้ใช้ที่ใช้งาน", data: rows.map((r) => r.activeUsers), borderColor: AD_COLORS.users },
+      { label: "รอบอ่านที่จบ", data: rows.map((r) => r.readings), borderColor: AD_COLORS.reading },
+      { label: "ด่านมินิเกม", data: rows.map((r) => r.battles), borderColor: AD_COLORS.game },
+      { label: "ถาม AI", data: rows.map((r) => r.aiQuestions), borderColor: AD_COLORS.ai },
+    ]
+  );
+}
 
-  // เติมวันที่ว่าง (ไม่มีข้อมูล) ให้ครบ 7 วันล่าสุด เรียงจากเก่าไปใหม่
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+// ---------- สัดส่วนการอ่านรายบท ----------
+function renderChapterShare(share) {
+  document.getElementById("adChapterTotal").textContent = num(share.total);
+  const legend = document.getElementById("adChapterLegend");
+  const canvas = document.getElementById("adChapterChart");
+  adCharts.chapter?.destroy();
+
+  if (!share.items.length) {
+    legend.innerHTML = adEmpty("ยังไม่มีรอบอ่านที่จบในช่วงนี้");
+    return;
   }
-  const byDay = Object.fromEntries(chartRows.map((r) => [r.day, r]));
+  legend.innerHTML = share.items
+    .map(
+      (it, i) => `<li>
+        <span class="ad-dot" style="background:${AD_DONUT_COLORS[i % AD_DONUT_COLORS.length]}"></span>
+        <span class="ad-legend-name">บทที่ ${it.chapter} · ${escapeHtml(it.title)}</span>
+        <span class="ad-legend-value">${it.percent}%</span>
+      </li>`
+    )
+    .join("");
 
-  new Chart(canvas, {
-    type: "line",
+  if (!canvas || typeof Chart === "undefined") return;
+  adCharts.chapter = new Chart(canvas, {
+    type: "doughnut",
     data: {
-      labels: days.map((d) => THAI_WEEKDAYS[new Date(d).getDay()]),
+      labels: share.items.map((it) => `บทที่ ${it.chapter}`),
       datasets: [
         {
-          label: "คะแนนที่ได้ (coins)",
-          data: days.map((d) => byDay[d]?.coins || 0),
-          borderColor: CHART_COLORS.coins,
-          backgroundColor: CHART_COLORS.coinsFill,
-          fill: true,
-          tension: 0,
-          pointRadius: 0,
-          borderWidth: 2,
+          data: share.items.map((it) => it.sessions),
+          backgroundColor: share.items.map((_, i) => AD_DONUT_COLORS[i % AD_DONUT_COLORS.length]),
+          borderWidth: 0,
         },
-        {
-          label: "เวลาอ่านรวม (นาที)",
-          data: days.map((d) => byDay[d]?.minutes || 0),
-          borderColor: CHART_COLORS.minutes,
-          backgroundColor: CHART_COLORS.minutesFill,
-          fill: true,
-          tension: 0,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "68%", plugins: { legend: { display: false } } },
+  });
+}
+
+// ---------- ภาพรวมน้องหมา ----------
+function renderPet(pet) {
+  document.getElementById("adPetRing").style.setProperty("--value", pet.happiness);
+  document.getElementById("adPetHappiness").textContent = `${pet.happiness}%`;
+  document.getElementById("adPetTitle").textContent = `ความสุขเฉลี่ย ${pet.happiness}%`;
+  document.getElementById("adPetDesc").textContent = pet.pets
+    ? `น้องหมา ${num(pet.pets)} ตัว · เลเวลเฉลี่ย ${pet.avgLevel} (สูงสุด ${pet.topLevel}) · อิ่ม ${pet.hunger}% สะอาด ${pet.cleanliness}% พลัง ${pet.energy}%`
+    : "ยังไม่มีผู้ใช้รับน้องหมา";
+
+  const recent = document.getElementById("adPetRecent");
+  recent.innerHTML = pet.recent.length
+    ? pet.recent
+        .map(
+          (r) => `<li>
+            <span class="ad-dot" style="background:${PET_ACTION_COLORS[r.action] || "#9AA08F"}"></span>
+            <span class="ad-legend-name">${escapeHtml(PET_ACTION_LABELS[r.action] || r.action)}</span>
+            <span class="ad-legend-value">${escapeHtml(adAgo(r.minutesAgo))}</span>
+          </li>`
+        )
+        .join("")
+    : adEmpty("ยังไม่มีการดูแลน้องหมา");
+}
+
+// "2 ชม. ที่แล้ว" / "5 นาทีที่แล้ว" / "3 วันที่แล้ว"
+function adAgo(minutes) {
+  if (minutes < 1) return "เมื่อครู่นี้";
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} ชม. ที่แล้ว`;
+  return `${Math.round(hours / 24)} วันที่แล้ว`;
+}
+
+// ---------- อันดับผู้ใช้ที่อ่านมากที่สุด ----------
+function renderTopReaders(rows) {
+  adReaders = rows;
+  drawTopReaders();
+}
+
+function drawTopReaders() {
+  const query = (document.getElementById("adReaderSearch")?.value || "").trim().toLowerCase();
+  const rows = query ? adReaders.filter((r) => r.username.toLowerCase().includes(query)) : adReaders;
+  const table = document.getElementById("adTopReaders");
+  if (!rows.length) {
+    table.innerHTML = `<tbody><tr><td>${escapeHtml(
+      query ? `ไม่พบผู้ใช้ที่ตรงกับ “${query}”` : "ยังไม่มีใครอ่านจบสักรอบ"
+    )}</td></tr></tbody>`;
+    return;
+  }
+  table.innerHTML = `<thead><tr>
+      <th>ผู้ใช้</th><th>เวลาอ่าน</th><th>จำนวนรอบ</th><th>ก่อน → หลัง</th><th>คอยน์</th>
+    </tr></thead><tbody>${rows
+      .map((r) => {
+        const hours = Math.floor(r.readMinutes / 60);
+        const mins = r.readMinutes % 60;
+        const score = r.prePercent === null ? "—" : `${r.prePercent} → ${r.postPercent}`;
+        return `<tr>
+          <td><span class="ad-rank${r.rank <= 3 ? ` is-top${r.rank}` : ""}">${r.rank}</span>${escapeHtml(r.username)}</td>
+          <td>${hours ? `${hours} ชม. ` : ""}${mins} น.</td>
+          <td>${num(r.sessions)}</td>
+          <td>${escapeHtml(score)}</td>
+          <td>${num(r.coins)}</td>
+        </tr>`;
+      })
+      .join("")}</tbody>`;
+}
+
+// ---------- เวลาอ่านและจำนวนรอบ 7 วัน ----------
+function renderReadingByDay(rows) {
+  const canvas = document.getElementById("adReadingChart");
+  if (!canvas || typeof Chart === "undefined") return;
+  adCharts.reading?.destroy();
+  adCharts.reading = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: rows.map((r) => THAI_WEEKDAYS[new Date(`${r.day}T00:00:00`).getDay()]),
+      datasets: [
+        { label: "เวลาอ่าน (ชม.)", data: rows.map((r) => r.hours), backgroundColor: AD_COLORS.reading, borderRadius: 6, yAxisID: "y" },
+        { label: "รอบอ่าน (ครั้ง)", data: rows.map((r) => r.sessions), backgroundColor: AD_COLORS.game, borderRadius: 6, yAxisID: "y1" },
       ],
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        y: { beginAtZero: true, grid: { color: CHART_COLORS.grid } },
+        y: { beginAtZero: true, grid: { color: AD_COLORS.grid } },
+        y1: { beginAtZero: true, position: "right", grid: { display: false }, ticks: { precision: 0 } },
         x: { grid: { display: false } },
       },
     },
   });
 }
 
+// ---------- สถิติการทบทวน ----------
+function renderReview(review) {
+  document.getElementById("adReviewRing").style.setProperty("--value", review.masteredPercent);
+  document.getElementById("adReviewPercent").textContent = `${review.masteredPercent}%`;
+  document.getElementById("adReviewDesc").textContent = review.items
+    ? `จำได้แล้ว ${num(review.mastered)} จาก ${num(review.items)} ข้อ · ถึงรอบทบทวนตอนนี้ ${num(review.dueNow)} ข้อ · ตอบตอนถึงรอบถูก ${review.dueCorrectPercent}% (${num(review.dueAnswers)} ครั้ง)`
+    : "ยังไม่มีข้อที่เข้ารอบทบทวน";
+
+  const trend = document.getElementById("adReviewTrend");
+  const t = review.trend;
+  if (t && t.changePoints !== null && t.changePoints !== undefined) {
+    const up = t.changePoints >= 0;
+    trend.hidden = false;
+    trend.className = `ad-trend-line${up ? "" : " is-down"}`;
+    trend.textContent = `ตอบถูกตอนถึงรอบเดือนนี้ ${t.thisMonthPercent}% (${up ? "▲ +" : "▼ "}${Math.abs(
+      t.changePoints
+    )} จุด จากเดือนที่แล้ว)`;
+  } else if (t && t.answers) {
+    trend.hidden = false;
+    trend.className = "ad-trend-line";
+    trend.textContent = `ตอบถูกตอนถึงรอบเดือนนี้ ${t.thisMonthPercent}% (${num(t.answers)} ครั้ง)`;
+  } else {
+    trend.hidden = true;
+  }
+
+  const topics = document.getElementById("adReviewTopics");
+  topics.innerHTML = review.topics.length
+    ? adBars(
+        review.topics.map((t) => ({
+          label: t.title,
+          value: t.count,
+          note: `${num(t.count)} ครั้ง · ถูก ${t.correctPercent}%`,
+        }))
+      )
+    : adEmpty("ยังไม่มีการทบทวน");
+}
+
+// ---------- ผลลัพธ์การเรียนรู้รายบท ----------
+function renderLearning(rows) {
+  const table = document.getElementById("adLearning");
+  if (!rows.length) {
+    table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีใครทำแบบทดสอบจบสักบท")}</td></tr></tbody>`;
+    return;
+  }
+  table.innerHTML = `<thead><tr>
+      <th>บทเรียน</th><th>ทำแล้ว</th><th>ก่อนอ่าน</th><th>หลังอ่าน</th><th>พัฒนาขึ้น</th>
+    </tr></thead><tbody>${rows
+      .map(
+        (r) => `<tr>
+          <td>บทที่ ${r.chapter}<span class="ad-cell-sub">${escapeHtml(r.title)}</span></td>
+          <td>${num(r.tests)} คน</td>
+          <td>${r.pre}</td>
+          <td>${r.post}</td>
+          <td><span class="ad-gain${r.gain < 0 ? " is-down" : ""}">${r.gain >= 0 ? "+" : ""}${r.gain}%</span></td>
+        </tr>`
+      )
+      .join("")}</tbody>`;
+}
+
+// ---------- การใช้ AI ----------
+function renderAi(ai) {
+  document.getElementById("adAiQuestions").textContent = num(ai.questions);
+  document.getElementById("adAiUsers").textContent = num(ai.users);
+  const list = document.getElementById("adAiTop");
+  list.innerHTML = ai.top.length
+    ? ai.top
+        .map(
+          (t) => `<li><span class="ad-q" title="${escapeHtml(t.question)}">${escapeHtml(t.question)}</span>
+            <span class="ad-count">${num(t.count)}</span></li>`
+        )
+        .join("")
+    : adEmpty("ยังไม่มีคำถามในช่วงนี้");
+
+  const advice = [];
+  if (ai.busiestChapter) {
+    advice.push([
+      "บทที่ถูกถามมากที่สุด",
+      `บทที่ ${ai.busiestChapter.chapter} ${ai.busiestChapter.title} ${num(ai.busiestChapter.count)} ครั้ง`,
+    ]);
+  }
+  if (ai.advice?.weakTopic) {
+    const w = ai.advice.weakTopic;
+    advice.push([
+      "บทที่ตอบผิดบ่อยตอนทบทวน",
+      `บทที่ ${w.chapter} ${w.title} ตอบถูก ${w.correctPercent}% จาก ${num(w.answers)} ครั้ง`,
+    ]);
+  }
+  if (ai.advice?.busyHour) {
+    const h = ai.advice.busyHour;
+    advice.push(["ช่วงเวลาที่ถามเยอะที่สุด", `${String(h.hour).padStart(2, "0")}:00–${String(h.hour + 1).padStart(2, "0")}:00 น. ${num(h.count)} ครั้ง`]);
+  }
+  const box = document.getElementById("adAiAdvice");
+  box.innerHTML = advice.length
+    ? advice.map(([title, text]) => `<li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></li>`).join("")
+    : adEmpty("ยังไม่มีข้อมูลพอจะสรุป");
+}
+
+// ---------- กระดิ่ง: สิ่งที่แอดมินแก้ล่าสุด ----------
+function renderUpdates(items) {
+  const list = document.getElementById("adBellList");
+  const count = document.getElementById("adBellCount");
+  list.innerHTML = items.length
+    ? items
+        .map((u) => `<li>${escapeHtml(u.text)}<span class="ad-bell-when">${escapeHtml(adAgo(u.minutesAgo))}</span></li>`)
+        .join("")
+    : adEmpty("ยังไม่มีการแก้ไขจากแอดมิน");
+  count.hidden = !items.length;
+  count.textContent = items.length;
+}
+
+// ---------- สถิติมินิเกมรายโลก ----------
+function renderGames(rows) {
+  const table = document.getElementById("adGames");
+  const chip = document.getElementById("adGameChip");
+  if (!rows.length) {
+    chip.textContent = "ยังไม่มีใครเล่น";
+    table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีการเล่นมินิเกม")}</td></tr></tbody>`;
+    return;
+  }
+  const plays = rows.reduce((a, r) => a + r.plays, 0);
+  const wins = rows.reduce((a, r) => a + r.wins, 0);
+  chip.textContent = `เล่นแล้ว ${num(plays)} ครั้ง · ผ่าน ${num(wins)} ครั้ง`;
+  table.innerHTML = `<thead><tr>
+      <th>โลก / บทเรียน</th><th>จำนวนเล่น</th><th>ผ่าน</th><th>อัตราผ่าน</th>
+    </tr></thead><tbody>${rows
+      .map(
+        (r) => `<tr>
+          <td>โลกที่ ${r.world}<span class="ad-cell-sub">${escapeHtml(r.title)}</span></td>
+          <td>${num(r.plays)}</td>
+          <td>${num(r.wins)}</td>
+          <td><div class="ad-cell-bar">
+            <div class="ad-bar-track"><div class="ad-bar-fill" style="width:${r.percent}%"></div></div>
+            <span>${r.percent}%</span>
+          </div></td>
+        </tr>`
+      )
+      .join("")}</tbody>`;
+}
+
+function renderDashboard(data) {
+  renderTiles(data.tiles);
+  renderTrend(data.trend);
+  renderChapterShare(data.chapterShare);
+  renderPet(data.pet);
+  renderTopReaders(data.topReaders);
+  renderReadingByDay(data.readingByDay);
+  renderReview(data.review);
+  renderLearning(data.learning);
+  renderAi(data.ai);
+  renderGames(data.games);
+  renderUpdates(data.updates || []);
+  document.getElementById("adUpdatedAt").textContent = `อัปเดตล่าสุด: ${new Date().toLocaleString("th-TH", {
+    dateStyle: "long",
+    timeStyle: "short",
+  })} น.`;
+}
+
+// ดาวน์โหลด CSV รายคน (ต้องแนบ token แอดมิน เลยโหลดผ่าน fetch แล้วค่อยสร้างลิงก์)
+async function downloadReadersCsv() {
+  const btn = document.getElementById("adReadersCsv");
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "กำลังเตรียมไฟล์...";
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/export/users`, {
+      headers: { Authorization: `Bearer ${getAdminToken()}` },
+    });
+    if (response.status === 401 || response.status === 403) {
+      clearAdminSession();
+      window.location.href = "login.html";
+      return;
+    }
+    if (!response.ok) throw new Error(`ดาวน์โหลดไม่สำเร็จ (${response.status})`);
+    const match = (response.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = match ? match[1] : "reading-buddy-users.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function loadDashboard() {
+  try {
+    renderDashboard(await adminApiFetch(`/admin/stats/dashboard?range=${adRange}`));
+  } catch (err) {
+    console.error("โหลดสถิติแอดมินไม่สำเร็จ:", err);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
-  loadStats();
+
+  const select = document.getElementById("adRangeSelect");
+  select.value = String(adRange);
+  select.addEventListener("change", () => {
+    adRange = Number(select.value);
+    loadDashboard();
+  });
+
+  // กระดิ่ง: เปิด/ปิดแผงอัปเดต และปิดเมื่อคลิกที่อื่น
+  const bellBtn = document.getElementById("adBellBtn");
+  const bellPanel = document.getElementById("adBellPanel");
+  bellBtn.addEventListener("click", () => {
+    const open = bellPanel.hidden;
+    bellPanel.hidden = !open;
+    bellBtn.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", (e) => {
+    if (!bellPanel.hidden && !e.target.closest(".ad-bell-wrap")) {
+      bellPanel.hidden = true;
+      bellBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  let searchTimer = null;
+  document.getElementById("adReaderSearch").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(drawTopReaders, 200);
+  });
+  document.getElementById("adReadersCsv").addEventListener("click", downloadReadersCsv);
+
+  loadDashboard();
 });
 
 // ================== โหมดสาธิตจับเวลาอ่าน ==================
@@ -111,18 +507,16 @@ let demoModeOn = false;
 
 function renderDemoMode(rules) {
   demoModeOn = !!rules.demoMode;
-  const card = document.getElementById("demoModeCard");
-  const badge = document.getElementById("demoModeBadge");
   const desc = document.getElementById("demoModeDesc");
   const btn = document.getElementById("demoModeBtn");
-  card.classList.toggle("on", demoModeOn);
-  badge.textContent = demoModeOn ? "เปิดอยู่" : "ปิดอยู่";
+  btn.classList.toggle("is-on", demoModeOn);
   const presets = (rules.presets || []).map((p) => `${p.readMinutes}/${p.breakMinutes}`).join(" หรือ ");
   const rewardText = `ได้ ${rules.coinsPerBlock} คอยน์ทุก ${rules.minutesPerBlock} นาที`;
+  desc.hidden = !demoModeOn;
   desc.textContent = demoModeOn
-    ? `ตอนนี้: รอบอ่าน ${presets} นาที · ${rewardText} · ไม่จำกัดรอบต่อวัน · อ่านบทละ ${rules.postTestMinReadMinutes} นาทีก็ทำแบบทดสอบหลังอ่านได้ — อย่าลืมปิดหลังสาธิต`
+    ? `🧪 โหมดสาธิตเปิดอยู่ — รอบอ่าน ${presets} นาที · ${rewardText} · ไม่จำกัดรอบต่อวัน · อ่านบทละ ${rules.postTestMinReadMinutes} นาทีก็ทำแบบทดสอบหลังอ่านได้ — อย่าลืมปิดหลังสาธิต`
     : `ปกติ: รอบอ่าน Pomodoro ${presets} นาที · ${rewardText} · ได้คอยน์วันละไม่เกิน ${rules.dailyCoinRounds} รอบ`;
-  btn.textContent = demoModeOn ? "ปิดโหมดสาธิต" : "เปิดโหมดสาธิต";
+  btn.textContent = demoModeOn ? "🧪 ปิดโหมดสาธิต" : "🧪 เปิดโหมดสาธิต";
   btn.disabled = false;
 }
 

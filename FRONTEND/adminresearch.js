@@ -99,11 +99,109 @@ const RS_LABELS = {
   email: "อีเมล",
 };
 
+// ---- มุมมองการ์ด: อ่านง่ายกว่าตาราง CSV (หัวการ์ด = ใคร/เมื่อไหร่, ตัวเลขเด่น, ที่เหลือกางดูได้) ----
+// ค่าที่เป็น 0/1 ให้อ่านเป็นคำแทนตัวเลข
+const RS_YES_NO = {
+  stopped_early: ["หยุดก่อนครบเวลา", "อ่านครบเวลา"],
+  was_due: ["ถึงรอบทบทวนแล้ว", "ยังไม่ถึงรอบ"],
+  correct: ["ตอบถูก", "ตอบผิด"],
+};
+
+const rsSum = (rows, col) => rows.reduce((a, r) => a + (Number(r[col]) || 0), 0);
+const rsAvg = (rows, col) => {
+  const nums = rows.map((r) => Number(r[col])).filter((n) => Number.isFinite(n));
+  return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+};
+const rsCount = (rows, col) => rows.filter((r) => Number(r[col]) === 1).length;
+const rsPct = (rows, col) => (rows.length ? (rsCount(rows, col) / rows.length) * 100 : 0);
+const rsRound1 = (n) => Math.round(n * 10) / 10;
+
+const RS_CARD_VIEWS = {
+  users: {
+    title: (r) => r.user_code,
+    subtitle: (r) => `สมัคร ${r.registered_at || "—"} · เข้าใช้ล่าสุด ${r.last_active_date || "ยังไม่เข้าใช้"}`,
+    stats: ["active_days", "reading_minutes", "avg_post_score_pct", "chapters_passed"],
+    groups: [
+      ["การอ่าน", ["first_active_date", "last_active_day_index", "reading_days", "longest_reading_streak", "reading_rounds", "avg_round_minutes", "rounds_stopped_early", "reading_minutes_per_active_day"]],
+      ["แบบทดสอบก่อน/หลังอ่าน", ["chapters_pretested", "chapters_posttested", "avg_pre_score_pct", "avg_gain_pct"]],
+      ["การทบทวน", ["review_items", "review_mastered", "review_due_answers", "review_due_correct_pct"]],
+      ["สุนัขและมินิเกม", ["pet_visits", "pet_care_free", "pet_care_item", "pet_care_free_per_active_day", "pet_level", "pet_happiness_now", "game_battles", "game_battles_won", "game_subject_answers", "game_subject_correct_pct"]],
+      ["ถาม AI และแชท", ["ai_questions", "ai_questions_per_active_day", "chat_messages"]],
+      ["คอยน์และร้านค้า", ["coins_from_reading", "coins_post_bonus", "coins_now", "purchases", "coins_spent", "coupons_redeemed"]],
+    ],
+    summary: (rows) => [
+      ["ผู้ใช้", rows.length],
+      ["นาทีที่อ่านรวม", rsRound1(rsSum(rows, "reading_minutes"))],
+      ["หลังอ่านเฉลี่ย (%)", rsRound1(rsAvg(rows, "avg_post_score_pct"))],
+      ["บทที่ผ่านรวม", rsSum(rows, "chapters_passed")],
+    ],
+  },
+  days: {
+    title: (r) => `${r.user_code} · ${r.date}`,
+    subtitle: (r) => `${r.weekday || ""} · วันที่ ${r.day_index} นับจากวันสมัคร`,
+    stats: ["reading_minutes", "reading_rounds", "test_answers", "game_battles"],
+    groups: [
+      ["สุนัขและเกมในวันนั้น", ["pet_visits", "pet_care_free", "pet_care_item", "game_subject_answers", "game_subject_correct"]],
+      ["ถาม AI และแชท", ["ai_questions", "chat_messages"]],
+      ["ร้านค้า", ["purchases"]],
+    ],
+    summary: (rows) => [
+      ["วันที่เข้าใช้ (แถว)", rows.length],
+      ["นาทีที่อ่านรวม", rsRound1(rsSum(rows, "reading_minutes"))],
+      ["รอบอ่านรวม", rsSum(rows, "reading_rounds")],
+      ["ตอบแบบทดสอบรวม", rsSum(rows, "test_answers")],
+    ],
+  },
+  sessions: {
+    title: (r) => `${r.user_code} · บท ${r.chapter_number}`,
+    subtitle: (r) => `เริ่มอ่าน ${r.started_at} · อ่านบทนี้ครั้งที่ ${r.chapter_attempt}`,
+    stats: ["read_minutes", "planned_minutes", "pages_viewed", "stopped_early"],
+    groups: [
+      ["เวลาในรอบนี้", ["date", "weekday", "hour", "day_index", "away_minutes", "idle_minutes"]],
+      ["การเปิดอ่าน PDF", ["pdf_total_pages", "first_page_viewed", "last_page_viewed", "page_seconds_tracked"]],
+      ["คะแนนของบทนี้", ["chapter_pre_score", "chapter_post_score", "chapter_total"]],
+      ["คอยน์ ถาม AI และแชท", ["coins_time", "coins_paid", "ai_questions_during", "chat_messages_during"]],
+      ["รหัสอ้างอิง", ["session_id"]],
+    ],
+    summary: (rows) => [
+      ["รอบอ่าน", rows.length],
+      ["นาทีที่อ่านรวม", rsRound1(rsSum(rows, "read_minutes"))],
+      ["นาทีเฉลี่ยต่อรอบ", rsRound1(rsAvg(rows, "read_minutes"))],
+      ["หยุดก่อนครบเวลา", rsCount(rows, "stopped_early")],
+    ],
+  },
+  reviews: {
+    title: (r) => `${r.user_code} · ข้อ ${r.question_id}`,
+    subtitle: (r) => `${r.answered_at} · บท ${r.chapter_number} · มาจาก${r.source === "game" ? "เกม" : "แบบทดสอบหลังอ่าน"}`,
+    stats: ["correct", "was_due", "interval_days", "stage_after"],
+    groups: [["ขั้นทบทวน", ["stage_before", "source"]]],
+    summary: (rows) => {
+      const due = rows.filter((r) => Number(r.was_due) === 1);
+      return [
+        ["ครั้งที่ตอบ", rows.length],
+        ["ตอบถูก (%)", rsRound1(rsPct(rows, "correct"))],
+        ["ตอบตอนถึงรอบ", due.length],
+        ["ถูกตอนถึงรอบ (%)", rsRound1(rsPct(due, "correct"))],
+      ];
+    },
+  },
+  "user-key": {
+    title: (r) => r.user_code,
+    subtitle: (r) => `สมัคร ${r.registered_at}`,
+    stats: [],
+    groups: [["ข้อมูลส่วนบุคคล", ["username", "email"]]],
+    summary: (rows) => [["ผู้ใช้", rows.length]],
+  },
+};
+
+const RS_CARD_PAGE = 6; // การ์ดต่อหน้า (การ์ดสูงกว่าแถวตาราง)
+
 const RS_ROW_HEIGHT = 41; // ความสูงแถวโดยประมาณ (px) ใช้คำนวณว่าหน้าหนึ่งใส่ได้กี่แถว
 const RS_MIN_ROWS = 5;
 
 const rsState = {
   kind: RS_DATASETS[0].kind,
+  view: "cards", // "cards" = การ์ดอ่านง่าย, "table" = ตารางเหมือนไฟล์ CSV
   cache: new Map(), // kind → { columns, rows }
   revealed: new Set(), // หมวดข้อมูลส่วนบุคคลที่กดยืนยันดูแล้ว
   page: 0,
@@ -131,6 +229,8 @@ function rsFilteredRows(data) {
 function rsShowMessage(text) {
   const msg = document.getElementById("rsMessage");
   document.getElementById("rsTable").innerHTML = "";
+  document.getElementById("rsCards").innerHTML = "";
+  document.getElementById("rsSummary").innerHTML = "";
   msg.innerHTML = text;
   msg.hidden = false;
   document.getElementById("rsCount").textContent = "";
@@ -150,6 +250,81 @@ function rsRenderTabs() {
   document.querySelectorAll(".rs-tab").forEach((btn) => btn.addEventListener("click", () => rsSelect(btn.dataset.kind)));
 }
 
+// ค่าที่โชว์ให้คน (ไม่ใช่ค่าดิบใน CSV): 0/1 เป็นคำ, เลขหลักหมื่นขึ้นไปใส่ลูกน้ำ, ว่างเป็นขีด
+function rsValueText(col, raw) {
+  if (raw === "" || raw === null || raw === undefined) return "—";
+  if (RS_YES_NO[col]) return Number(raw) ? RS_YES_NO[col][0] : RS_YES_NO[col][1];
+  const n = Number(raw);
+  if (Number.isFinite(n) && String(raw).trim() !== "" && Math.abs(n) >= 10000) return n.toLocaleString("th-TH");
+  return String(raw);
+}
+
+function rsLabel(col) {
+  return RS_LABELS[col] || col;
+}
+
+// ตัวเลขสรุปของหมวดที่เปิดอยู่ (คิดจากแถวที่ค้นหาเหลืออยู่)
+function rsRenderSummary(rows) {
+  const box = document.getElementById("rsSummary");
+  const view = RS_CARD_VIEWS[rsState.kind];
+  if (!view || !rows.length) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = view
+    .summary(rows)
+    .map(
+      ([label, value]) =>
+        `<div class="rs-sum"><span class="rs-sum-value">${escapeHtml(
+          typeof value === "number" ? value.toLocaleString("th-TH") : String(value)
+        )}</span><span class="rs-sum-label">${escapeHtml(label)}</span></div>`
+    )
+    .join("");
+}
+
+// การ์ด 1 ใบ = 1 แถวในไฟล์ CSV แต่จัดให้อ่านเป็นภาษาคน
+function rsCardHtml(row, columns) {
+  const view = RS_CARD_VIEWS[rsState.kind];
+  const used = new Set(view.stats);
+  const stats = view.stats
+    .map(
+      (c) =>
+        `<div class="rs-card-stat"><span class="rs-card-stat-value">${escapeHtml(
+          rsValueText(c, row[c])
+        )}</span><span class="rs-card-stat-label">${escapeHtml(rsLabel(c))}</span></div>`
+    )
+    .join("");
+
+  const groups = view.groups.map(([title, cols]) => [title, cols.filter((c) => columns.includes(c))]);
+  groups.forEach(([, cols]) => cols.forEach((c) => used.add(c)));
+  const leftover = columns.filter((c) => !used.has(c) && c !== "user_code");
+  if (leftover.length) groups.push(["อื่น ๆ", leftover]);
+
+  const details = groups
+    .filter(([, cols]) => cols.length)
+    .map(
+      ([title, cols]) => `<div class="rs-card-group">
+        <h5>${escapeHtml(title)}</h5>
+        <dl>${cols
+          .map((c) => `<div><dt>${escapeHtml(rsLabel(c))}</dt><dd>${escapeHtml(rsValueText(c, row[c]))}</dd></div>`)
+          .join("")}</dl>
+      </div>`
+    )
+    .join("");
+
+  const fieldCount = groups.reduce((a, [, cols]) => a + cols.length, 0);
+  return `<article class="rs-card">
+    <div class="rs-card-head">
+      <div class="rs-card-who">
+        <h4>${escapeHtml(view.title(row))}</h4>
+        <p>${escapeHtml(view.subtitle(row))}</p>
+      </div>
+      <div class="rs-card-stats">${stats}</div>
+    </div>
+    ${details ? `<details class="rs-card-more"><summary>ดูข้อมูลทั้งหมด (${fieldCount} ค่า)</summary>${details}</details>` : ""}
+  </article>`;
+}
+
 function rsRenderTable() {
   const d = rsDataset();
   document.getElementById("rsDesc").textContent = d.desc;
@@ -165,27 +340,50 @@ function rsRenderTable() {
 
   const rows = rsFilteredRows(data);
   if (!data.rows.length) return rsShowMessage("<p>ยังไม่มีข้อมูลในหมวดนี้</p>");
-  if (!rows.length) return rsShowMessage(`<p>ไม่พบแถวที่ตรงกับ “${escapeHtml(rsState.query)}”</p>`);
+  if (!rows.length) return rsShowMessage(`<p>ไม่พบข้อมูลที่ตรงกับ “${escapeHtml(rsState.query)}”</p>`);
 
   document.getElementById("rsMessage").hidden = true;
+  rsRenderSummary(rows);
+
+  const cards = rsState.view === "cards";
   const table = document.getElementById("rsTable");
-  // วาดหัวตารางก่อน แล้วค่อยคำนวณว่าใส่ได้กี่แถว
-  table.innerHTML = `<thead><tr>${data.columns
-    .map((c) => `<th title="${c}" scope="col">${escapeHtml(RS_LABELS[c] || c)}</th>`)
-    .join("")}</tr></thead><tbody></tbody>`;
-  const size = rsPageSize();
+  const cardBox = document.getElementById("rsCards");
+  table.hidden = cards;
+  cardBox.hidden = !cards;
+  document.getElementById("rsPanel").classList.toggle("is-cards", cards);
+
+  let size;
+  if (cards) {
+    size = RS_CARD_PAGE;
+    table.innerHTML = "";
+  } else {
+    // วาดหัวตารางก่อน แล้วค่อยคำนวณว่าใส่ได้กี่แถว
+    cardBox.innerHTML = "";
+    table.innerHTML = `<thead><tr>${data.columns
+      .map((c) => `<th title="${c}" scope="col">${escapeHtml(rsLabel(c))}</th>`)
+      .join("")}</tr></thead><tbody></tbody>`;
+    size = rsPageSize();
+  }
+
   const pages = Math.max(1, Math.ceil(rows.length / size));
   rsState.page = Math.min(rsState.page, pages - 1);
   const start = rsState.page * size;
-  table.querySelector("tbody").innerHTML = rows
-    .slice(start, start + size)
-    .map((row) => `<tr>${data.columns.map((c) => `<td>${escapeHtml(row[c] ?? "")}</td>`).join("")}</tr>`)
-    .join("");
+  const shown = rows.slice(start, start + size);
 
-  const end = Math.min(start + size, rows.length);
+  if (cards) {
+    cardBox.innerHTML = shown.map((row) => rsCardHtml(row, data.columns)).join("");
+  } else {
+    table.querySelector("tbody").innerHTML = shown
+      .map((row) => `<tr>${data.columns.map((c) => `<td>${escapeHtml(rsValueText(c, row[c]))}</td>`).join("")}</tr>`)
+      .join("");
+  }
+
+  const end = start + shown.length;
+  const unit = cards ? "การ์ด" : "แถว";
   const filtered = rows.length !== data.rows.length ? ` (จาก ${data.rows.length.toLocaleString()})` : "";
+  const columnNote = cards ? "" : ` · ${data.columns.length} คอลัมน์`;
   document.getElementById("rsCount").textContent =
-    `แถว ${(start + 1).toLocaleString()}–${end.toLocaleString()} จาก ${rows.length.toLocaleString()}${filtered} · ${data.columns.length} คอลัมน์`;
+    `${unit} ${(start + 1).toLocaleString()}–${end.toLocaleString()} จาก ${rows.length.toLocaleString()}${filtered}${columnNote}`;
   document.getElementById("rsPage").textContent = `หน้า ${rsState.page + 1} / ${pages}`;
   document.getElementById("rsPrev").disabled = rsState.page === 0;
   document.getElementById("rsNext").disabled = rsState.page >= pages - 1;
@@ -274,6 +472,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("rsNext").addEventListener("click", () => {
     rsState.page += 1;
+    rsRenderTable();
+  });
+  document.getElementById("rsViewToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-view]");
+    if (!btn || btn.dataset.view === rsState.view) return;
+    rsState.view = btn.dataset.view;
+    rsState.page = 0;
+    document
+      .querySelectorAll("#rsViewToggle button")
+      .forEach((b) => b.classList.toggle("is-active", b === btn));
     rsRenderTable();
   });
   let searchTimer = null;
