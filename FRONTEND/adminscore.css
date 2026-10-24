@@ -231,8 +231,102 @@
     color: #c0533a;
     font-weight: 600;
 }
+/* ---- กล่องรายละเอียดแบบทดสอบรายบท (7 คอลัมน์ ต้องใช้กล่องกว้าง) ---- */
+#scoreDetailModal .edit-modal-box.is-wide {
+    width: 820px;
+    max-width: 94vw;
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 22px 18px;
+}
+
+.qs-detail-scroll {
+    overflow: auto;
+    max-height: 68vh;
+    border: 2px solid var(--border-dark);
+    border-radius: 14px;
+}
+
 .qs-test-detail {
-    font-size: 14px;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13.5px;
+}
+
+.qs-test-detail th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 9px 10px;
+    background: var(--header-yellow);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border-dark);
+}
+
+.qs-test-detail th span {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: .9;
+}
+
+.qs-test-detail td {
+    padding: 9px 10px;
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid #f0ebdc;
+}
+
+.qs-test-detail tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.qs-test-detail tbody tr:hover td {
+    background: #fbf7ea;
+}
+
+.qs-td-chapter {
+    text-align: left !important;
+    font-weight: 600;
+}
+
+.qs-td-when {
+    color: #7a7466;
+}
+
+.qs-again {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #f1ecdc;
+    color: #7a6a3a;
+    font-size: 11.5px;
+}
+
+.qs-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qs-status.is-done {
+    background: #eef5e4;
+    color: #4f6a2c;
+}
+
+.qs-status.is-doing {
+    background: #fbf7ea;
+    color: #8a6210;
 }
 
 .reading-line {

@@ -440,7 +440,7 @@ async function sendFeedback(e) {
       body: JSON.stringify({ message }),
     });
     input.value = "";
-    document.getElementById("udFeedbackCount").textContent = "0 / 500";
+    document.getElementById("udFeedbackCount").textContent = "0 ตัวอักษร";
     currentFeedback = [feedback, ...currentFeedback];
     renderFeedback(currentFeedback);
   } catch (err) {
@@ -565,7 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("udFeedbackForm").addEventListener("submit", sendFeedback);
   document.getElementById("udFeedbackText").addEventListener("input", (e) => {
-    document.getElementById("udFeedbackCount").textContent = `${e.target.value.length} / 500`;
+    document.getElementById("udFeedbackCount").textContent = `${num(e.target.value.length)} ตัวอักษร`;
   });
   document.getElementById("udFeedbackList").addEventListener("click", (e) => {
     const btn = e.target.closest(".ud-fb-del");

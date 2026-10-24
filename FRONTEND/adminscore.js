@@ -126,29 +126,37 @@ const TEST_STATUS_LABEL = {
 async function openTestDetail(userId) {
   const u = testScoreUsers.find((x) => x.id === userId);
   if (!u) return;
+  const box = document.querySelector("#scoreDetailModal .edit-modal-box");
+  box.classList.add("is-wide"); // ตารางนี้ 7 คอลัมน์ ใช้กล่องกว้าง
   document.getElementById("scoreDetailTitle").textContent = `แบบทดสอบของ ${u.username}`;
   document.getElementById("scoreDetailBody").innerHTML = '<p class="qs-stage-empty">กำลังโหลด...</p>';
   document.getElementById("scoreDetailModal").classList.add("active");
   try {
     const { tests } = await adminApiFetch(`/admin/scores/tests/${userId}`);
     document.getElementById("scoreDetailBody").innerHTML = tests.length
-      ? `<table class="lesson-table qs-test-detail">
-          <thead><tr><th>บท</th><th>ครั้งที่</th><th>สถานะ</th><th>ก่อนอ่าน</th><th>หลังอ่าน</th><th>คอยน์ (เวลา + โบนัส)</th><th>ทำเสร็จเมื่อ</th></tr></thead>
+      ? `<div class="qs-detail-scroll"><table class="qs-test-detail">
+          <thead><tr>
+            <th>บท</th><th>ครั้งที่</th><th>สถานะ</th><th>ก่อนอ่าน</th><th>หลังอ่าน</th>
+            <th>คอยน์<span>เวลา + โบนัส</span></th><th>ทำเสร็จเมื่อ</th>
+          </tr></thead>
           <tbody>${tests
-            .map(
-              (t) => `
+            .map((t) => {
+              const done = t.status === "completed";
+              return `
             <tr>
-              <td>บทที่ ${t.chapterNumber}</td>
-              <td>${t.attempt}${t.attempt > 1 ? " (อ่านซ้ำ)" : ""}</td>
-              <td>${TEST_STATUS_LABEL[t.status] || t.status}</td>
-              <td>${t.preScore === null ? "-" : `${t.preScore}/${t.total}`}</td>
-              <td>${t.status === "completed" ? `${t.postScore}/${t.total}` : "-"}</td>
-              <td>${t.status === "completed" ? `${t.coinsTime} + ${t.coinsBonus}` : "-"}</td>
-              <td>${formatThaiDate(t.completedAt)}</td>
-            </tr>`
-            )
+              <td class="qs-td-chapter">บทที่ ${t.chapterNumber}</td>
+              <td>${t.attempt}${t.attempt > 1 ? '<span class="qs-again">อ่านซ้ำ</span>' : ""}</td>
+              <td><span class="qs-status is-${done ? "done" : "doing"}">${escapeHtml(
+                TEST_STATUS_LABEL[t.status] || t.status
+              )}</span></td>
+              <td>${t.preScore === null ? "–" : `${t.preScore}/${t.total}`}</td>
+              <td>${done ? `${t.postScore}/${t.total}` : "–"}</td>
+              <td>${done ? `${t.coinsTime} + ${t.coinsBonus}` : "–"}</td>
+              <td class="qs-td-when">${done ? escapeHtml(formatThaiDate(t.completedAt)) : "–"}</td>
+            </tr>`;
+            })
             .join("")}</tbody>
-        </table>`
+        </table></div>`
       : '<p class="qs-stage-empty">ยังไม่เคยทำแบบทดสอบ</p>';
   } catch (err) {
     document.getElementById("scoreDetailBody").innerHTML = `<p class="qs-stage-empty">โหลดไม่สำเร็จ: ${escapeHtml(err.message)}</p>`;
@@ -283,6 +291,7 @@ function formatThaiDate(sqliteDatetime) {
 function openScoreDetail(userId) {
   const u = allQuizScores.find((x) => x.id === userId);
   if (!u) return;
+  document.querySelector("#scoreDetailModal .edit-modal-box").classList.remove("is-wide");
   const { overall } = currentThresholds();
   const passed = u.overallPercent >= overall;
 

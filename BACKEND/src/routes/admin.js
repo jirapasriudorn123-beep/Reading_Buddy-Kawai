@@ -103,7 +103,7 @@ router.post("/users/:id/feedback", requireAdmin, async (req, res, next) => {
     const userId = Number(req.params.id);
     const message = String(req.body?.message || "").trim();
     if (!message) return res.status(400).json({ message: "พิมพ์ข้อความก่อนส่งนะ" });
-    if (message.length > 500) return res.status(400).json({ message: "ข้อความยาวเกิน 500 ตัวอักษร" });
+    if (message.length > 5000) return res.status(400).json({ message: "ข้อความยาวเกินไป (เกิน 5,000 ตัวอักษร)" });
 
     const user = await db.prepare("SELECT id FROM users WHERE id = ? AND is_admin = 0").get(userId);
     if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้คนนี้" });
