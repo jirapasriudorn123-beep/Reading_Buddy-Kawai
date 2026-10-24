@@ -412,6 +412,16 @@ async function deleteFeedback(id) {
 
 let currentFeedback = [];
 
+function openFeedbackModal() {
+  document.getElementById("udFeedbackWho").textContent = document.getElementById("udName").textContent;
+  document.getElementById("udFeedbackModal").classList.add("active");
+  document.getElementById("udFeedbackText").focus();
+}
+
+function closeFeedbackModal() {
+  document.getElementById("udFeedbackModal").classList.remove("active");
+}
+
 async function loadReport() {
   if (!userId) {
     document.getElementById("udName").textContent = "ไม่พบผู้ใช้ที่ต้องการดู";
@@ -477,6 +487,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
   document.getElementById("udPrint").addEventListener("click", () => window.print());
   document.getElementById("udCsv").addEventListener("click", downloadCsv);
+  document.getElementById("udFeedbackOpen").addEventListener("click", openFeedbackModal);
+  document.getElementById("udFeedbackClose").addEventListener("click", closeFeedbackModal);
+  document.getElementById("udFeedbackModal").addEventListener("click", (e) => {
+    if (e.target.id === "udFeedbackModal") closeFeedbackModal(); // คลิกพื้นหลัง = ปิด
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeFeedbackModal();
+  });
   document.getElementById("udFeedbackForm").addEventListener("submit", sendFeedback);
   document.getElementById("udFeedbackText").addEventListener("input", (e) => {
     document.getElementById("udFeedbackCount").textContent = `${e.target.value.length} / 500`;

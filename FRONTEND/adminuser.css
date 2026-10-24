@@ -225,6 +225,7 @@
     .sidebar,
     .ud-actions,
     .ud-back,
+    .edit-overlay,
     .toggle-btn {
         display: none !important;
     }
@@ -309,7 +310,17 @@
     }
 }
 
-/* ---- ฟีดแบ็กถึงนิสิต ---- */
+/* ---- ฟีดแบ็กถึงนิสิต (กล่องเด้งจากปุ่มมุมขวาบน) ---- */
+.ud-fb-box {
+    width: 560px;
+    max-height: 86vh;
+    overflow-y: auto;
+}
+
+.ud-fb-box .ad-subhead {
+    margin-top: 18px;
+}
+
 .ud-fb-form textarea {
     width: 100%;
     box-sizing: border-box;

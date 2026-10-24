@@ -6,7 +6,7 @@
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=3">
     <link rel="stylesheet" href="adminhome.css?v=4">
-    <link rel="stylesheet" href="adminuser.css?v=6">
+    <link rel="stylesheet" href="adminuser.css?v=7">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -74,8 +74,9 @@
             </div>
         </div>
         <div class="ud-actions">
+            <button type="button" class="ad-csv-btn" id="udFeedbackOpen">✉️ ส่งฟีดแบ็กถึงนิสิต</button>
             <button type="button" class="ad-csv-btn" id="udPrint" style="background:#fff; color:#333">🖨️ พิมพ์ / บันทึก PDF</button>
-            <button type="button" class="ad-csv-btn" id="udCsv">⬇️ ดาวน์โหลด CSV เฉพาะคนนี้</button>
+            <button type="button" class="ad-csv-btn" id="udCsv" style="background:#fff; color:#333">⬇️ ดาวน์โหลด CSV เฉพาะคนนี้</button>
         </div>
     </header>
 
@@ -173,27 +174,6 @@
         </section>
     </div>
 
-    <!-- ฟีดแบ็กถึงนิสิต -->
-    <section class="ad-card ud-weekly-card">
-        <div class="ad-head">
-            <div>
-                <h3>ฟีดแบ็กถึงนิสิต</h3>
-                <p class="ad-sub">ข้อความที่ส่งจะขึ้นในกระดิ่งแจ้งเตือนของนิสิตคนนี้ พร้อมเสียงเตือน</p>
-            </div>
-        </div>
-        <form class="ud-fb-form" id="udFeedbackForm">
-            <label class="sr-only" for="udFeedbackText">ข้อความฟีดแบ็ก</label>
-            <textarea id="udFeedbackText" rows="3" maxlength="500"
-                      placeholder="เช่น บทที่ 4 ยังตอบผิดบ่อย ลองกลับไปอ่านหัวข้ออัลกอริทึมอีกรอบแล้วมาเล่นมินิเกมนะ"></textarea>
-            <div class="ud-fb-actions">
-                <span class="ud-fb-count" id="udFeedbackCount">0 / 500</span>
-                <button type="submit" class="ad-csv-btn" id="udFeedbackSend">ส่งฟีดแบ็ก</button>
-            </div>
-        </form>
-        <strong class="ad-subhead">ฟีดแบ็กที่เคยส่ง</strong>
-        <ul class="ud-fb-list" id="udFeedbackList"></ul>
-    </section>
-
     <!-- ความคืบหน้ารายสัปดาห์ -->
     <section class="ad-card ud-weekly-card">
         <div class="ad-head">
@@ -208,8 +188,31 @@
     <p class="ad-updated" id="udUpdated"></p>
 </main>
 </div>
+
+<!-- กล่องเด้ง: ส่งฟีดแบ็กถึงนิสิต -->
+<div id="udFeedbackModal" class="edit-overlay">
+    <div class="edit-modal-box ud-fb-box">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" type="button" id="udFeedbackClose" aria-label="ปิด">&#8592;</button>
+            <span class="edit-modal-title">ส่งฟีดแบ็กถึง <span id="udFeedbackWho">นิสิต</span></span>
+        </div>
+
+        <form class="ud-fb-form" id="udFeedbackForm">
+            <label class="edit-form-label" for="udFeedbackText">ข้อความ (นิสิตจะเห็นในกระดิ่งแจ้งเตือนของตัวเอง)</label>
+            <textarea id="udFeedbackText" rows="4" maxlength="500"
+                      placeholder="เช่น บทที่ 4 ยังตอบผิดบ่อย ลองกลับไปอ่านหัวข้ออัลกอริทึมอีกรอบแล้วมาเล่นมินิเกมนะ"></textarea>
+            <div class="ud-fb-actions">
+                <span class="ud-fb-count" id="udFeedbackCount">0 / 500</span>
+                <button type="submit" class="ad-csv-btn" id="udFeedbackSend">ส่งฟีดแบ็ก</button>
+            </div>
+        </form>
+
+        <strong class="ad-subhead">ฟีดแบ็กที่เคยส่ง</strong>
+        <ul class="ud-fb-list" id="udFeedbackList"></ul>
+    </div>
+</div>
 <script src="config.js?v=2"></script>
 <script src="adminAuth.js?v=2"></script>
-<script src="adminuser-detail.js?v=3"></script>
+<script src="adminuser-detail.js?v=4"></script>
 </body>
 </html>
