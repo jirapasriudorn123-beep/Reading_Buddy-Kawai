@@ -109,3 +109,203 @@
 .reading-line {
     white-space: nowrap;
 }
+
+/* ปุ่มเข้าหน้ารายละเอียดผู้เรียน (adminuser-detail.html) */
+.user-report-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 2px solid var(--border-dark);
+    border-radius: 999px;
+    background: var(--card-green);
+    color: #3f5720;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.user-report-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.user-report-btn:hover {
+    background: #b2cd8f;
+    color: #3f5720;
+}
+
+/* ---- หน้ารายงานรายคน ---- */
+.ud-back {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.ud-back a {
+    color: #6f8f45;
+    text-decoration: none;
+}
+
+.ud-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin-bottom: 18px;
+}
+
+.ud-who {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ud-who h2 {
+    margin: 0;
+}
+
+.ud-avatar {
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--card-green);
+    color: #3f5720;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ud-meta {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: #7a7466;
+}
+
+.ud-consent {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #eef5e4;
+    color: #4f6a2c;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.ud-consent.is-off {
+    background: #fbeee9;
+    color: #b35a3a;
+}
+
+.ud-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ud-tiles {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.ud-pet {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #555;
+}
+
+/* พิมพ์เป็น PDF: ซ่อนแถบเมนูและปุ่ม เหลือเฉพาะเนื้อรายงาน */
+@media print {
+    .sidebar,
+    .ud-actions,
+    .ud-back,
+    .toggle-btn {
+        display: none !important;
+    }
+    .main-content {
+        padding: 0 !important;
+        background: #fff !important;
+        background-image: none !important;
+    }
+    .ad-card,
+    .stat-card {
+        break-inside: avoid;
+    }
+}
+
+/* ---- ธงเตือน "สิ่งที่ควรดู" ในหน้ารายละเอียดผู้เรียน ---- */
+.ud-flags {
+    margin-bottom: 20px;
+}
+
+.ud-flags[hidden] {
+    display: none;
+}
+
+.ud-flags-title {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.ud-flag-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.ud-flag {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.6;
+}
+
+.ud-flag-dot {
+    width: 9px;
+    height: 9px;
+    flex-shrink: 0;
+    margin-top: 7px;
+    border-radius: 50%;
+}
+
+.ud-flag.is-red {
+    background: #fbeee9;
+    border: 2px solid #f0cfc3;
+    color: #8a4030;
+}
+
+.ud-flag.is-red .ud-flag-dot {
+    background: #c0533a;
+}
+
+.ud-flag.is-amber {
+    background: #fbf7ea;
+    border: 2px solid #e6d9b4;
+    color: #7a5a10;
+}
+
+.ud-flag.is-amber .ud-flag-dot {
+    background: #d9a441;
+}
+
+.ud-weekly-card {
+    margin: 0 20px 14px;
+}
+
+@media (max-width: 1100px) {
+    .ud-flag-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

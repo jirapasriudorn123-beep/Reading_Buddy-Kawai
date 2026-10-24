@@ -8,6 +8,7 @@ const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
 const { buildDashboard } = require("../services/adminDashboard");
+const { buildUserReport } = require("../services/adminUserReport");
 
 const router = express.Router();
 
@@ -78,6 +79,18 @@ router.get("/stats", requireAdmin, async (req, res, next) => {
       gamePlayers: gamePlayersRow.c,
       chart: chartRows.map((r) => ({ day: r.day, minutes: Math.round(r.seconds / 60), coins: r.coins })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================== รายงานรายคน (หน้า adminuser-detail.html) ==================
+// GET /api/admin/users/:id/report — รายละเอียดการใช้งานของผู้ใช้คนเดียว (ดู services/adminUserReport.js)
+router.get("/users/:id/report", requireAdmin, async (req, res, next) => {
+  try {
+    const report = await buildUserReport(Number(req.params.id));
+    if (!report) return res.status(404).json({ message: "ไม่พบผู้ใช้คนนี้" });
+    return res.json(report);
   } catch (err) {
     next(err);
   }

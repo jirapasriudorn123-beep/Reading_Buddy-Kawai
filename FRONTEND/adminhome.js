@@ -231,7 +231,9 @@ function drawTopReaders() {
         const mins = r.readMinutes % 60;
         const score = r.prePercent === null ? "—" : `${r.prePercent} → ${r.postPercent}`;
         return `<tr>
-          <td><span class="ad-rank${r.rank <= 3 ? ` is-top${r.rank}` : ""}">${r.rank}</span>${escapeHtml(r.username)}</td>
+          <td><span class="ad-rank${r.rank <= 3 ? ` is-top${r.rank}` : ""}">${r.rank}</span>${
+            r.id ? `<a href="adminuser-detail.html?userId=${r.id}" class="ad-user-link">${escapeHtml(r.username)}</a>` : escapeHtml(r.username)
+          }</td>
           <td>${hours ? `${hours} ชม. ` : ""}${mins} น.</td>
           <td>${num(r.sessions)}</td>
           <td>${escapeHtml(score)}</td>
@@ -365,6 +367,40 @@ function renderAi(ai) {
     : adEmpty("ยังไม่มีข้อมูลพอจะสรุป");
 }
 
+// ---------- นิสิตที่ควรดูแล ----------
+function renderAtRisk(atRisk) {
+  const chip = document.getElementById("adRiskChip");
+  const table = document.getElementById("adRiskTable");
+  const note = document.getElementById("adRiskNote");
+  const c = atRisk.criteria;
+
+  note.textContent =
+    `เกณฑ์ที่ใช้: หลังอ่านเฉลี่ยต่ำกว่า ${c.lowPostPercent}% · ทำแบบทดสอบหลังอ่านไม่ผ่านตั้งแต่ ${c.failTries} ครั้งในบทเดียว · ` +
+    `ไม่ได้อ่านเกิน ${c.quietDays} วัน · หยุดก่อนครบเวลาเกินครึ่งของรอบที่อ่าน (อย่างน้อย ${c.minRounds} รอบ) · ค้างรอบทบทวนตั้งแต่ ${c.dueItems} ข้อ`;
+
+  if (!atRisk.users.length) {
+    chip.textContent = `ไม่มีใครติดธง (${num(atRisk.total)} คน)`;
+    table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีนิสิตที่เข้าเกณฑ์ — ดีมาก")}</td></tr></tbody>`;
+    return;
+  }
+  chip.textContent = `${num(atRisk.users.length)} จาก ${num(atRisk.total)} คน`;
+  table.innerHTML = `<thead><tr>
+      <th>นิสิต</th><th>เหตุที่ติดธง</th><th>หลังอ่านเฉลี่ย</th><th>อ่านล่าสุด</th><th></th>
+    </tr></thead><tbody>${atRisk.users
+      .map(
+        (u) => `<tr>
+          <td><a href="adminuser-detail.html?userId=${u.id}" class="ad-user-link">${escapeHtml(u.username)}</a></td>
+          <td class="ad-risk-tags">${u.tags
+            .map((t) => `<span class="ad-tag is-${t.severity}">${escapeHtml(t.text)}</span>`)
+            .join("")}</td>
+          <td>${u.postPercent === null ? "—" : `${u.postPercent}%`}</td>
+          <td>${escapeHtml(u.lastReadDate || "ยังไม่เคยอ่าน")}</td>
+          <td><a href="adminuser-detail.html?userId=${u.id}" class="ad-risk-go">ดูรายละเอียด →</a></td>
+        </tr>`
+      )
+      .join("")}</tbody>`;
+}
+
 // ---------- กระดิ่ง: สิ่งที่แอดมินแก้ล่าสุด ----------
 function renderUpdates(items) {
   const list = document.getElementById("adBellList");
@@ -418,6 +454,7 @@ function renderDashboard(data) {
   renderLearning(data.learning);
   renderAi(data.ai);
   renderGames(data.games);
+  renderAtRisk(data.atRisk || { total: 0, users: [], criteria: {} });
   renderUpdates(data.updates || []);
   document.getElementById("adUpdatedAt").textContent = `อัปเดตล่าสุด: ${new Date().toLocaleString("th-TH", {
     dateStyle: "long",

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS Dashboard</title>
+    <link rel="stylesheet" href="adminstyle.css?v=3">
+    <link rel="stylesheet" href="adminhome.css?v=4">
+    <link rel="stylesheet" href="adminuser.css?v=5">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="profile-area">
+            <div class="avatar-circle">
+                <img src="img/NEW_LOGO.png" alt="puppy" width="200" height="150"> </div>
+        </div>
+
+        <nav class="menu">
+            <a href="adminhome.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1"/></svg></span>
+                <span class="menu-label">หน้าหลัก</span>
+            </a>
+            <a href="adminlesson.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.3"/><path d="M8 13a4 4 0 0 1 8 0"/><rect x="4" y="17" width="16" height="2.5" rx="1"/><path d="M6 17v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/></svg></span>
+                <span class="menu-label">จัดการบทเรียน</span>
+            </a>
+            <a href="adminshop.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a6 6 0 0 1 12 0v2"/><rect x="3" y="8" width="18" height="13" rx="2"/></svg></span>
+                <span class="menu-label">จัดการร้านค้า</span>
+            </a>
+            <a href="admincoupon.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><line x1="10" y1="7" x2="10" y2="17" stroke-dasharray="2 2"/></svg></span>
+                <span class="menu-label">จัดการคูปอง</span>
+            </a>
+            <a href="admingame.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg></span>
+                <span class="menu-label">จัดการมินิเกม</span>
+            </a>
+            <a href="adminscore.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                <span class="menu-label">จัดการคะแนน</span>
+            </a>
+            <a href="adminuser.html" class="menu-item active">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg></span>
+                <span class="menu-label">จัดการผู้ใช้</span>
+            </a>
+        </nav>
+
+        <div class="bottom-menu">
+            <a href="#" class="menu-item" id="logoutBtn">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+                <span class="menu-label">ลงชื่อออก</span>
+            </a>
+        </div>
+        <button class="toggle-btn" id="toggleBtn">
+        <span class="arrow-icon">◀</span>
+    </button>
+
+    <nav class="menu">
+        </nav>
+    </aside>
+<main class="main-content">
+    <!-- หัวหน้า: ย้อนกลับ + ตัวผู้เรียน + ปุ่มส่งออก -->
+    <p class="ud-back"><a href="adminuser.html">← กลับหน้าจัดการผู้ใช้</a></p>
+
+    <header class="ud-head">
+        <div class="ud-who">
+            <span class="ud-avatar" id="udAvatar">–</span>
+            <div>
+                <h2 id="udName">กำลังโหลด...</h2>
+                <p class="ud-meta" id="udMeta">—</p>
+            </div>
+        </div>
+        <div class="ud-actions">
+            <button type="button" class="ad-csv-btn" id="udPrint" style="background:#fff; color:#333">🖨️ พิมพ์ / บันทึก PDF</button>
+            <button type="button" class="ad-csv-btn" id="udCsv">⬇️ ดาวน์โหลด CSV เฉพาะคนนี้</button>
+        </div>
+    </header>
+
+    <p class="ad-demo-note" id="udNoConsent" hidden>ผู้ใช้คนนี้ยังไม่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย — ข้อมูลในหน้านี้ใช้ดูแลระบบเท่านั้น ห้ามนำไปวิเคราะห์หรือแนบในเล่ม</p>
+
+    <!-- ธงเตือน: สิ่งที่ควรดูของคนนี้ -->
+    <section class="ud-flags" id="udFlags" hidden>
+        <strong class="ud-flags-title">สิ่งที่ควรดู</strong>
+        <div class="ud-flag-grid" id="udFlagList"></div>
+    </section>
+
+    <!-- การ์ดสรุปของคนนี้ -->
+    <div class="ad-tiles ud-tiles" id="udTiles"></div>
+
+    <!-- ปฏิทินการอ่าน · ความแม่นรายบท -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ปฏิทินการอ่าน</h3>
+                    <p class="ad-sub">ย้อนหลัง 12 สัปดาห์ · เข้มตามเวลาที่อ่านในวันนั้น</p>
+                </div>
+            </div>
+            <div id="udHeatmap"></div>
+        </section>
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ความแม่นรายบท</h3>
+                    <p class="ad-sub">รวมคำตอบจากหลังอ่าน + มินิเกม + ทบทวน · เงาจาง = ค่าเฉลี่ยทุกคน</p>
+                </div>
+            </div>
+            <div id="udRadar"></div>
+        </section>
+    </div>
+
+    <!-- ก่อน → หลังอ่านรายบท · การทบทวน -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>คะแนนก่อนอ่าน → หลังอ่าน รายบท</h3>
+                    <p class="ad-sub">จุดส้ม = ก่อนอ่าน · จุดเขียว = หลังอ่าน (ครั้งแรก) · เส้นยาว = พัฒนาการเยอะ</p>
+                </div>
+            </div>
+            <div id="udSlopes"></div>
+        </section>
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>การทบทวนของคนนี้</h3>
+                    <p class="ad-sub">ระบบทบทวนตามรอบ 1 / 3 / 7 / 14 วัน</p>
+                </div>
+            </div>
+            <div class="ad-pet">
+                <div class="ad-ring" id="udReviewRing" style="--value:0"><span id="udReviewPercent">0%</span></div>
+                <div class="ad-pet-text">
+                    <strong id="udReviewTitle">ข้อที่จำได้แล้ว</strong>
+                    <p id="udReviewDesc">กำลังโหลด...</p>
+                </div>
+            </div>
+            <strong class="ad-subhead">ความจำตามระยะเวลาที่เว้น</strong>
+            <ul class="ad-bars" id="udIntervals"></ul>
+        </section>
+    </div>
+
+    <!-- รอบการอ่านล่าสุด · มินิเกมและน้องหมา -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>รอบการอ่านล่าสุด</h3>
+                    <p class="ad-sub">10 รอบหลังสุด · ดูได้ว่าอ่านครบเวลาที่ตั้งไว้ไหม</p>
+                </div>
+            </div>
+            <table class="ad-table" id="udSessions"></table>
+        </section>
+
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>มินิเกมและน้องหมา</h3>
+                    <p class="ad-sub">ด่านที่ผ่านและการดูแลน้องหมาของคนนี้</p>
+                </div>
+                <span class="ad-chip" id="udGameChip">—</span>
+            </div>
+            <strong class="ad-subhead">ด่านที่ผ่าน (รายโลก)</strong>
+            <ul class="ad-bars" id="udWorlds"></ul>
+            <strong class="ad-subhead">น้องหมา</strong>
+            <p class="ud-pet" id="udPet">—</p>
+            <strong class="ad-subhead">ถาม AI</strong>
+            <p class="ud-pet" id="udAi">—</p>
+        </section>
+    </div>
+
+    <!-- ความคืบหน้ารายสัปดาห์ -->
+    <section class="ad-card ud-weekly-card">
+        <div class="ad-head">
+            <div>
+                <h3>ความคืบหน้ารายสัปดาห์</h3>
+                <p class="ad-sub">แท่ง = เวลาอ่านในสัปดาห์นั้น · เส้น = คะแนนหลังอ่านเฉลี่ยของสัปดาห์นั้น</p>
+            </div>
+        </div>
+        <div id="udWeekly"></div>
+    </section>
+
+    <p class="ad-updated" id="udUpdated"></p>
+</main>
+</div>
+<script src="config.js?v=2"></script>
+<script src="adminAuth.js?v=2"></script>
+<script src="adminuser-detail.js?v=2"></script>
+</body>
+</html>

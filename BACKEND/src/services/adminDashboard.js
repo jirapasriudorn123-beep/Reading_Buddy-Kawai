@@ -200,6 +200,7 @@ async function buildTopReaders() {
     const s = byUser.get(r.id);
     return {
       rank: i + 1,
+      id: r.id,
       username: r.username,
       readMinutes: Math.round(r.seconds / 60),
       sessions: r.sessions,
@@ -447,10 +448,109 @@ async function buildAdminUpdates() {
     }));
 }
 
+// ---------- นิสิตที่ควรดูแล (การ์ดบนหน้าหลัก) ----------
+// ติดธงเมื่อเข้าเกณฑ์อย่างน้อย 1 ข้อ — เกณฑ์เดียวกับธงเตือนในหน้ารายละเอียดรายคน
+const AT_RISK = {
+  lowPostPercent: 50, // คะแนนหลังอ่านเฉลี่ยต่ำกว่านี้
+  failTries: 3, // ทำ post ไม่ผ่านกี่ครั้งในบทเดียว
+  quietDays: 7, // ไม่ได้อ่านกี่วัน
+  stoppedRatio: 0.5, // หยุดก่อนครบเวลาเกินครึ่งของรอบที่อ่าน (ต้องมีอย่างน้อย 5 รอบ)
+  minRounds: 5,
+  dueItems: 20, // ค้างรอบทบทวนกี่ข้อ
+};
+
+async function buildAtRisk() {
+  const [users, scores, reading, fails, due] = await Promise.all([
+    db.prepare("SELECT id, username FROM users WHERE is_admin = 0").all(),
+    db
+      .prepare(
+        `SELECT user_id, COALESCE(AVG(COALESCE(first_post_score, post_score, last_post_score) * 100.0 / NULLIF(total, 0)), 0) post,
+                COUNT(*) tests
+         FROM chapter_tests WHERE status = 'completed' GROUP BY user_id`
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT user_id, COUNT(*) rounds,
+                COALESCE(SUM(CASE WHEN read_seconds < planned_read_seconds THEN 1 ELSE 0 END), 0) stopped_early,
+                date(MAX(started_at), '${THAI}') last_day,
+                CAST(julianday('now') - julianday(MAX(started_at)) AS INTEGER) days_ago
+         FROM reading_sessions WHERE status = 'completed' GROUP BY user_id`
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT t.user_id, c.chapter_number, MAX(t.post_tries) tries
+         FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id
+         WHERE t.post_tries >= ? GROUP BY t.user_id, c.id`
+      )
+      .all(AT_RISK.failTries),
+    db
+      .prepare(
+        `SELECT user_id, COUNT(*) c FROM review_items
+         WHERE due_at IS NOT NULL AND datetime(due_at) <= datetime('now') GROUP BY user_id`
+      )
+      .all(),
+  ]);
+
+  const scoreBy = new Map(scores.map((r) => [r.user_id, r]));
+  const readBy = new Map(reading.map((r) => [r.user_id, r]));
+  const dueBy = new Map(due.map((r) => [r.user_id, r.c]));
+  const failBy = new Map();
+  for (const f of fails) {
+    if (!failBy.has(f.user_id)) failBy.set(f.user_id, []);
+    failBy.get(f.user_id).push(f);
+  }
+
+  const rows = [];
+  for (const u of users) {
+    const score = scoreBy.get(u.id);
+    const read = readBy.get(u.id);
+    const dueNow = dueBy.get(u.id) || 0;
+    const tags = [];
+
+    const postPercent = score && score.tests ? Math.round(score.post) : null;
+    if (postPercent !== null && postPercent < AT_RISK.lowPostPercent) {
+      tags.push({ severity: "red", text: `หลังอ่านเฉลี่ย ${postPercent}%` });
+    }
+    for (const f of failBy.get(u.id) || []) {
+      tags.push({ severity: "red", text: `ไม่ผ่านบทที่ ${f.chapter_number} · ${f.tries} ครั้ง` });
+    }
+    if (!read) {
+      tags.push({ severity: "red", text: "ยังไม่เคยอ่านสักรอบ" });
+    } else if (read.days_ago >= AT_RISK.quietDays) {
+      tags.push({
+        severity: read.days_ago >= AT_RISK.quietDays * 2 ? "red" : "amber",
+        text: `ไม่ได้อ่าน ${read.days_ago} วัน`,
+      });
+    }
+    if (read && read.rounds >= AT_RISK.minRounds && read.stopped_early / read.rounds >= AT_RISK.stoppedRatio) {
+      tags.push({ severity: "amber", text: `หยุดก่อนครบ ${read.stopped_early}/${read.rounds} รอบ` });
+    }
+    if (dueNow >= AT_RISK.dueItems) {
+      tags.push({ severity: "amber", text: `ค้างรอบทบทวน ${dueNow} ข้อ` });
+    }
+    if (!tags.length) continue;
+
+    rows.push({
+      id: u.id,
+      username: u.username,
+      postPercent,
+      lastReadDate: read ? read.last_day : null,
+      daysSinceRead: read ? read.days_ago : null,
+      tags,
+      reds: tags.filter((t) => t.severity === "red").length,
+    });
+  }
+
+  rows.sort((a, b) => b.reds - a.reds || b.tags.length - a.tags.length || (a.postPercent ?? 100) - (b.postPercent ?? 100));
+  return { total: users.length, criteria: AT_RISK, users: rows.slice(0, 8) };
+}
+
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
-  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games] = await Promise.all([
+  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk] = await Promise.all([
     buildTiles(),
     buildTrend(range),
     buildChapterShare(range),
@@ -465,6 +565,7 @@ async function buildDashboard(days = 7) {
     buildAdvice(range),
     buildAdminUpdates(),
     buildGames(),
+    buildAtRisk(),
   ]);
   return {
     range,
@@ -480,6 +581,7 @@ async function buildDashboard(days = 7) {
     ai: { ...ai, advice },
     updates,
     games,
+    atRisk,
   };
 }
 

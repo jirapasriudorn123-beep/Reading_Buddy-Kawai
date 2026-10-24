@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=6">
-    <link rel="stylesheet" href="adminhome.css?v=4">
+    <link rel="stylesheet" href="adminhome.css?v=5">
     <link rel="stylesheet" href="adminresearch.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -132,6 +132,19 @@
     </div>
 
     <!-- แถว 1: แนวโน้ม · สัดส่วนรายบท · น้องหมา -->
+    <!-- นิสิตที่ควรดูแล: ติดธงจากข้อมูลการใช้งานจริง -->
+    <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>นิสิตที่ควรดูแล</h3>
+                <p class="ad-sub">เข้าเกณฑ์อย่างน้อย 1 ข้อ · เรียงจากเร่งด่วนที่สุด</p>
+            </div>
+            <span class="ad-chip" id="adRiskChip">—</span>
+        </div>
+        <table class="ad-table" id="adRiskTable"></table>
+        <p class="ad-sub ad-risk-note" id="adRiskNote"></p>
+    </section>
+
     <!-- แถว 1: แนวโน้มการใช้งาน · สัดส่วนการอ่านรายบท -->
     <div class="ad-cols ad-cols-2">
         <section class="ad-card">
@@ -343,7 +356,7 @@
 </div>
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=8"></script>
+<script src="adminhome.js?v=9"></script>
 <script src="adminresearch.js?v=4"></script>
 </body>
 </html>
