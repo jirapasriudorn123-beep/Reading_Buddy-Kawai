@@ -178,9 +178,9 @@ html.dark-mode body .noti-item:hover {
 }
 
 .inbox-box {
-    width: 440px;
+    width: 720px;
     max-width: 100%;
-    height: min(560px, 85vh);
+    height: min(420px, 85vh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -252,6 +252,39 @@ html.dark-mode body .noti-item:hover {
 .inbox-item {
     padding: 14px 18px;
     border-bottom: 1px solid #ece6d7;
+}
+
+/* จอกว้าง: วันที่อยู่คอลัมน์ซ้าย ข้อความและคำตอบอยู่คอลัมน์ขวา */
+@media (min-width: 640px) {
+    .inbox-item {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        column-gap: 16px;
+    }
+
+    .inbox-when {
+        grid-column: 1;
+        padding-top: 2px;
+    }
+
+    .inbox-text,
+    .inbox-answer,
+    .inbox-reply-btn,
+    .inbox-reply-form {
+        grid-column: 2;
+    }
+
+    .inbox-text {
+        margin-top: 0;
+    }
+
+    .inbox-reply-btn {
+        justify-self: start;
+    }
+
+    .inbox-answer {
+        margin-left: 0;
+    }
 }
 
 .inbox-item:last-child {
