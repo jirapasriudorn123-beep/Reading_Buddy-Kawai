@@ -313,6 +313,36 @@ async function buildAccuracy(userId) {
   });
 }
 
+// ---------- จุดที่อ่อนที่สุด: บทที่แม่นน้อยสุด + ข้อที่ตอบผิดบ่อย ----------
+async function buildWeakSpots(userId) {
+  const questions = await db
+    .prepare(
+      `SELECT q.id, q.question, c.chapter_number chapter, c.title chapter_title,
+              COUNT(*) asked, COALESCE(SUM(l.correct), 0) correct,
+              MAX(i.lapses) lapses, MAX(i.stage) stage
+       FROM review_log l
+       JOIN quiz_questions q ON q.id = l.question_id
+       JOIN chapters c ON c.id = l.chapter_id
+       LEFT JOIN review_items i ON i.user_id = l.user_id AND i.question_id = l.question_id
+       WHERE l.user_id = ?
+       GROUP BY l.question_id
+       HAVING asked - correct > 0
+       ORDER BY (correct * 1.0 / asked) ASC, asked DESC
+       LIMIT 5`
+    )
+    .all(userId);
+
+  return questions.map((q) => ({
+    chapter: q.chapter,
+    chapterTitle: q.chapter_title,
+    question: q.question,
+    asked: q.asked,
+    wrong: q.asked - q.correct,
+    correctPercent: pct(q.correct, q.asked),
+    mastered: (q.stage ?? 0) >= MASTERED_STAGE,
+  }));
+}
+
 // ---------- ความคืบหน้ารายสัปดาห์ (8 สัปดาห์ล่าสุด) ----------
 async function buildWeekly(userId, weeks = 8) {
   const days = weeks * 7;
@@ -504,7 +534,7 @@ async function buildFeedback(userId) {
 async function buildUserReport(userId) {
   const profile = await buildProfile(userId);
   if (!profile) return null;
-  const [chapters, review, sessions, game, extras, heatmap, accuracy, weekly, feedback, attempts, lastRead] = await Promise.all([
+  const [chapters, review, sessions, game, extras, heatmap, accuracy, weekly, weakSpots, feedback, attempts, lastRead] = await Promise.all([
     buildChapters(userId),
     buildReview(userId),
     buildSessions(userId),
@@ -513,6 +543,7 @@ async function buildUserReport(userId) {
     buildHeatmap(userId),
     buildAccuracy(userId),
     buildWeekly(userId),
+    buildWeakSpots(userId),
     buildFeedback(userId),
     db
       .prepare(
@@ -555,6 +586,7 @@ async function buildUserReport(userId) {
     sessions,
     heatmap,
     weekly,
+    weakSpots,
     feedback,
     game,
     ...extras,

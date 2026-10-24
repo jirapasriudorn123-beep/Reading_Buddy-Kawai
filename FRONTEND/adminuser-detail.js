@@ -303,6 +303,44 @@ function renderRadar(accuracy) {
     </div>`;
 }
 
+// ---------- จุดที่อ่อนที่สุด: บทที่แม่นน้อยสุด + ข้อที่ตอบผิดบ่อย ----------
+function renderWeakSpots(accuracy, weakSpots) {
+  const lead = document.getElementById("udWeakLead");
+  const list = document.getElementById("udWeakList");
+
+  // บทที่อ่อนที่สุด = ความแม่นต่ำสุดในบทที่ตอบไปแล้วอย่างน้อย 5 ข้อ
+  const scored = accuracy.filter((a) => a.percent !== null && a.answers >= 5);
+  if (scored.length) {
+    const weakest = scored.reduce((a, c) => (c.percent < a.percent ? c : a));
+    const gap = weakest.averagePercent === null ? null : weakest.percent - weakest.averagePercent;
+    lead.innerHTML =
+      `อ่อนที่สุดคือ <strong>บทที่ ${weakest.chapter} ${escapeHtml(weakest.title)}</strong> — ` +
+      `ตอบถูก ${weakest.percent}% จาก ${num(weakest.answers)} ข้อ` +
+      (gap === null
+        ? ""
+        : gap < 0
+        ? ` (<span class="ud-weak-gap">ต่ำกว่าค่าเฉลี่ยทุกคน ${Math.abs(gap)} จุด</span>)`
+        : gap === 0
+        ? " (เท่ากับค่าเฉลี่ยทุกคน)"
+        : ` (สูงกว่าค่าเฉลี่ยทุกคน ${gap} จุด)`);
+  } else {
+    lead.textContent = "ยังตอบคำถามไม่พอจะบอกว่าอ่อนบทไหน (ต้องมีอย่างน้อย 5 ข้อในบทนั้น)";
+  }
+
+  list.innerHTML = weakSpots.length
+    ? weakSpots
+        .map(
+          (w) => `<li>
+            <span class="ud-weak-q">${escapeHtml(w.question)}</span>
+            <span class="ud-weak-meta">บทที่ ${w.chapter} · ตอบผิด ${num(w.wrong)} จาก ${num(w.asked)} ครั้ง${
+              w.mastered ? " · ตอนนี้จำได้แล้ว" : ""
+            }</span>
+          </li>`
+        )
+        .join("")
+    : '<li class="ud-weak-empty">ยังไม่มีข้อที่ตอบผิดซ้ำ</li>';
+}
+
 // ---------- ความคืบหน้ารายสัปดาห์ ----------
 function renderWeekly(weeks) {
   const box = document.getElementById("udWeekly");
@@ -436,6 +474,7 @@ async function loadReport() {
     renderFlags(data.flags || []);
     renderHeatmap(data.heatmap || []);
     renderRadar(data.accuracy || []);
+    renderWeakSpots(data.accuracy || [], data.weakSpots || []);
     renderWeekly(data.weekly || []);
     currentFeedback = data.feedback || [];
     renderFeedback(currentFeedback);

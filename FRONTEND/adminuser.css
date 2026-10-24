@@ -418,3 +418,74 @@
     color: #999;
 }
 
+/* ---- จุดที่อ่อนที่สุด (ในการ์ดความแม่นรายบท) ---- */
+.ud-weak-lead {
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #555;
+}
+
+.ud-weak-gap {
+    color: #b35a3a;
+    font-weight: 600;
+}
+
+.ud-weak-list {
+    list-style: none;
+    counter-reset: weak;
+    margin: 0;
+    padding: 0;
+}
+
+.ud-weak-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0 8px 30px;
+    position: relative;
+    border-bottom: 1px dotted #ece6d6;
+    counter-increment: weak;
+}
+
+.ud-weak-list li:last-child {
+    border-bottom: none;
+}
+
+.ud-weak-list li::before {
+    content: counter(weak);
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fbeee9;
+    color: #b35a3a;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ud-weak-q {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.ud-weak-meta {
+    font-size: 12.5px;
+    color: #8a8373;
+}
+
+.ud-weak-empty {
+    padding-left: 0;
+    font-size: 14px;
+    color: #999;
+}
+
+.ud-weak-empty::before {
+    display: none;
+}
+
