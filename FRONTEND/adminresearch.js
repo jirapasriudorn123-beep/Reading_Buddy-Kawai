@@ -8,12 +8,6 @@ const RS_DATASETS = [
   { kind: "days", label: "รายวัน", desc: "1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้" },
   { kind: "sessions", label: "รายรอบอ่าน", desc: "1 แถว = รอบอ่าน 1 รอบ" },
   { kind: "reviews", label: "การทบทวน", desc: "1 แถว = ตอบคำถามบทเรียน 1 ครั้ง (แบบทดสอบหลังอ่าน/เกม) พร้อมขั้นทบทวน 1/3/7/14 วัน" },
-  {
-    kind: "user-key",
-    label: "🔑 รายชื่อผู้ใช้",
-    desc: "ชื่อผู้ใช้กับอีเมลสำหรับติดต่อ — มีข้อมูลส่วนบุคคล เก็บแยก ห้ามแนบเล่มหรือส่งต่อ",
-    sensitive: true,
-  },
 ];
 
 // ชื่อคอลัมน์ภาษาไทย (ชื่อจริงในไฟล์ CSV ยังเป็นภาษาอังกฤษ — ชี้ที่หัวตารางเพื่อดู)
@@ -185,13 +179,6 @@ const RS_CARD_VIEWS = {
       ];
     },
   },
-  "user-key": {
-    title: (r) => r.username,
-    subtitle: (r) => `สมัคร ${r.registered_at}`,
-    stats: [],
-    groups: [["ข้อมูลส่วนบุคคล", ["username", "email"]]],
-    summary: (rows) => [["ผู้ใช้", rows.length]],
-  },
 };
 
 const RS_CARD_PAGE = 6; // การ์ดต่อหน้า (การ์ดสูงกว่าแถวตาราง)
@@ -203,7 +190,6 @@ const rsState = {
   kind: RS_DATASETS[0].kind,
   view: "cards", // "cards" = การ์ดอ่านง่าย, "table" = ตารางเหมือนไฟล์ CSV
   cache: new Map(), // kind → { columns, rows }
-  revealed: new Set(), // หมวดข้อมูลส่วนบุคคลที่กดยืนยันดูแล้ว
   page: 0,
   query: "",
 };
@@ -244,7 +230,7 @@ function rsRenderTabs() {
     const data = rsState.cache.get(d.kind);
     const count = data ? ` <span class="rs-tab-count">${data.rows.length.toLocaleString()}</span>` : "";
     const selected = d.kind === rsState.kind;
-    return `<button type="button" role="tab" class="rs-tab${d.sensitive ? " is-sensitive" : ""}${selected ? " is-active" : ""}"
+    return `<button type="button" role="tab" class="rs-tab${selected ? " is-active" : ""}"
       aria-selected="${selected}" data-kind="${d.kind}">${d.label}${count}</button>`;
   }).join("");
   document.querySelectorAll(".rs-tab").forEach((btn) => btn.addEventListener("click", () => rsSelect(btn.dataset.kind)));
@@ -329,12 +315,6 @@ function rsRenderTable() {
   const d = rsDataset();
   document.getElementById("rsDesc").textContent = d.desc;
 
-  if (d.sensitive && !rsState.revealed.has(d.kind)) {
-    return rsShowMessage(
-      `<p>ตารางนี้มีอีเมลของผู้ใช้ (ข้อมูลติดต่อ) ใช้เท่าที่จำเป็นเท่านั้น</p>
-       <button type="button" class="rs-reveal" id="rsReveal">แสดงข้อมูล</button>`
-    );
-  }
   const data = rsState.cache.get(d.kind);
   if (!data) return rsShowMessage("<p>กำลังโหลด...</p>");
 
@@ -405,8 +385,6 @@ async function rsSelect(kind) {
   rsState.page = 0;
   rsRenderTabs();
   rsRenderTable();
-  const d = rsDataset(kind);
-  if (d.sensitive && !rsState.revealed.has(kind)) return;
   try {
     await rsLoad(kind);
   } catch {
@@ -419,16 +397,6 @@ async function rsSelect(kind) {
 
 // ดาวน์โหลด CSV ของหมวดที่เปิดอยู่
 async function rsDownload() {
-  const d = rsDataset();
-  if (
-    d.sensitive &&
-    !confirm(
-      "ไฟล์นี้มีอีเมลของผู้ใช้ (ข้อมูลติดต่อ)\n" +
-        "เก็บแยกจากไฟล์ข้อมูลวิจัย ห้ามแนบในเล่มหรือส่งต่อ\n\nดาวน์โหลดต่อไหม?"
-    )
-  ) {
-    return;
-  }
   const btn = document.getElementById("rsDownload");
   btn.disabled = true;
   const original = btn.textContent;
@@ -493,12 +461,6 @@ document.addEventListener("DOMContentLoaded", () => {
       rsRenderTable();
     }, 200);
   });
-  // ปุ่ม "แสดงข้อมูล" ของตารางรหัสผู้ใช้ (สร้างใหม่ทุกครั้งที่วาด จึงผูกผ่านกรอบตาราง)
-  document.getElementById("rsMessage").addEventListener("click", (e) => {
-    if (e.target.id !== "rsReveal") return;
-    rsState.revealed.add(rsState.kind);
-    rsSelect(rsState.kind);
-  });
   // ย่อ/ขยายหน้าต่าง → จำนวนแถวต่อหน้าเปลี่ยน
   let resizeTimer = null;
   window.addEventListener("resize", () => {
@@ -507,8 +469,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   rsSelect(rsState.kind);
-  // โหลดจำนวนแถวของหมวดอื่นไว้ล่วงหน้า (ยกเว้นตารางรหัสผู้ใช้) ให้แท็บโชว์ตัวเลข
-  RS_DATASETS.filter((d) => !d.sensitive && d.kind !== rsState.kind).forEach((d) =>
+  // โหลดจำนวนแถวของหมวดอื่นไว้ล่วงหน้า ให้แท็บโชว์ตัวเลข
+  RS_DATASETS.filter((d) => d.kind !== rsState.kind).forEach((d) =>
     rsLoad(d.kind).then(rsRenderTabs).catch(() => {})
   );
 });

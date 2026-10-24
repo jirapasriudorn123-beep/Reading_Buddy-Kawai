@@ -2,12 +2,11 @@ const db = require("../db/database");
 const { INTERVAL_DAYS, MASTERED_STAGE } = require("./spacedReview");
 
 // ================== ส่งออกข้อมูลวิจัย (Learning Analytics) เป็น CSV ==================
-// 3 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ระบุด้วยชื่อผู้ใช้ (= รหัสนิสิต) ตามที่ขอความยินยอมไว้ ไม่มีอีเมลในไฟล์ข้อมูล
+// 4 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ระบุด้วยชื่อผู้ใช้ (= รหัสนิสิต) ตามที่ขอความยินยอมไว้ ไม่มีอีเมลในไฟล์ข้อมูล
 //   users    — 1 แถว = ผู้ใช้ 1 คน (เทียบระหว่างคน เช่น ดูแลหมาบ่อย vs อ่านนาน)
 //   days     — 1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้ (retention, เทียบวันที่ดูแลหมากับวันที่ไม่ได้ดูแลในคนเดียวกัน)
 //   sessions — 1 แถว = รอบอ่าน 1 รอบที่อ่านจบ (ช่วงเวลาที่อ่าน, ความยาวรอบ, รอบที่ถาม AI vs ไม่ได้ถาม)
 //   reviews  — 1 แถว = ตอบคำถามบทเรียน 1 ครั้งใน post/เกม พร้อมขั้นทบทวน (จำได้แค่ไหนเมื่อเว้นไป 1/3/7/14 วัน)
-//   user-key — ตารางจับคู่รหัสผู้ใช้ ↔ ชื่อผู้ใช้/อีเมล (มีข้อมูลส่วนบุคคล เก็บแยกจากข้อมูลวิจัย ห้ามแนบในเล่ม/ส่งต่อ)
 // เวลาทั้งหมดเป็นเวลาไทย (UTC+7) | ไม่นับบัญชีแอดมิน
 // รวมเฉพาะผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัย (users.research_consent = 1 ดู services/consent.js)
 
@@ -472,29 +471,12 @@ async function buildReviews() {
   return { columns: REVIEW_COLUMNS, rows };
 }
 
-// ---------- user-key.csv ----------
-// รายชื่อผู้ใช้ที่ยินยอม + อีเมล (ข้อมูลติดต่อ) — เก็บแยกจาก 4 ชุดข้างบนที่มีแต่ชื่อผู้ใช้
-const USER_KEY_COLUMNS = ["username", "email", "registered_at"];
-
-async function buildUserKey() {
-  const users = await db
-    .prepare(`SELECT id, username, email, created_at FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`)
-    .all();
-  const rows = users.map((u) => ({
-    username: u.username,
-    email: u.email,
-    registered_at: thaiDateTime(u.created_at),
-  }));
-  return { columns: USER_KEY_COLUMNS, rows };
-}
-
 // ข้อมูลแต่ละชุดเป็น { columns, rows } — ใช้ทั้งดาวน์โหลด CSV และแสดงเป็นตารางในหน้าแอดมิน (ข้อมูลวิจัย)
 const DATASETS = {
   users: buildUsers,
   days: buildDays,
   sessions: buildSessions,
   reviews: buildReviews,
-  "user-key": buildUserKey,
 };
 
 async function buildCsv(kind) {

@@ -88,10 +88,6 @@
     color: #fff;
 }
 
-.rs-tab.is-sensitive {
-    border-style: dashed;
-}
-
 .rs-tab-count {
     min-width: 22px;
     padding: 0 7px;
@@ -107,8 +103,7 @@
 
 .rs-tab:focus-visible,
 .rs-download:focus-visible,
-.rs-pager button:focus-visible,
-.rs-reveal:focus-visible {
+.rs-pager button:focus-visible {
     outline: 3px solid #2a78d6;
     outline-offset: 2px;
 }
@@ -236,17 +231,6 @@
 
 .rs-message p {
     margin: 0;
-}
-
-.rs-reveal {
-    padding: 8px 20px;
-    border: 2.5px dashed var(--border-dark);
-    border-radius: 999px;
-    background: #fff;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
 }
 
 /* ---- แถบเปลี่ยนหน้า ---- */

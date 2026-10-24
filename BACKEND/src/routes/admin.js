@@ -146,7 +146,7 @@ router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {
 });
 
 // ================== ส่งออกข้อมูลวิจัย (CSV) ==================
-// GET /api/admin/export/users | days | sessions | reviews | user-key — รายละเอียดคอลัมน์ดูที่ services/researchExport.js
+// GET /api/admin/export/users | days | sessions | reviews — รายละเอียดคอลัมน์ดูที่ services/researchExport.js
 // GET /api/admin/export/:kind/data — ข้อมูลชุดเดียวกันเป็น JSON { columns, rows } ใช้แสดงเป็นตารางในหน้า "ข้อมูลวิจัย"
 router.get("/export/:kind/data", requireAdmin, async (req, res, next) => {
   try {
