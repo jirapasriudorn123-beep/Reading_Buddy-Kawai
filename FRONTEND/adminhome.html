@@ -300,7 +300,7 @@
     <section class="research-section">
         <div class="research-head">
             <div class="demo-mode-title">📊 ข้อมูลวิจัย (Learning Analytics)</div>
-            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
+            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ระบุด้วยชื่อผู้ใช้ = รหัสนิสิต ไม่มีอีเมลในไฟล์ข้อมูล) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
         </div>
 
         <!-- หมวดข้อมูล (แท็บ) -->
@@ -317,7 +317,7 @@
                         <button type="button" data-view="cards" class="is-active">การ์ด</button>
                         <button type="button" data-view="table">ตาราง</button>
                     </div>
-                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหา เช่น U0001" aria-label="ค้นหาในข้อมูล">
+                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหาชื่อผู้ใช้" aria-label="ค้นหาในข้อมูล">
                     <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
                 </div>
             </div>
@@ -344,6 +344,6 @@
 <script src="config.js"></script>
 <script src="adminAuth.js"></script>
 <script src="adminhome.js?v=8"></script>
-<script src="adminresearch.js?v=3"></script>
+<script src="adminresearch.js?v=4"></script>
 </body>
 </html>

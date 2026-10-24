@@ -10,15 +10,15 @@ const RS_DATASETS = [
   { kind: "reviews", label: "การทบทวน", desc: "1 แถว = ตอบคำถามบทเรียน 1 ครั้ง (แบบทดสอบหลังอ่าน/เกม) พร้อมขั้นทบทวน 1/3/7/14 วัน" },
   {
     kind: "user-key",
-    label: "🔑 ตารางรหัสผู้ใช้",
-    desc: "จับคู่รหัสผู้ใช้กับชื่อผู้ใช้และอีเมล — มีข้อมูลส่วนบุคคล เก็บแยก ห้ามแนบเล่มหรือส่งต่อ",
+    label: "🔑 รายชื่อผู้ใช้",
+    desc: "ชื่อผู้ใช้กับอีเมลสำหรับติดต่อ — มีข้อมูลส่วนบุคคล เก็บแยก ห้ามแนบเล่มหรือส่งต่อ",
     sensitive: true,
   },
 ];
 
 // ชื่อคอลัมน์ภาษาไทย (ชื่อจริงในไฟล์ CSV ยังเป็นภาษาอังกฤษ — ชี้ที่หัวตารางเพื่อดู)
+// ข้อมูลทุกชุดระบุคนด้วยชื่อผู้ใช้ (= รหัสนิสิต) ตามที่ขอความยินยอมไว้
 const RS_LABELS = {
-  user_code: "รหัสผู้ใช้",
   registered_at: "วันที่สมัคร",
   active_days: "วันที่เข้าใช้",
   first_active_date: "เข้าใช้วันแรก",
@@ -95,7 +95,7 @@ const RS_LABELS = {
   was_due: "ถึงรอบแล้ว",
   correct: "ถูก",
   stage_after: "ขั้นหลังตอบ",
-  username: "ชื่อผู้ใช้",
+  username: "ชื่อผู้ใช้ (รหัสนิสิต)",
   email: "อีเมล",
 };
 
@@ -118,7 +118,7 @@ const rsRound1 = (n) => Math.round(n * 10) / 10;
 
 const RS_CARD_VIEWS = {
   users: {
-    title: (r) => r.user_code,
+    title: (r) => r.username,
     subtitle: (r) => `สมัคร ${r.registered_at || "—"} · เข้าใช้ล่าสุด ${r.last_active_date || "ยังไม่เข้าใช้"}`,
     stats: ["active_days", "reading_minutes", "avg_post_score_pct", "chapters_passed"],
     groups: [
@@ -137,7 +137,7 @@ const RS_CARD_VIEWS = {
     ],
   },
   days: {
-    title: (r) => `${r.user_code} · ${r.date}`,
+    title: (r) => `${r.username} · ${r.date}`,
     subtitle: (r) => `${r.weekday || ""} · วันที่ ${r.day_index} นับจากวันสมัคร`,
     stats: ["reading_minutes", "reading_rounds", "test_answers", "game_battles"],
     groups: [
@@ -153,7 +153,7 @@ const RS_CARD_VIEWS = {
     ],
   },
   sessions: {
-    title: (r) => `${r.user_code} · บท ${r.chapter_number}`,
+    title: (r) => `${r.username} · บท ${r.chapter_number}`,
     subtitle: (r) => `เริ่มอ่าน ${r.started_at} · อ่านบทนี้ครั้งที่ ${r.chapter_attempt}`,
     stats: ["read_minutes", "planned_minutes", "pages_viewed", "stopped_early"],
     groups: [
@@ -171,7 +171,7 @@ const RS_CARD_VIEWS = {
     ],
   },
   reviews: {
-    title: (r) => `${r.user_code} · ข้อ ${r.question_id}`,
+    title: (r) => `${r.username} · ข้อ ${r.question_id}`,
     subtitle: (r) => `${r.answered_at} · บท ${r.chapter_number} · มาจาก${r.source === "game" ? "เกม" : "แบบทดสอบหลังอ่าน"}`,
     stats: ["correct", "was_due", "interval_days", "stage_after"],
     groups: [["ขั้นทบทวน", ["stage_before", "source"]]],
@@ -186,7 +186,7 @@ const RS_CARD_VIEWS = {
     },
   },
   "user-key": {
-    title: (r) => r.user_code,
+    title: (r) => r.username,
     subtitle: (r) => `สมัคร ${r.registered_at}`,
     stats: [],
     groups: [["ข้อมูลส่วนบุคคล", ["username", "email"]]],
@@ -297,7 +297,7 @@ function rsCardHtml(row, columns) {
 
   const groups = view.groups.map(([title, cols]) => [title, cols.filter((c) => columns.includes(c))]);
   groups.forEach(([, cols]) => cols.forEach((c) => used.add(c)));
-  const leftover = columns.filter((c) => !used.has(c) && c !== "user_code");
+  const leftover = columns.filter((c) => !used.has(c) && c !== "username");
   if (leftover.length) groups.push(["อื่น ๆ", leftover]);
 
   const details = groups
@@ -331,7 +331,7 @@ function rsRenderTable() {
 
   if (d.sensitive && !rsState.revealed.has(d.kind)) {
     return rsShowMessage(
-      `<p>ตารางนี้มีชื่อผู้ใช้และอีเมล (ข้อมูลส่วนบุคคล) ใช้ดูว่ารหัส U0001 ฯลฯ เป็นใครเท่านั้น</p>
+      `<p>ตารางนี้มีอีเมลของผู้ใช้ (ข้อมูลติดต่อ) ใช้เท่าที่จำเป็นเท่านั้น</p>
        <button type="button" class="rs-reveal" id="rsReveal">แสดงข้อมูล</button>`
     );
   }
@@ -423,8 +423,8 @@ async function rsDownload() {
   if (
     d.sensitive &&
     !confirm(
-      "ไฟล์นี้มีชื่อผู้ใช้และอีเมล (ข้อมูลส่วนบุคคล)\n" +
-        "ใช้ดูว่ารหัส U0001 ฯลฯ เป็นใครเท่านั้น เก็บแยกจากไฟล์ข้อมูลวิจัย ห้ามแนบในเล่มหรือส่งต่อ\n\nดาวน์โหลดต่อไหม?"
+      "ไฟล์นี้มีอีเมลของผู้ใช้ (ข้อมูลติดต่อ)\n" +
+        "เก็บแยกจากไฟล์ข้อมูลวิจัย ห้ามแนบในเล่มหรือส่งต่อ\n\nดาวน์โหลดต่อไหม?"
     )
   ) {
     return;

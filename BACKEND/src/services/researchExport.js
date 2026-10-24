@@ -2,7 +2,7 @@ const db = require("../db/database");
 const { INTERVAL_DAYS, MASTERED_STAGE } = require("./spacedReview");
 
 // ================== ส่งออกข้อมูลวิจัย (Learning Analytics) เป็น CSV ==================
-// 3 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ไม่มีชื่อ/อีเมล ใช้รหัสผู้ใช้แทน
+// 3 ไฟล์ เปิดใน Excel / Google Sheets / SPSS ได้ (UTF-8 + BOM ภาษาไทยไม่เพี้ยน) ระบุด้วยชื่อผู้ใช้ (= รหัสนิสิต) ตามที่ขอความยินยอมไว้ ไม่มีอีเมลในไฟล์ข้อมูล
 //   users    — 1 แถว = ผู้ใช้ 1 คน (เทียบระหว่างคน เช่น ดูแลหมาบ่อย vs อ่านนาน)
 //   days     — 1 แถว = ผู้ใช้ 1 คน × 1 วันที่เข้าใช้ (retention, เทียบวันที่ดูแลหมากับวันที่ไม่ได้ดูแลในคนเดียวกัน)
 //   sessions — 1 แถว = รอบอ่าน 1 รอบที่อ่านจบ (ช่วงเวลาที่อ่าน, ความยาวรอบ, รอบที่ถาม AI vs ไม่ได้ถาม)
@@ -58,10 +58,6 @@ function longestStreak(dates) {
   return longest;
 }
 
-function userCode(id) {
-  return `U${String(id).padStart(4, "0")}`;
-}
-
 function toCsv(columns, rows) {
   const escape = (value) => {
     if (value === null || value === undefined) return "";
@@ -88,7 +84,7 @@ async function loadRaw() {
   const nonAdmin = `user_id IN (SELECT id FROM users WHERE ${PARTICIPANT_SQL})`;
   const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime, reviewItems, reviewLog] =
     await Promise.all([
-      db.prepare(`SELECT id, created_at, coins FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`).all(),
+      db.prepare(`SELECT id, username, created_at, coins FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`).all(),
       db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
       db.prepare("SELECT id, chapter_number FROM chapters").all(),
       db
@@ -174,7 +170,7 @@ function buildDailyActivity(raw) {
 
 // ---------- users.csv ----------
 const USER_COLUMNS = [
-  "user_code",
+  "username",
   "registered_at",
   "active_days",
   "first_active_date",
@@ -263,7 +259,7 @@ async function buildUsers() {
     const fmt = (v) => (v === null ? "" : round1(v));
 
     return {
-      user_code: userCode(u.id),
+      username: u.username,
       registered_at: thaiDateTime(u.created_at),
       active_days: activeDays,
       first_active_date: dates[0] || "",
@@ -314,7 +310,7 @@ async function buildUsers() {
 
 // ---------- days.csv ----------
 const DAY_COLUMNS = [
-  "user_code",
+  "username",
   "date",
   "day_index",
   "weekday",
@@ -343,7 +339,7 @@ async function buildDays() {
     for (const date of [...days.keys()].sort()) {
       const d = days.get(date);
       rows.push({
-        user_code: userCode(u.id),
+        username: u.username,
         date,
         day_index: daysBetween(registered, date),
         weekday: weekdayOf(date),
@@ -357,7 +353,7 @@ async function buildDays() {
 
 // ---------- sessions.csv ----------
 const SESSION_COLUMNS = [
-  "user_code",
+  "username",
   "session_id",
   "chapter_number",
   "chapter_attempt",
@@ -388,6 +384,7 @@ const SESSION_COLUMNS = [
 async function buildSessions() {
   const raw = await loadRaw();
   const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
+  const usernameById = new Map(raw.users.map((u) => [u.id, u.username]));
   const testById = new Map(raw.tests.map((t) => [t.id, t]));
   const registeredBy = new Map(raw.users.map((u) => [u.id, thaiDate(u.created_at)]));
   const pagesBySession = groupBy(raw.pageTime, "session_id");
@@ -406,7 +403,7 @@ async function buildSessions() {
       const pageRows = pagesBySession.get(s.id) || [];
       const viewedPages = pageRows.filter((p) => p.seconds >= PAGE_VIEWED_MIN_SECONDS).map((p) => p.page);
       return {
-        user_code: userCode(s.user_id),
+        username: usernameById.get(s.user_id) || "",
         session_id: s.id,
         chapter_number: chapterNumber.get(s.chapter_id) ?? "",
         chapter_attempt: test ? test.attempt : "",
@@ -435,7 +432,7 @@ async function buildSessions() {
         chapter_total: test ? test.total : "",
       };
     })
-    .sort((a, b) => (a.user_code === b.user_code ? a.started_at.localeCompare(b.started_at) : a.user_code.localeCompare(b.user_code)));
+    .sort((a, b) => (a.username === b.username ? a.started_at.localeCompare(b.started_at) : a.username.localeCompare(b.username)));
   return { columns: SESSION_COLUMNS, rows };
 }
 
@@ -443,7 +440,7 @@ async function buildSessions() {
 // stage_before: ขั้นก่อนตอบ (ว่าง = ยังไม่มีนัด, 0 = เพิ่งตอบผิด, 1-4 = นัดหลังตอบถูกครั้งก่อน interval_days วัน, 5 = จำได้แล้ว)
 // was_due: ตอบตอนถึงรอบทบทวนแล้ว — ดู % ถูกของแถว was_due=1 แยกตาม interval_days = ความจำเมื่อเว้นไป 1/3/7/14 วัน
 const REVIEW_COLUMNS = [
-  "user_code",
+  "username",
   "answered_at",
   "chapter_number",
   "question_id",
@@ -458,9 +455,10 @@ const REVIEW_COLUMNS = [
 async function buildReviews() {
   const raw = await loadRaw();
   const chapterNumber = new Map(raw.chapters.map((c) => [c.id, c.chapter_number]));
+  const usernameById = new Map(raw.users.map((u) => [u.id, u.username]));
   const intervalOf = (stage) => (stage >= 1 && stage <= INTERVAL_DAYS.length ? INTERVAL_DAYS[stage - 1] : "");
   const rows = raw.reviewLog.map((r) => ({
-    user_code: userCode(r.user_id),
+    username: usernameById.get(r.user_id) || "",
     answered_at: thaiDateTime(r.created_at),
     chapter_number: chapterNumber.get(r.chapter_id) ?? "",
     question_id: r.question_id,
@@ -475,15 +473,14 @@ async function buildReviews() {
 }
 
 // ---------- user-key.csv ----------
-// "กุญแจ" สำหรับย้อนดูว่ารหัสไหนเป็นใคร (pseudonymization) — ข้อมูลวิจัย 4 ชุดข้างบนยังไม่มีชื่อเหมือนเดิม
-const USER_KEY_COLUMNS = ["user_code", "username", "email", "registered_at"];
+// รายชื่อผู้ใช้ที่ยินยอม + อีเมล (ข้อมูลติดต่อ) — เก็บแยกจาก 4 ชุดข้างบนที่มีแต่ชื่อผู้ใช้
+const USER_KEY_COLUMNS = ["username", "email", "registered_at"];
 
 async function buildUserKey() {
   const users = await db
     .prepare(`SELECT id, username, email, created_at FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`)
     .all();
   const rows = users.map((u) => ({
-    user_code: userCode(u.id),
     username: u.username,
     email: u.email,
     registered_at: thaiDateTime(u.created_at),

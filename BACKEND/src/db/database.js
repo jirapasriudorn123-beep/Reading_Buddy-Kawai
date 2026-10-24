@@ -106,7 +106,7 @@ async function initDatabase() {
     // ความยินยอม (PDPA) — ดู services/consent.js | consent_version = ฉบับนโยบายที่ยอมรับล่าสุด (NULL = ยังไม่เคยยอมรับ)
     ["consent_version", "ALTER TABLE users ADD COLUMN consent_version INTEGER"],
     ["consent_at", "ALTER TABLE users ADD COLUMN consent_at TEXT"],
-    // ยินยอมให้ใช้ข้อมูลการใช้งานแบบไม่ระบุตัวตนเพื่อการวิจัย (ไม่บังคับ) — ไม่ยินยอม = ไม่อยู่ในไฟล์ CSV ข้อมูลวิจัย
+    // ยินยอมให้ใช้ข้อมูลการใช้งานเพื่อการวิจัย ระบุด้วยชื่อผู้ใช้ = รหัสนิสิต (ไม่บังคับ) — ไม่ยินยอม = ไม่อยู่ในไฟล์ CSV ข้อมูลวิจัย
     ["research_consent", "ALTER TABLE users ADD COLUMN research_consent INTEGER NOT NULL DEFAULT 0"],
     ["research_consent_at", "ALTER TABLE users ADD COLUMN research_consent_at TEXT"],
   ];
