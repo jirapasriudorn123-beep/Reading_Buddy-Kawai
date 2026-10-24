@@ -358,7 +358,7 @@ function showDetail(id) {
   const isCoupon = product.category === "คูปอง";
   const desc = product.description || (isCoupon ? "ยังไม่ระบุเงื่อนไขการใช้งาน" : "ไม่มีรายละเอียดสินค้า");
   if (isCoupon) {
-    const priceLine = product.price > 0 ? `🪙 ใช้ ${product.price} คอยน์ แลกคูปองนี้\n\n` : "";
+    const priceLine = product.price > 0 ? `<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> ใช้ ${product.price} คอยน์ แลกคูปองนี้<br><br>` : "";
     const reqs = couponRequirements(product);
     const header = reqs.length
       ? "🔓 เงื่อนไขปลดล็อค\n" +
@@ -366,9 +366,8 @@ function showDetail(id) {
         (couponUnlocked(product) ? "\nปลดล็อคแล้ว!" : "") +
         "\n\n"
       : "";
-    document.getElementById("modalDesc").innerHTML = coinTextHtml(
-      priceLine + header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`
-    );
+    document.getElementById("modalDesc").innerHTML =
+      priceLine + escapeHtml(header + `📋 เงื่อนไขการใช้งาน\n\n${desc}`).replace(/\n/g, "<br>");
   } else {
     document.getElementById("modalDesc").innerText = desc;
   }

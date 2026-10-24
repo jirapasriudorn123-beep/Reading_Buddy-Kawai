@@ -26,7 +26,7 @@ const TOURS = {
     },
     {
       sel: ".coin-pill",
-      title: "🪙 คอยน์",
+      title: '<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> คอยน์',
       text: 'ได้จากเวลาอ่าน แต่จะเข้าบัญชีหลังทำ "แบบทดสอบหลังอ่าน" ของบทนั้น ตอบถูกได้โบนัสเพิ่ม (ได้คอยน์จากการอ่านวันละไม่เกิน 4 รอบ)',
     },
     {
@@ -102,7 +102,7 @@ const TOURS = {
     },
     {
       sel: "#productGrid .product-card",
-      title: "🪙 ซื้อด้วยคอยน์",
+      title: '<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> ซื้อด้วยคอยน์',
       text: "ซื้อไอเทมด้วยคอยน์ที่ได้จากการอ่าน แล้วไปใช้กับน้องหมาที่หน้าสัตว์เลี้ยง",
     },
     {
@@ -258,7 +258,7 @@ function renderTourStep() {
         <button type="button" class="tour-next">${last ? "เข้าใจแล้ว!" : "ถัดไป"}</button>
       </span>
     </div>`;
-  tip.querySelector(".tour-title").innerHTML = coinTextHtml(step.title);
+  tip.querySelector(".tour-title").innerHTML = step.title;
   tip.querySelector(".tour-text").textContent = step.text;
   tip.querySelector(".tour-next").addEventListener("click", nextTourStep);
   const skip = tip.querySelector(".tour-skip");

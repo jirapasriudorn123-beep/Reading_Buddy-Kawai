@@ -182,7 +182,7 @@
     const messagesEl = document.getElementById("chatMessages");
     const bubbleEl = document.createElement("div");
     bubbleEl.className = `chat-message chat-message-${role}`;
-    bubbleEl.innerHTML = coinTextHtml(text);
+    bubbleEl.innerHTML = escapeHtml(text).split("🪙").join('<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">');
     messagesEl.appendChild(bubbleEl);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return bubbleEl;

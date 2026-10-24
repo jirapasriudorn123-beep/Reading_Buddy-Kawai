@@ -1283,7 +1283,7 @@ function updateBattleTimerLabel() {
 
 // ข้อความโบนัสเหรียญบนหน้าผลการต่อสู้ (ผู้เล่นเห็นเป็นดาว + จำนวนข้อ ส่วน % ดูได้ที่หน้าแอดมิน)
 function rewardMessage(r) {
-  if (r.coinsEarned > 0) return `ได้โบนัส +${r.coinsEarned} คอยน์! 🪙`;
+  if (r.coinsEarned > 0) return `ได้โบนัส +${r.coinsEarned} คอยน์! <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">`;
   if (r.alreadyRewarded) return "ด่านนี้เคยได้โบนัสคอยน์ไปแล้ว";
   return "ตอบผิดให้น้อยลง จะได้โบนัสคอยน์นะ";
 }
@@ -1322,9 +1322,8 @@ function endBattle(won, message) {
 
   const box = document.getElementById("battleResult");
   document.getElementById("battleResultTitle").textContent = won ? "ผ่านด่าน!" : "แพ้แล้ว";
-  document.getElementById("battleResultText").innerHTML = coinTextHtml(
-    won && battleReward ? `${message}\n${rewardMessage(battleReward)}` : message
-  );
+  document.getElementById("battleResultText").innerHTML =
+    won && battleReward ? `${message}<br>${rewardMessage(battleReward)}` : message;
   // หมดเวลาจะไม่มีผลจาก server (ไม่ได้ตอบข้อสุดท้าย) เลยใช้ตัวนับฝั่งหน้าเว็บแทน
   const correctCount = battleReward ? battleReward.correctCount : battleQuiz.length - enemyHp;
   const totalAnswered = battleReward ? battleReward.totalAnswered : correctCount + (PLAYER_MAX_HEARTS - playerHearts);

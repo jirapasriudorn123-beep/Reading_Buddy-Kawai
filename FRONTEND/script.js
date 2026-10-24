@@ -255,7 +255,7 @@ function chapterStatusLines(progress) {
       ...(progress.attempt >= 2 ? [rereadLine(progress.attempt)] : []),
       ...failedLine,
       `📖 อ่านบทนี้แล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
-        `คอยน์รอปลดล็อก ${progress.pendingCoins} 🪙`,
+        `คอยน์รอปลดล็อก ${progress.pendingCoins} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">`,
       progress.canPostTest
         ? `✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่าน ได้ ${progress.passScore}/${progress.total} ขึ้นไปถึงจะผ่านและได้คอยน์ + โบนัสข้อที่ตอบถูก`
         : `คอยน์จะเข้าเมื่อทำแบบทดสอบหลังอ่านผ่าน (${progress.passScore}/${progress.total} ขึ้นไป · อ่านครบเวลาก่อนถึงจะทำได้)`,
@@ -275,10 +275,10 @@ function chapterStatusLines(progress) {
 function rewardLimitLines(progress) {
   if (!progress.coinRewardsMax) return [];
   if (progress.coinRewardsLeft === 0) {
-    return [`🪙 บทนี้ได้คอยน์ครบ ${progress.coinRewardsMax} ครั้งแล้ว อ่านทบทวน/ทำแบบทดสอบได้ แต่ไม่ได้คอยน์เพิ่ม`];
+    return [`<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> บทนี้ได้คอยน์ครบ ${progress.coinRewardsMax} ครั้งแล้ว อ่านทบทวน/ทำแบบทดสอบได้ แต่ไม่ได้คอยน์เพิ่ม`];
   }
   return progress.coinRewardsUsed > 0
-    ? [`🪙 ได้คอยน์จากบทนี้แล้ว ${progress.coinRewardsUsed}/${progress.coinRewardsMax} ครั้ง`]
+    ? [`<img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> ได้คอยน์จากบทนี้แล้ว ${progress.coinRewardsUsed}/${progress.coinRewardsMax} ครั้ง`]
     : [];
 }
 
@@ -327,8 +327,9 @@ function openChapterTimeModal(chapter) {
     demoNotice.textContent = `🧪 โหมดสาธิต: รอบสั้นพิเศษ · อ่านทุก ${readingRules.minutesPerBlock} นาทีได้ ${readingRules.coinsPerBlock} คอยน์`;
   }
 
+  // บรรทัดสถานะเป็นข้อความที่เราเขียนเอง (มีแต่ตัวเลขของระบบ + รูปคอยน์) เลยใส่ลง innerHTML ได้ตรงๆ
   document.getElementById("chapterStatus").innerHTML = chapterStatusLines(progress)
-    .map((line) => `<p>${coinTextHtml(line)}</p>`)
+    .map((line) => `<p>${line}</p>`)
     .join("");
 
   if (!readingRules.presets.some((p) => p.id === selectedPresetId)) {
@@ -779,7 +780,7 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
   } else if (result.capped && result.coinsEarned === 0) {
     lines.push(`วันนี้ได้คอยน์จากการอ่านครบ ${result.roundsCap} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖`);
   } else {
-    lines.push(`รอบนี้ได้ ${result.coinsEarned} คอยน์ 🪙 — ${result.coinsPending ? "รอปลดล็อก จะเข้าเมื่อทำแบบทดสอบหลังอ่านบทนี้ผ่าน" : "เข้าบัญชีแล้ว"}`);
+    lines.push(`รอบนี้ได้ ${result.coinsEarned} คอยน์ <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> — ${result.coinsPending ? "รอปลดล็อก จะเข้าเมื่อทำแบบทดสอบหลังอ่านบทนี้ผ่าน" : "เข้าบัญชีแล้ว"}`);
     if (result.capped) lines.push(`(ครบโควต้าวันละ ${result.roundsCap} รอบพอดี คอยน์รอบนี้เลยได้ไม่เต็ม)`);
   }
   if (result.roundsCap) lines.push(`วันนี้ได้คอยน์จากการอ่านแล้ว ${result.roundsUsed}/${result.roundsCap} รอบ`);
@@ -796,7 +797,7 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
   if (progress.status === "reading") {
     lines.push(
       `บทนี้อ่านแล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
-        `คอยน์รอปลดล็อกรวม ${progress.pendingCoins} 🪙`
+        `คอยน์รอปลดล็อกรวม ${progress.pendingCoins} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">`
     );
   }
 
@@ -805,8 +806,9 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
     title: result.completedFullDuration ? "อ่านครบเวลาแล้ว! 🎉" : "หยุดอ่านแล้ว",
     hint: progress.canPostTest ? "อ่านบทนี้ครบเวลาแล้ว ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ทั้งหมด + โบนัสข้อที่ตอบถูก" : "",
   });
+  // เหมือนบรรทัดสถานะของบท: ข้อความชุดนี้เราเขียนเองทั้งหมด จึงมีรูปคอยน์เป็น HTML ได้
   document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
-    .map((l) => `<p>${coinTextHtml(l)}</p>`)
+    .map((l) => `<p>${l}</p>`)
     .join("")}</div>`;
 
   const done = () => {
@@ -1038,7 +1040,7 @@ function showTestResults(summary) {
       <div class="quiz-verdict is-fail">
         <p class="quiz-verdict-title">ยังไม่ผ่าน · ได้ ${summary.postScore}/${summary.total} คะแนน</p>
         <p>ต้องได้ ${summary.passScore}/${summary.total} คะแนนขึ้นไปถึงจะผ่าน (ขาดอีก ${missing} คะแนน)</p>
-        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} ${COIN_ICON_HTML} เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
+        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
       </div>
       <ol class="quiz-results">${rows}</ol>
       <p class="quiz-hint">ไม่เฉลยข้อที่ผิดนะ ลองอีกครั้ง (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านบทเรียนก่อนก็ได้</p>
@@ -1150,7 +1152,7 @@ function showBreakOverPanel(completedNaturally) {
     hint: "",
   });
   document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
-    .map((l) => `<p>${coinTextHtml(l)}</p>`)
+    .map((l) => `<p>${escapeHtml(l)}</p>`)
     .join("")}</div>`;
 
   const done = () => {
