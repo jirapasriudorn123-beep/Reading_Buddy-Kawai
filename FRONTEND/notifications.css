@@ -105,3 +105,159 @@ html.dark-mode body .noti-item-text {
 html.dark-mode body .noti-item:hover {
     background: #2a2e33;
 }
+
+/* ================== ปุ่มจดหมาย: ข้อความจากอาจารย์ ================== */
+.inbox-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 6px;
+}
+
+.inbox-btn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #5f7f3a;
+    cursor: pointer;
+}
+
+.inbox-btn svg {
+    width: 26px;
+    height: 26px;
+}
+
+.inbox-btn:hover {
+    color: #44601f;
+}
+
+.inbox-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    border: 2px solid #f2ede0;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inbox-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .45);
+    padding: 20px;
+}
+
+.inbox-overlay.open {
+    display: flex;
+}
+
+.inbox-box {
+    width: 460px;
+    max-width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 18px;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, .15);
+    font-family: 'Kanit', sans-serif;
+}
+
+.inbox-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eee;
+    font-size: 17px;
+}
+
+.inbox-close {
+    border: none;
+    background: none;
+    font-size: 18px;
+    line-height: 1;
+    color: #888;
+    cursor: pointer;
+}
+
+.inbox-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 18px 18px;
+    overflow-y: auto;
+}
+
+.inbox-list li {
+    padding: 12px 0;
+    border-bottom: 1px dotted #eee;
+}
+
+.inbox-list li:last-child {
+    border-bottom: none;
+}
+
+.inbox-list p {
+    margin: 4px 0 0;
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+.inbox-when {
+    font-size: 12.5px;
+    color: #999;
+}
+
+.inbox-new {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #ffeae5;
+    color: #c0533a;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.inbox-list li.is-new p {
+    font-weight: 600;
+}
+
+.inbox-empty {
+    color: #999;
+    font-size: 14.5px;
+}
+
+html.dark-mode body .inbox-box {
+    background: #262b31;
+    color: #eee;
+}
+
+html.dark-mode body .inbox-badge {
+    border-color: #1f2328;
+}
+

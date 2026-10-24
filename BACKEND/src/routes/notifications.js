@@ -73,23 +73,6 @@ router.get("/", requireAuth, async (req, res, next) => {
       });
     });
 
-    // ---- 4) ฟีดแบ็กจากอาจารย์/แอดมิน (เขียนในหน้ารายละเอียดผู้เรียน) ----
-    const feedback = await db
-      .prepare(
-        `SELECT id, message, created_at FROM user_feedback
-         WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`
-      )
-      .all(req.user.id);
-
-    feedback.forEach((f) => {
-      notifications.push({
-        id: `feedback-${f.id}`,
-        type: "feedback",
-        message: `อาจารย์ฝากข้อความถึงคุณ: ${f.message}`,
-        createdAt: f.created_at,
-      });
-    });
-
     // เรียงใหม่ให้ของล่าสุดอยู่บนสุด — แจ้งเตือนที่ไม่มีเวลา (น้องหมาหิว/สกปรก) คือเรื่องที่เป็นอยู่ตอนนี้ จึงอยู่บนสุดเสมอ
     const NOW = "9999-99-99";
     notifications.sort((a, b) => String(b.createdAt || NOW).localeCompare(String(a.createdAt || NOW)));
@@ -97,6 +80,22 @@ router.get("/", requireAuth, async (req, res, next) => {
     return res.json({ notifications, unreadCount: notifications.length });
   } catch (err) {
     next(err);
+  }
+});
+
+// ---------- GET /api/notifications/feedback ----------
+// ข้อความจากอาจารย์/แอดมินถึงนิสิตคนนี้ (ปุ่มจดหมายข้างกระดิ่ง) — แยกจากแจ้งเตือนทั่วไป
+router.get("/feedback", requireAuth, async (req, res, next) => {
+  try {
+    const messages = await db
+      .prepare(
+        `SELECT id, message, datetime(created_at, '+7 hours') created_at
+         FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`
+      )
+      .all(req.user.id);
+    return res.json({ messages });
+  } catch {
+    return res.json({ messages: [] }); // ตารางยังไม่ถูกสร้าง (เซิร์ฟเวอร์ยังไม่ได้รีสตาร์ทหลังอัปเดต)
   }
 });
 
