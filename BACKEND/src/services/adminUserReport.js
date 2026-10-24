@@ -521,9 +521,9 @@ async function buildFeedback(userId) {
   try {
     return await db
       .prepare(
-      `SELECT f.id, f.message, datetime(f.created_at, '${THAI}') created_at, u.username admin_name
+      `SELECT f.id, f.message, f.sender, datetime(f.created_at, '${THAI}') created_at, u.username admin_name
        FROM user_feedback f LEFT JOIN users u ON u.id = f.admin_id
-         WHERE f.user_id = ? ORDER BY f.created_at DESC LIMIT 20`
+         WHERE f.user_id = ? ORDER BY f.created_at DESC, f.id DESC LIMIT 40`
       )
       .all(userId);
   } catch {

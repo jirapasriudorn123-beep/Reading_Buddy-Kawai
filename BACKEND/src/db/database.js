@@ -829,8 +829,9 @@ await client.execute(`
       AND NOT EXISTS (SELECT 1 FROM review_log rl WHERE rl.user_id = t.user_id)
   `);
 
-  // ---- ตาราง user_feedback (อาจารย์/แอดมินเขียนฟีดแบ็กถึงนิสิตรายคน) ----
-  // นิสิตเห็นข้อความนี้ในกระดิ่งแจ้งเตือนของตัวเอง | ลบได้เฉพาะแอดมิน (ผู้เขียน)
+  // ---- ตาราง user_feedback (บทสนทนาระหว่างอาจารย์กับนิสิตรายคน) ----
+  // sender = 'admin' อาจารย์เขียนถึงนิสิต | 'student' นิสิตตอบกลับ (admin_id ว่าง)
+  // นิสิตเปิดอ่าน/ตอบที่ปุ่มจดหมายข้างกระดิ่ง | ลบได้เฉพาะแอดมิน
   await client.execute(`
     CREATE TABLE IF NOT EXISTS user_feedback (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -840,6 +841,10 @@ await client.execute(`
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+  const feedbackColumns = (await client.execute("PRAGMA table_info(user_feedback)")).rows.map((c) => c.name);
+  if (!feedbackColumns.includes("sender")) {
+    await client.execute("ALTER TABLE user_feedback ADD COLUMN sender TEXT NOT NULL DEFAULT 'admin'");
+  }
   await client.execute("CREATE INDEX IF NOT EXISTS idx_user_feedback_user ON user_feedback (user_id, created_at)");
 
   // ---- ตาราง site_meta ----

@@ -109,11 +109,11 @@ router.post("/users/:id/feedback", requireAdmin, async (req, res, next) => {
     if (!user) return res.status(404).json({ message: "ไม่พบผู้ใช้คนนี้" });
 
     const result = await db
-      .prepare("INSERT INTO user_feedback (user_id, admin_id, message) VALUES (?, ?, ?)")
+      .prepare("INSERT INTO user_feedback (user_id, admin_id, sender, message) VALUES (?, ?, 'admin', ?)")
       .run(userId, req.user.id, message);
     const created = await db
       .prepare(
-        `SELECT f.id, f.message, datetime(f.created_at, '+7 hours') created_at, u.username admin_name
+        `SELECT f.id, f.message, f.sender, datetime(f.created_at, '+7 hours') created_at, u.username admin_name
          FROM user_feedback f LEFT JOIN users u ON u.id = f.admin_id WHERE f.id = ?`
       )
       .get(result.lastInsertRowid);
@@ -126,6 +126,7 @@ router.post("/users/:id/feedback", requireAdmin, async (req, res, next) => {
 // DELETE /api/admin/feedback/:id — ลบฟีดแบ็กที่เขียนไว้
 router.delete("/feedback/:id", requireAdmin, async (req, res, next) => {
   try {
+    // ลบได้ทั้งข้อความของอาจารย์และคำตอบของนิสิต (อาจารย์ดูแลบทสนทนาทั้งเส้น)
     const result = await db.prepare("DELETE FROM user_feedback WHERE id = ?").run(Number(req.params.id));
     if (!result.changes) return res.status(404).json({ message: "ไม่พบฟีดแบ็กนี้" });
     return res.json({ message: "ลบแล้ว" });

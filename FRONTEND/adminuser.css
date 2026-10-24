@@ -561,3 +561,11 @@
     white-space: nowrap;
 }
 
+/* คำตอบจากนิสิตในกล่องสนทนา — เยื้องเข้ามาและใช้พื้นหลังอ่อนให้ต่างจากข้อความของอาจารย์ */
+.ud-fb-list li.is-reply {
+    margin-left: 22px;
+    padding-left: 12px;
+    border-left: 3px solid #97BC62;
+    background: #f6f9ef;
+    border-radius: 0 8px 8px 0;
+}

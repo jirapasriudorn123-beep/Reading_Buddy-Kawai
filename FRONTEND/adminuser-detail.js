@@ -408,19 +408,22 @@ function renderWeekly(weeks) {
 }
 
 // ---------- ฟีดแบ็กถึงนิสิต ----------
+// รายการเดียวกันมีทั้งข้อความของเราและคำตอบของนิสิต (sender = admin | student)
 function renderFeedback(items) {
   const list = document.getElementById("udFeedbackList");
   list.innerHTML = items.length
     ? items
-        .map(
-          (f) => `<li>
+        .map((f) => {
+          const fromStudent = f.sender === "student";
+          const who = fromStudent ? "นิสิตตอบกลับ" : `โดย ${escapeHtml(f.admin_name || "แอดมิน")}`;
+          return `<li class="${fromStudent ? "is-reply" : ""}">
             <div class="ud-fb-head">
-              <span>${escapeHtml(f.created_at?.slice(0, 16) || "")} · โดย ${escapeHtml(f.admin_name || "แอดมิน")}</span>
-              <button type="button" class="ud-fb-del" data-id="${f.id}" aria-label="ลบฟีดแบ็กนี้">ลบ</button>
+              <span>${escapeHtml(f.created_at?.slice(0, 16) || "")} · ${who}</span>
+              <button type="button" class="ud-fb-del" data-id="${f.id}" aria-label="ลบข้อความนี้">ลบ</button>
             </div>
             <p>${escapeHtml(f.message)}</p>
-          </li>`
-        )
+          </li>`;
+        })
         .join("")
     : '<li class="ud-fb-empty">ยังไม่เคยส่งฟีดแบ็กถึงคนนี้</li>';
 }
@@ -452,7 +455,7 @@ async function sendFeedback(e) {
 }
 
 async function deleteFeedback(id) {
-  if (!confirm("ลบฟีดแบ็กนี้? นิสิตจะไม่เห็นข้อความนี้อีก")) return;
+  if (!confirm("ลบข้อความนี้? ทั้งสองฝ่ายจะไม่เห็นข้อความนี้อีก")) return;
   try {
     await adminApiFetch(`/admin/feedback/${id}`, { method: "DELETE" });
     currentFeedback = currentFeedback.filter((f) => f.id !== id);

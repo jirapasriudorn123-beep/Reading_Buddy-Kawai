@@ -84,18 +84,47 @@ router.get("/", requireAuth, async (req, res, next) => {
 });
 
 // ---------- GET /api/notifications/feedback ----------
-// ข้อความจากอาจารย์/แอดมินถึงนิสิตคนนี้ (ปุ่มจดหมายข้างกระดิ่ง) — แยกจากแจ้งเตือนทั่วไป
+// บทสนทนากับอาจารย์ของนิสิตคนนี้ (ปุ่มจดหมายข้างกระดิ่ง) — แยกจากแจ้งเตือนทั่วไป
+// เรียงเก่า → ใหม่ เพราะหน้าเว็บแสดงเป็นแชต (ข้อความล่าสุดอยู่ล่างสุด ติดช่องพิมพ์ตอบ)
 router.get("/feedback", requireAuth, async (req, res, next) => {
   try {
-    const messages = await db
+    const rows = await db
       .prepare(
-        `SELECT id, message, datetime(created_at, '+7 hours') created_at
-         FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`
+        `SELECT id, message, sender, datetime(created_at, '+7 hours') created_at
+         FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 50`
       )
       .all(req.user.id);
-    return res.json({ messages });
+    return res.json({ messages: rows.reverse() });
   } catch {
     return res.json({ messages: [] }); // ตารางยังไม่ถูกสร้าง (เซิร์ฟเวอร์ยังไม่ได้รีสตาร์ทหลังอัปเดต)
+  }
+});
+
+// ---------- POST /api/notifications/feedback/reply ----------
+// นิสิตตอบกลับอาจารย์ — ตอบได้เฉพาะเมื่ออาจารย์ทักมาก่อน (กันใช้เป็นช่องส่งข้อความอิสระ)
+router.post("/feedback/reply", requireAuth, async (req, res, next) => {
+  try {
+    const message = String(req.body?.message || "").trim();
+    if (!message) return res.status(400).json({ message: "พิมพ์ข้อความก่อนส่งนะ" });
+    if (message.length > 5000) return res.status(400).json({ message: "ข้อความยาวเกินไป (เกิน 5,000 ตัวอักษร)" });
+
+    const fromAdmin = await db
+      .prepare("SELECT id FROM user_feedback WHERE user_id = ? AND sender = 'admin' LIMIT 1")
+      .get(req.user.id);
+    if (!fromAdmin) return res.status(400).json({ message: "ยังไม่มีข้อความจากอาจารย์ให้ตอบกลับ" });
+
+    const result = await db
+      .prepare("INSERT INTO user_feedback (user_id, admin_id, sender, message) VALUES (?, NULL, 'student', ?)")
+      .run(req.user.id, message);
+    const created = await db
+      .prepare(
+        `SELECT id, message, sender, datetime(created_at, '+7 hours') created_at
+         FROM user_feedback WHERE id = ?`
+      )
+      .get(result.lastInsertRowid);
+    return res.status(201).json({ message: "ส่งแล้ว", reply: created });
+  } catch (err) {
+    next(err);
   }
 });
 
