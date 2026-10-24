@@ -273,7 +273,7 @@ function renderRadar(accuracy) {
       const [lx, ly] = point(i, 132);
       const anchor = Math.abs(lx - cx) < 12 ? "middle" : lx > cx ? "start" : "end";
       const thin = a.answers > 0 && a.answers < 5;
-      const color = a.percent === null ? "#aaa" : a.percent >= (a.averagePercent ?? 0) ? "#4f6a2c" : "#b35a3a";
+      const color = a.percent === null ? "#aaa" : "#7a7466";
       const value =
         a.percent === null ? "ยังไม่ตอบ" : `${a.percent}% (${a.answers} ข้อ)${thin ? " · ข้อมูลน้อย" : ""}`;
       return `<text x="${Math.round(lx)}" y="${Math.round(ly)}" text-anchor="${anchor}" font-size="12.5" font-weight="600" fill="#555">บทที่ ${a.chapter}</text>
@@ -293,14 +293,10 @@ function renderRadar(accuracy) {
   box.innerHTML = `<svg viewBox="0 0 360 340" style="width:100%; height:340px" role="img"
       aria-label="กราฟหกเหลี่ยมความแม่นรายบท เทียบกับค่าเฉลี่ยของทุกคน">
       ${rings}${spokes}
-      <polygon points="${poly(accuracy.map((a) => a.averagePercent))}" fill="rgba(154,160,143,.25)" stroke="#9AA08F" stroke-width="2" stroke-dasharray="5 4"/>
       <polygon points="${poly(accuracy.map((a) => a.percent))}" fill="rgba(246,188,84,.45)" stroke="#E38A4D" stroke-width="3"/>
       ${dots}${labels}
     </svg>
-    <div class="chart-legend">
-      <span class="legend-item"><span class="legend-dot" style="background:#E38A4D"></span>คนนี้</span>
-      <span class="legend-item"><span class="legend-dot" style="background:#9AA08F"></span>ค่าเฉลี่ยทุกคน</span>
-    </div>`;
+    <p class="ad-sub" style="margin:4px 0 0">ตัวเลขใต้ชื่อบท = ตอบถูกกี่ % จากที่ตอบไปทั้งหมดของบทนั้น</p>`;
 }
 
 // ---------- จุดที่อ่อนที่สุด: บทที่แม่นน้อยสุด + ข้อที่ตอบผิดบ่อย ----------
@@ -313,17 +309,9 @@ function renderWeakSpots(accuracy, weakSpots) {
   const scored = accuracy.filter((a) => a.percent !== null && a.answers >= 5);
   if (scored.length) {
     const weakest = scored.reduce((a, c) => (c.percent < a.percent ? c : a));
-    const gap = weakest.averagePercent === null ? null : weakest.percent - weakest.averagePercent;
     lead.innerHTML =
       `อ่อนที่สุดคือ <strong>บทที่ ${weakest.chapter} ${escapeHtml(weakest.title)}</strong> — ` +
-      `ตอบถูก ${weakest.percent}% จาก ${num(weakest.answers)} ข้อ` +
-      (gap === null
-        ? ""
-        : gap < 0
-        ? ` (<span class="ud-weak-gap">ต่ำกว่าค่าเฉลี่ยทุกคน ${Math.abs(gap)} จุด</span>)`
-        : gap === 0
-        ? " (เท่ากับค่าเฉลี่ยทุกคน)"
-        : ` (สูงกว่าค่าเฉลี่ยทุกคน ${gap} จุด)`);
+      `ตอบถูก ${weakest.percent}% จาก ${num(weakest.answers)} ข้อที่ตอบไป`;
     summary.textContent = `บทที่ ${weakest.chapter} ${weakest.title} · ตอบถูก ${weakest.percent}%`;
   } else {
     lead.textContent = "ยังตอบคำถามไม่พอจะบอกว่าอ่อนบทไหน (ต้องมีอย่างน้อย 5 ข้อในบทนั้น)";
