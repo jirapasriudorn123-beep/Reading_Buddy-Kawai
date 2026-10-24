@@ -406,6 +406,31 @@ function renderAtRisk(atRisk) {
 const BELL_SEEN_KEY = "adminUpdatesSeenAt";
 let bellLatestAt = "";
 
+// เสียงเดียวกับกระดิ่งฝั่งผู้ใช้ — ดังครั้งเดียวต่ออัปเดตหนึ่งรายการในรอบการใช้งานนี้
+// ถ้าเบราว์เซอร์ยังไม่ให้เล่นเสียง (ยังไม่ได้แตะหน้าเว็บ) จะลองใหม่ตอนโหลดข้อมูลรอบถัดไป
+const BELL_SOUND = new Audio("sound/notification.m4a");
+BELL_SOUND.preload = "auto";
+BELL_SOUND.volume = 0.5;
+const BELL_SOUNDED_KEY = "adminUpdatesSoundedAt";
+
+function playBellSound(latestAt) {
+  let soundedAt = "";
+  try {
+    soundedAt = sessionStorage.getItem(BELL_SOUNDED_KEY) || "";
+  } catch {
+    /* ปิด storage: ยอมให้ดังซ้ำได้ ดีกว่าไม่ดังเลย */
+  }
+  if (!latestAt || latestAt <= soundedAt) return;
+  BELL_SOUND.currentTime = 0;
+  BELL_SOUND.play()
+    .then(() => {
+      try {
+        sessionStorage.setItem(BELL_SOUNDED_KEY, latestAt);
+      } catch {}
+    })
+    .catch(() => {});
+}
+
 function bellSeenAt() {
   try {
     return localStorage.getItem(BELL_SEEN_KEY) || "";
@@ -438,6 +463,7 @@ function renderUpdates(items) {
   const unseen = items.filter((u) => String(u.at) > seen).length;
   count.hidden = unseen === 0;
   count.textContent = unseen;
+  if (unseen > 0) playBellSound(bellLatestAt);
 }
 
 // ---------- สถิติมินิเกมรายโลก ----------
