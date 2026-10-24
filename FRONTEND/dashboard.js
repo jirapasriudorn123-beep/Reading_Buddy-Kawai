@@ -82,6 +82,7 @@ async function loadUserInfo() {
 
 const WP_THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const WP_PASS_RATIO = 0.8; // ต้องตรงกับ PASS_RATIO ใน BACKEND/src/services/chapterTests.js
+const WP_QUESTIONS_PER_TEST = 10; // ต้องตรงกับ QUESTIONS_PER_TEST ใน BACKEND/src/services/chapterTests.js
 let wpChart = null;
 let wpProgress = null;
 
@@ -277,8 +278,8 @@ function wsChapterMinutes(stats) {
 
 function wsPrePost(stats) {
   // บทเดียวกันทำหลายชุดในสัปดาห์นี้ → ใช้ชุดล่าสุด
-  // แต่ละชุดมีจำนวนข้อของตัวเอง (ชุดที่สร้างก่อน 23 ต.ค. 2569 มี 5 ข้อ ชุดหลังจากนั้น 10 ข้อ)
-  // เกณฑ์ผ่านจึงคิดจากจำนวนข้อของชุดนั้นเสมอ ไม่ใช่เลขเดียวใช้กับทุกบท
+  // เกณฑ์ผ่านคิดจากจำนวนข้อของชุดนั้นเสมอ (ชุดเก่าก่อน 23 ต.ค. 2569 มี 5 ข้อ ชุดใหม่ 10 ข้อ)
+  // ส่วนคำอธิบายใต้กราฟบอกเกณฑ์ของแบบทดสอบชุดปัจจุบัน ให้รู้ว่าถ้าทำตอนนี้ต้องได้เท่าไหร่
   const byChapter = new Map();
   for (const t of stats.postTests || []) byChapter.set(t.chapter, t);
   const tests = [...byChapter.values()].sort((a, b) => a.chapter - b.chapter);
@@ -287,17 +288,16 @@ function wsPrePost(stats) {
   const parts = tests.map((t) =>
     t.post >= passOf(t) ? `บทที่ ${t.chapter} ผ่านแล้ว` : `บทที่ ${t.chapter} ยังขาดอีก ${passOf(t) - t.post} คะแนน`
   );
-  const totals = [...new Set(tests.map((t) => t.total))];
-  const mixed = totals.length > 1; // ชุด 5 ข้อกับ 10 ข้อปนกัน → ต้องบอกจำนวนข้อรายบท
+  // บทที่ใช้ชุดเก่า (ข้อไม่เท่าแบบทดสอบตอนนี้) ต้องบอกจำนวนข้อกำกับไว้ ไม่งั้นคะแนนจะอ่านผิด
+  const oldSet = (t) => t.total !== WP_QUESTIONS_PER_TEST;
   const rows = tests
     .map((t) => {
       const pct = (v) => (v / t.total) * 100;
       const ok = t.post >= passOf(t);
       const hasPre = t.pre !== null && t.pre !== undefined;
       const from = hasPre ? Math.min(t.pre, t.post) : t.post;
-      // ชุดปนกันค่อยบอกจำนวนข้อท้ายคะแนน ไม่งั้นเลขเต็มอยู่ในคำอธิบายข้างล่างอยู่แล้ว
       const value = hasPre
-        ? `${t.pre} → ${t.post}${mixed ? `<span class="ws-row-total">จาก ${t.total} ข้อ</span>` : ""}`
+        ? `${t.pre} → ${t.post}${oldSet(t) ? `<span class="ws-row-total">จาก ${t.total} ข้อ</span>` : ""}`
         : `${t.post}/${t.total}`;
       return `
         <div class="ws-row">
@@ -313,9 +313,9 @@ function wsPrePost(stats) {
         </div>`;
     })
     .join("");
-  const passText = mixed
-    ? `┆ เกณฑ์ผ่าน = ${WP_PASS_RATIO * 100}% ของข้อในชุดนั้น (แต่ละบทมีจำนวนข้อไม่เท่ากัน)`
-    : `┆ ต้องได้ ${Math.ceil(totals[0] * WP_PASS_RATIO)} ใน ${totals[0]} ข้อ (${WP_PASS_RATIO * 100}%) ถึงจะผ่าน`;
+  const passText = `┆ แบบทดสอบตอนนี้มี ${WP_QUESTIONS_PER_TEST} ข้อ ต้องได้ ${Math.ceil(
+    WP_QUESTIONS_PER_TEST * WP_PASS_RATIO
+  )} ข้อ (${WP_PASS_RATIO * 100}%) ถึงจะผ่าน`;
   return wsSection(
     "คะแนนดีขึ้นแค่ไหน",
     parts.join(" · "),
