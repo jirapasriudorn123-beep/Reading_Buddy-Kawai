@@ -473,6 +473,13 @@ async function initDatabase() {
     )
   `);
 
+  // หัวข้อย่อยของคำถาม (เช่น "เลขฐานแปด" ในบทที่ 1) — แอดมินกรอกเองในหน้าจัดการมินิเกม
+  // ใช้บอกผู้เรียนว่าควรกลับไปทบทวนหัวข้อไหน ข้อที่ยังไม่ได้กรอกจะใช้ข้อความคำถามแทน
+  const quizColumns = (await client.execute("PRAGMA table_info(quiz_questions)")).rows.map((c) => c.name);
+  if (!quizColumns.includes("topic")) {
+    await client.execute("ALTER TABLE quiz_questions ADD COLUMN topic TEXT");
+  }
+
   // ---- ตาราง chapter_tests (แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท) ----
   // 1 แถว = อ่านบทนั้น 1 รอบใหญ่ (attempt): attempt 1 = ทำ pre ตอนเริ่มอ่านบทครั้งแรก, attempt ถัดไป (อ่านบทซ้ำ) ไม่มี pre
   // status: pre_test → reading (อ่านได้หลายรอบ Pomodoro) → post_test → completed

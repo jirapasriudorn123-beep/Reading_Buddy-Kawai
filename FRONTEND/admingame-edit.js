@@ -131,6 +131,7 @@ function renderQuestions() {
             <button class="game-card-delete" onclick="deleteQuestion(${q.id})" title="ลบ">✕</button>
           </div>
         </div>
+        ${q.topic ? `<span class="qe-topic">${escapeHtml(q.topic)}</span>` : ""}
         <p class="qe-q-question">${escapeHtml(q.question)}</p>
         <div class="qe-q-options">
           ${options
@@ -152,6 +153,7 @@ function openAddQuestionModal() {
   document.getElementById("questionModalTitle").textContent = "เพิ่มคำถาม";
   document.getElementById("editQuestionId").value = "";
   document.getElementById("editQuestionLevel").value = 1;
+  document.getElementById("editQuestionTopic").value = "";
   document.getElementById("editQuestionText").value = "";
   [1, 2, 3, 4].forEach((i) => {
     document.getElementById("editOption" + i).value = "";
@@ -168,6 +170,7 @@ function openEditQuestionModal(id) {
   document.getElementById("questionModalTitle").textContent = "แก้ไขคำถาม";
   document.getElementById("editQuestionId").value = id;
   document.getElementById("editQuestionLevel").value = q.level;
+  document.getElementById("editQuestionTopic").value = q.topic || "";
   document.getElementById("editQuestionText").value = q.question;
   document.getElementById("editOption1").value = q.option_1;
   document.getElementById("editOption2").value = q.option_2;
@@ -185,6 +188,7 @@ function closeQuestionModal() {
 
 async function saveQuestion() {
   const level = Number(document.getElementById("editQuestionLevel").value);
+  const topic = document.getElementById("editQuestionTopic").value.trim();
   const question = document.getElementById("editQuestionText").value.trim();
   const options = [1, 2, 3, 4].map((i) => document.getElementById("editOption" + i).value.trim());
   const correctRadio = document.querySelector('input[name="correctOption"]:checked');
@@ -202,6 +206,7 @@ async function saveQuestion() {
     option_3: options[2],
     option_4: options[3],
     correctOption: Number(correctRadio.value),
+    topic,
   };
 
   const btn = document.querySelector("#questionModal .edit-confirm-btn");

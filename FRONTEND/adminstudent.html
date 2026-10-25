@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ข้อมูลนิสิต</title>
+    <link rel="stylesheet" href="adminstyle.css?v=20261024">
+    <link rel="stylesheet" href="adminhome.css?v=6">
+    <link rel="stylesheet" href="adminresearch.css?v=20261024f">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body> 
+<div class="container">
+    <aside class="sidebar">
+        <div class="profile-area">
+            <div class="avatar-circle">
+                <img src="img/NEW_LOGO.png" alt="puppy" width="200" height="150"> </div>
+        </div>
+
+        <nav class="menu">
+            <a href="adminhome.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1"/></svg></span>
+                <span class="menu-label">หน้าหลัก</span>
+            </a>
+            <a href="adminlesson.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.3"/><path d="M8 13a4 4 0 0 1 8 0"/><rect x="4" y="17" width="16" height="2.5" rx="1"/><path d="M6 17v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/></svg></span>
+                <span class="menu-label">จัดการบทเรียน</span>
+            </a>
+            <a href="adminshop.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a6 6 0 0 1 12 0v2"/><rect x="3" y="8" width="18" height="13" rx="2"/></svg></span>
+                <span class="menu-label">จัดการร้านค้า</span>
+            </a>
+            <a href="admincoupon.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><line x1="10" y1="7" x2="10" y2="17" stroke-dasharray="2 2"/></svg></span>
+                <span class="menu-label">จัดการคูปอง</span>
+            </a>
+            <a href="admingame.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg></span>
+                <span class="menu-label">จัดการมินิเกม</span>
+            </a>
+            <a href="adminscore.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                <span class="menu-label">จัดการคะแนน</span>
+            </a>
+            <a href="adminuser.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg></span>
+                <span class="menu-label">จัดการผู้ใช้</span>
+            </a>
+            <a href="adminstudent.html" class="menu-item active">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-4.5L21 9l-9 4.5z"/><path d="M7 11.5V16c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4.5"/></svg></span>
+                <span class="menu-label">ข้อมูลนิสิต</span>
+            </a>
+        </nav>
+
+        <div class="bottom-menu">
+            <a href="#" class="menu-item" id="logoutBtn">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+                <span class="menu-label">ลงชื่อออก</span>
+            </a>
+        </div>
+        <button class="toggle-btn" id="toggleBtn">
+        <span class="arrow-icon">◀</span>
+    </button>
+
+    <nav class="menu">
+        </nav>
+    </aside>
+<main class="main-content">
+    <!-- แถบหัว: ชื่อแอดมิน + ช่วงเวลา (ใช้ค่าเดียวกับหน้าหลัก) -->
+    <header class="ad-top">
+        <div class="ad-top-title">
+            <img src="img/logo_dogeyes.gif" alt="" class="ad-top-dog">
+            <h2>ข้อมูลนิสิต</h2>
+        </div>
+
+        <div class="ad-top-actions">
+            <label class="ad-range" for="adRangeSelect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+                <span>
+                    <span class="ad-range-label">ช่วงเวลา</span>
+                    <select id="adRangeSelect">
+                        <option value="7">7 วันล่าสุด</option>
+                        <option value="30" selected>30 วันล่าสุด</option>
+                        <option value="90">90 วันล่าสุด</option>
+                        <option value="365">1 ปีล่าสุด</option>
+                    </select>
+                </span>
+            </label>
+        </div>
+    </header>
+
+    <!-- จำนวนนิสิตทั้งหมดในระบบ (ไม่นับบัญชีแอดมิน) -->
+    <div class="ad-tiles ad-tiles-1">
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-green-light"><svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>นิสิตทั้งหมด</div>
+            <div class="stat-value" id="statTotalUsers">0</div>
+            <span class="trend-pill" id="statUsersTrend">—</span>
+        </div>
+    </div>
+
+   <!-- นิสิตที่ควรดูแล: ติดธงจากข้อมูลการใช้งานจริง -->
+    <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>นิสิตที่ควรดูแล</h3>
+                <p class="ad-sub">เข้าเกณฑ์อย่างน้อย 1 ข้อ · เรียงจากเร่งด่วนที่สุด</p>
+            </div>
+            <span class="ad-chip" id="adRiskChip">—</span>
+        </div>
+        <table class="ad-table" id="adRiskTable"></table>
+        <p class="ad-sub ad-risk-note" id="adRiskNote"></p>
+    </section>
+
+    <div class="ad-cols ad-cols-1">
+       <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการอ่าน (รายคน)</h3>
+                    <p class="ad-sub">10 อันดับแรก นับจากเวลาอ่านรวมทั้งหมด</p>
+                </div>
+                <div class="ad-head-actions">
+                    <label class="ad-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+                        <span class="sr-only">ค้นหาผู้ใช้</span>
+                        <input type="search" id="adReaderSearch" placeholder="ค้นหาชื่อผู้ใช้">
+                    </label>
+                    <button type="button" class="ad-csv-btn" id="adReadersCsv">ส่งออก CSV</button>
+                </div>
+            </div>
+            <table class="ad-table" id="adTopReaders"></table>
+        </section>
+
+
+    </div>
+
+    <div class="ad-cols ad-cols-1">
+       <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ผลการเรียนรู้ (ก่อน / หลังอ่าน)</h3>
+                    <p class="ad-sub">คะแนนเฉลี่ยของแต่ละบท คิดเป็นเปอร์เซ็นต์</p>
+                </div>
+            </div>
+            <table class="ad-table" id="adLearning"></table>
+        </section>
+
+
+    </div>
+
+   <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
+    <section class="research-section">
+        <div class="research-head">
+            <div class="demo-mode-title">📊 ข้อมูลวิจัย (Learning Analytics)</div>
+            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ระบุด้วยชื่อผู้ใช้ = รหัสนิสิต ไม่มีอีเมลในไฟล์ข้อมูล) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
+        </div>
+
+        <!-- หมวดข้อมูล (แท็บ) -->
+        <div class="rs-tabs" role="tablist" id="rsTabs"></div>
+
+        <!-- ตัวเลขสรุปของหมวดที่เปิดอยู่ -->
+        <div class="rs-summary" id="rsSummary"></div>
+
+        <div class="rs-panel" id="rsPanel" role="tabpanel">
+            <div class="rs-toolbar">
+                <p class="rs-desc" id="rsDesc"></p>
+                <div class="rs-toolbar-actions">
+                    <div class="rs-view-toggle" id="rsViewToggle" role="group" aria-label="รูปแบบการแสดงผล">
+                        <button type="button" data-view="cards" class="is-active">การ์ด</button>
+                        <button type="button" data-view="table">ตาราง</button>
+                    </div>
+                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหาชื่อผู้ใช้" aria-label="ค้นหาในข้อมูล">
+                    <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
+                </div>
+            </div>
+            <div class="rs-table-wrap" id="rsTableWrap">
+                <div class="rs-cards" id="rsCards"></div>
+                <table class="rs-table" id="rsTable" hidden></table>
+                <div class="rs-message" id="rsMessage" hidden></div>
+            </div>
+            <div class="rs-pager">
+                <span id="rsCount" class="rs-count"></span>
+                <div class="rs-pager-btns">
+                    <button type="button" id="rsPrev" aria-label="หน้าก่อนหน้า">‹ ก่อนหน้า</button>
+                    <span id="rsPage" class="rs-page"></span>
+                    <button type="button" id="rsNext" aria-label="หน้าถัดไป">ถัดไป ›</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+</div>
+</div>
+<script src="config.js?v=20261024b"></script>
+<script src="adminAuth.js"></script>
+<script src="adminhome.js?v=12"></script>
+<script src="adminresearch.js?v=20261025f"></script>
+</body>
+</html>

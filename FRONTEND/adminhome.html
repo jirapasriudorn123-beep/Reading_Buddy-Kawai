@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=5">
-    <link rel="stylesheet" href="adminresearch.css?v=20261024f">
+    <link rel="stylesheet" href="adminhome.css?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -46,6 +45,10 @@
             <a href="adminuser.html" class="menu-item">
                 <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg></span>
                 <span class="menu-label">จัดการผู้ใช้</span>
+            </a>
+            <a href="adminstudent.html" class="menu-item">
+                <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-4.5L21 9l-9 4.5z"/><path d="M7 11.5V16c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4.5"/></svg></span>
+                <span class="menu-label">ข้อมูลนิสิต</span>
             </a>
         </nav>
 
@@ -132,18 +135,6 @@
     </div>
 
     <!-- แถว 1: แนวโน้ม · สัดส่วนรายบท · น้องหมา -->
-    <!-- นิสิตที่ควรดูแล: ติดธงจากข้อมูลการใช้งานจริง -->
-    <section class="ad-card ad-risk-card">
-        <div class="ad-head">
-            <div>
-                <h3>นิสิตที่ควรดูแล</h3>
-                <p class="ad-sub">เข้าเกณฑ์อย่างน้อย 1 ข้อ · เรียงจากเร่งด่วนที่สุด</p>
-            </div>
-            <span class="ad-chip" id="adRiskChip">—</span>
-        </div>
-        <table class="ad-table" id="adRiskTable"></table>
-        <p class="ad-sub ad-risk-note" id="adRiskNote"></p>
-    </section>
 
     <!-- แถว 1: แนวโน้มการใช้งาน · สัดส่วนการอ่านรายบท -->
     <div class="ad-cols ad-cols-2">
@@ -184,27 +175,8 @@
 
     </div>
 
-    <!-- แถว 2: สถิติการอ่านรายคน · รายวัน -->
-    <div class="ad-cols ad-cols-2">
-        <section class="ad-card">
-            <div class="ad-head">
-                <div>
-                    <h3>สถิติการอ่าน (รายคน)</h3>
-                    <p class="ad-sub">10 อันดับแรก นับจากเวลาอ่านรวมทั้งหมด</p>
-                </div>
-                <div class="ad-head-actions">
-                    <label class="ad-search">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
-                        <span class="sr-only">ค้นหาผู้ใช้</span>
-                        <input type="search" id="adReaderSearch" placeholder="ค้นหาชื่อผู้ใช้">
-                    </label>
-                    <button type="button" class="ad-csv-btn" id="adReadersCsv">ส่งออก CSV</button>
-                </div>
-            </div>
-            <table class="ad-table" id="adTopReaders"></table>
-        </section>
-
-
+    <!-- แถว 2: สถิติการอ่านรายวันของทั้งระบบ -->
+    <div class="ad-cols ad-cols-1">
         <section class="ad-card">
             <div class="ad-head">
                 <div>
@@ -280,19 +252,8 @@
 
     </div>
 
-    <!-- แถว 4: ผลการเรียนรู้ · มินิเกม -->
-    <div class="ad-cols ad-cols-2">
-        <section class="ad-card">
-            <div class="ad-head">
-                <div>
-                    <h3>ผลการเรียนรู้ (ก่อน / หลังอ่าน)</h3>
-                    <p class="ad-sub">คะแนนเฉลี่ยของแต่ละบท คิดเป็นเปอร์เซ็นต์</p>
-                </div>
-            </div>
-            <table class="ad-table" id="adLearning"></table>
-        </section>
-
-
+    <!-- แถว 4: มินิเกม -->
+    <div class="ad-cols ad-cols-1">
         <section class="ad-card">
             <div class="ad-head">
                 <div>
@@ -309,46 +270,6 @@
 
 
 
-    <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
-    <section class="research-section">
-        <div class="research-head">
-            <div class="demo-mode-title">📊 ข้อมูลวิจัย (Learning Analytics)</div>
-            <div class="demo-mode-desc">ข้อมูลการใช้งานจริงของผู้ใช้ที่ยินยอมให้ใช้ข้อมูลเพื่อการวิจัยเท่านั้น (ระบุด้วยชื่อผู้ใช้ = รหัสนิสิต ไม่มีอีเมลในไฟล์ข้อมูล) · เวลาเป็นเวลาไทย · ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel / Google Sheets / SPSS ได้</div>
-        </div>
-
-        <!-- หมวดข้อมูล (แท็บ) -->
-        <div class="rs-tabs" role="tablist" id="rsTabs"></div>
-
-        <!-- ตัวเลขสรุปของหมวดที่เปิดอยู่ -->
-        <div class="rs-summary" id="rsSummary"></div>
-
-        <div class="rs-panel" id="rsPanel" role="tabpanel">
-            <div class="rs-toolbar">
-                <p class="rs-desc" id="rsDesc"></p>
-                <div class="rs-toolbar-actions">
-                    <div class="rs-view-toggle" id="rsViewToggle" role="group" aria-label="รูปแบบการแสดงผล">
-                        <button type="button" data-view="cards" class="is-active">การ์ด</button>
-                        <button type="button" data-view="table">ตาราง</button>
-                    </div>
-                    <input type="search" id="rsSearch" class="rs-search" placeholder="ค้นหาชื่อผู้ใช้" aria-label="ค้นหาในข้อมูล">
-                    <button type="button" class="rs-download" id="rsDownload">⬇️ ดาวน์โหลด CSV</button>
-                </div>
-            </div>
-            <div class="rs-table-wrap" id="rsTableWrap">
-                <div class="rs-cards" id="rsCards"></div>
-                <table class="rs-table" id="rsTable" hidden></table>
-                <div class="rs-message" id="rsMessage" hidden></div>
-            </div>
-            <div class="rs-pager">
-                <span id="rsCount" class="rs-count"></span>
-                <div class="rs-pager-btns">
-                    <button type="button" id="rsPrev" aria-label="หน้าก่อนหน้า">‹ ก่อนหน้า</button>
-                    <span id="rsPage" class="rs-page"></span>
-                    <button type="button" id="rsNext" aria-label="หน้าถัดไป">ถัดไป ›</button>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <p class="ad-updated" id="adUpdatedAt"></p>
 </main>
@@ -356,7 +277,6 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=11"></script>
-<script src="adminresearch.js?v=20261025f"></script>
+<script src="adminhome.js?v=12"></script>
 </body>
 </html>

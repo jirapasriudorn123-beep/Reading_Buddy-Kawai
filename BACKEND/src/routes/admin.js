@@ -1067,7 +1067,7 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
       db
         .prepare(
           `SELECT id, chapter_id, level, question, option_1, option_2, option_3, option_4,
-                  correct_option, enabled, created_at
+                  correct_option, enabled, created_at, topic
            FROM quiz_questions WHERE chapter_id = ? ORDER BY level ASC, id ASC`
         )
         .all(chapterId),
@@ -1131,7 +1131,9 @@ function validateQuestionPayload(body) {
   if (!Number.isInteger(correct) || correct < 1 || correct > 4) {
     return { error: "ต้องเลือกคำตอบที่ถูก (1-4)" };
   }
-  return { question: q, options, level, correct };
+  // หัวข้อย่อยไม่บังคับ — ว่างไว้ได้ เก็บเป็น null เพื่อให้เช็กง่ายฝั่งที่เอาไปใช้
+  const topic = String(body.topic || "").trim().slice(0, 80) || null;
+  return { question: q, options, level, correct, topic };
 }
 
 router.post("/game-questions", requireAdmin, async (req, res) => {
@@ -1146,10 +1148,10 @@ router.post("/game-questions", requireAdmin, async (req, res) => {
     const result = await db
       .prepare(
         `INSERT INTO quiz_questions
-         (chapter_id, level, question, option_1, option_2, option_3, option_4, correct_option)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (chapter_id, level, question, option_1, option_2, option_3, option_4, correct_option, topic)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(chapterId, v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct);
+      .run(chapterId, v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, v.topic);
 
     const created = await db
       .prepare("SELECT * FROM quiz_questions WHERE id = ?")
@@ -1173,10 +1175,10 @@ router.put("/game-questions/:id", requireAdmin, async (req, res) => {
     await db
       .prepare(
         `UPDATE quiz_questions
-         SET level = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?
+         SET level = ?, question = ?, option_1 = ?, option_2 = ?, option_3 = ?, option_4 = ?, correct_option = ?, topic = ?
          WHERE id = ?`
       )
-      .run(v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, id);
+      .run(v.level, v.question, v.options[0], v.options[1], v.options[2], v.options[3], v.correct, v.topic, id);
 
     const updated = await db.prepare("SELECT * FROM quiz_questions WHERE id = ?").get(id);
     return res.json({ message: "อัปเดตคำถามสำเร็จ", question: updated });

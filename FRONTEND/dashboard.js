@@ -327,12 +327,18 @@ function wsWeakSpots(stats) {
   const weak = (stats.weakQuestions || []).slice(0, 2);
   if (!stats.gameAnswers && !weak.length) return null;
   const game = stats.gameAnswers ? `ในเกมตอบถูก ${stats.gameCorrect} จาก ${stats.gameAnswers} ข้อ` : "";
+  const topics = weak.filter((w) => w.topic).length;
   const takeaway = weak.length
-    ? `${game ? `${game} ` : ""}เหลือ ${weak.length} ข้อที่ยังผิดบ่อย`
+    ? `${game ? `${game} ` : ""}${topics === weak.length ? `ควรทบทวนอีก ${weak.length} หัวข้อ` : `เหลือ ${weak.length} ข้อที่ยังผิดบ่อย`}`
     : `${game} ไม่มีข้อที่ผิดซ้ำ เยี่ยมมาก`;
+  // แอดมินใส่หัวข้อย่อยไว้ → บอกเป็นหัวข้อที่ควรทบทวน ถ้ายังไม่ได้ใส่ → แสดงข้อความคำถามเหมือนเดิม
   const list = weak
     .map(
-      (w) => `<li>${w.chapter ? `<span class="ws-chip">บทที่ ${w.chapter}</span>` : ""}<span>${escapeHtml(w.question)}</span></li>`
+      (w) => `<li>${w.chapter ? `<span class="ws-chip">บทที่ ${w.chapter}</span>` : ""}<span>${
+        w.topic
+          ? `หัวข้อ <strong>${escapeHtml(w.topic)}</strong>${w.questions > 1 ? ` · ${w.questions} ข้อ` : ""}`
+          : escapeHtml(w.question)
+      }</span></li>`
     )
     .join("");
   return wsSection("ยังพลาดเรื่องอะไร", takeaway, list ? `<ul class="ws-weak">${list}</ul>` : "");
@@ -477,6 +483,8 @@ function renderFocusChart(chapters) {
     },
     options: {
       responsive: true,
+      // กล่องครอบกำหนดขนาดไว้แล้ว (.focus-chart-box) ไม่งั้นวงโดนัทจะกว้างเท่าการ์ดและใหญ่เกินไป
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
         tooltip: {

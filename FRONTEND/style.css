@@ -2193,6 +2193,13 @@ html.dark-mode body .product-card.coupon-card::after {
     flex-shrink: 0;
 }
 
+/* โดนัท "การจำแนกเวลาโฟกัส" ไม่ให้ขยายเต็มความกว้างการ์ด (วงจะใหญ่เกินไปบนจอกว้าง) */
+.focus-chart-box {
+    max-width: 320px;
+    height: 320px;
+    margin: 0 auto;
+}
+
 .chart-card {
     background-color: #fdfaf0; 
     border: 2px solid #000;    

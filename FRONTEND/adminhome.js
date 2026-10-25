@@ -1,5 +1,7 @@
 // ================== สถิติทั้งหมดของหน้าแอดมินหลัก ==================
 // ข้อมูลทุกส่วนมาจาก GET /api/admin/stats/dashboard?range=7|30 (ดู BACKEND/src/services/adminDashboard.js)
+// ไฟล์นี้ใช้ทั้งหน้าหลัก (adminhome.html) และหน้าข้อมูลนิสิต (adminstudent.html)
+// การ์ดถูกแบ่งไปคนละหน้า ฟังก์ชันวาดการ์ดจึงเช็กก่อนว่าหน้านี้มีการ์ดนั้นไหม ถ้าไม่มีก็ข้าม
 const AD_COLORS = {
   users: "#D9714E",
   reading: "#8DB754",
@@ -75,19 +77,27 @@ function adEmpty(text) {
 }
 
 // ---------- การ์ดสรุปด้านบน ----------
+// หน้าหลักมีป้ายครบ 5 ใบ ส่วนหน้าข้อมูลนิสิตมีแค่ใบจำนวนนิสิต — ใบที่ไม่มีก็ข้ามไปเงียบๆ
+function setTileText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
 function renderTiles(t) {
-  document.getElementById("statTotalUsers").textContent = num(t.users.total);
+  setTileText("statTotalUsers", num(t.users.total));
   renderUsersTrend(t.users.changePercent, t.users.newSinceLastMonth);
 
-  document.getElementById("statChapters").textContent = num(t.chapters.total);
-  document.getElementById("statChaptersNote").textContent = `มีมินิเกม ${num(t.chapters.withGame)} บท`;
+  setTileText("statChapters", num(t.chapters.total));
+  setTileText("statChaptersNote", `มีมินิเกม ${num(t.chapters.withGame)} บท`);
 
-  document.getElementById("statStages").textContent = num(t.game.stages);
-  document.getElementById("statStagesNote").textContent = `${num(t.game.worlds)} โลก · เล่นไปแล้ว ${num(t.game.battles)} ครั้ง`;
+  setTileText("statStages", num(t.game.stages));
+  setTileText("statStagesNote", `${num(t.game.worlds)} โลก · เล่นไปแล้ว ${num(t.game.battles)} ครั้ง`);
 
-  document.getElementById("statCoins").textContent = num(t.coins.inCirculation);
+  setTileText("statCoins", num(t.coins.inCirculation));
   const coinPill = document.getElementById("statCoinsTrend");
-  if (t.coins.changePercent === null || t.coins.changePercent === undefined) {
+  if (!coinPill) {
+    /* หน้านี้ไม่มีป้ายคอยน์ */
+  } else if (t.coins.changePercent === null || t.coins.changePercent === undefined) {
     coinPill.textContent = `เดือนนี้แจกไป ${num(t.coins.thisMonth)} คอยน์`;
     coinPill.className = "trend-pill";
   } else {
@@ -96,8 +106,8 @@ function renderTiles(t) {
     coinPill.className = `trend-pill ${up ? "trend-up" : "trend-down"}`;
   }
 
-  document.getElementById("statCoupons").textContent = num(t.coupons.issued);
-  document.getElementById("statCouponsNote").textContent = `มูลค่ารวม ${num(t.coupons.baht)} บาท`;
+  setTileText("statCoupons", num(t.coupons.issued));
+  setTileText("statCouponsNote", `มูลค่ารวม ${num(t.coupons.baht)} บาท`);
 }
 
 // อัปเดต pill "มากกว่าเดือนที่แล้ว X%" ให้เป็นตัวเลขจริงจาก backend
@@ -139,6 +149,7 @@ function renderTrend(rows) {
 
 // ---------- สัดส่วนการอ่านรายบท ----------
 function renderChapterShare(share) {
+  if (!document.getElementById("adChapterTotal")) return;
   document.getElementById("adChapterTotal").textContent = num(share.total);
   const legend = document.getElementById("adChapterLegend");
   const canvas = document.getElementById("adChapterChart");
@@ -177,6 +188,7 @@ function renderChapterShare(share) {
 
 // ---------- ภาพรวมน้องหมา ----------
 function renderPet(pet) {
+  if (!document.getElementById("adPetRing")) return;
   document.getElementById("adPetRing").style.setProperty("--value", pet.happiness);
   document.getElementById("adPetHappiness").textContent = `${pet.happiness}%`;
   document.getElementById("adPetTitle").textContent = `ความสุขเฉลี่ย ${pet.happiness}%`;
@@ -214,6 +226,7 @@ function renderTopReaders(rows) {
 }
 
 function drawTopReaders() {
+  if (!document.getElementById("adTopReaders")) return;
   const query = (document.getElementById("adReaderSearch")?.value || "").trim().toLowerCase();
   const rows = query ? adReaders.filter((r) => r.username.toLowerCase().includes(query)) : adReaders;
   const table = document.getElementById("adTopReaders");
@@ -272,6 +285,7 @@ function renderReadingByDay(rows) {
 
 // ---------- สถิติการทบทวน ----------
 function renderReview(review) {
+  if (!document.getElementById("adReviewRing")) return;
   document.getElementById("adReviewRing").style.setProperty("--value", review.masteredPercent);
   document.getElementById("adReviewPercent").textContent = `${review.masteredPercent}%`;
   document.getElementById("adReviewDesc").textContent = review.items
@@ -310,6 +324,7 @@ function renderReview(review) {
 // ---------- ผลลัพธ์การเรียนรู้รายบท ----------
 function renderLearning(rows) {
   const table = document.getElementById("adLearning");
+  if (!table) return;
   if (!rows.length) {
     table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีใครทำแบบทดสอบจบสักบท")}</td></tr></tbody>`;
     return;
@@ -331,6 +346,7 @@ function renderLearning(rows) {
 
 // ---------- การใช้ AI ----------
 function renderAi(ai) {
+  if (!document.getElementById("adAiQuestions")) return;
   document.getElementById("adAiQuestions").textContent = num(ai.questions);
   document.getElementById("adAiUsers").textContent = num(ai.users);
   const list = document.getElementById("adAiTop");
@@ -370,6 +386,7 @@ function renderAi(ai) {
 // ---------- นิสิตที่ควรดูแล ----------
 function renderAtRisk(atRisk) {
   const chip = document.getElementById("adRiskChip");
+  if (!chip) return;
   const table = document.getElementById("adRiskTable");
   const note = document.getElementById("adRiskNote");
   const c = atRisk.criteria;
@@ -451,6 +468,7 @@ function markUpdatesSeen() {
 
 function renderUpdates(items) {
   const list = document.getElementById("adBellList");
+  if (!list) return;
   const count = document.getElementById("adBellCount");
   list.innerHTML = items.length
     ? items
@@ -469,6 +487,7 @@ function renderUpdates(items) {
 // ---------- สถิติมินิเกมรายโลก ----------
 function renderGames(rows) {
   const table = document.getElementById("adGames");
+  if (!table) return;
   const chip = document.getElementById("adGameChip");
   if (!rows.length) {
     chip.textContent = "ยังไม่มีใครเล่น";
@@ -508,10 +527,13 @@ function renderDashboard(data) {
   renderGames(data.games);
   renderAtRisk(data.atRisk || { total: 0, users: [], criteria: {} });
   renderUpdates(data.updates || []);
-  document.getElementById("adUpdatedAt").textContent = `อัปเดตล่าสุด: ${new Date().toLocaleString("th-TH", {
-    dateStyle: "long",
-    timeStyle: "short",
-  })} น.`;
+  const updated = document.getElementById("adUpdatedAt");
+  if (updated) {
+    updated.textContent = `อัปเดตล่าสุด: ${new Date().toLocaleString("th-TH", {
+      dateStyle: "long",
+      timeStyle: "short",
+    })} น.`;
+  }
 }
 
 // ดาวน์โหลด CSV รายคน (ต้องแนบ token แอดมิน เลยโหลดผ่าน fetch แล้วค่อยสร้างลิงก์)
@@ -559,15 +581,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
 
   const select = document.getElementById("adRangeSelect");
-  select.value = String(adRange);
-  select.addEventListener("change", () => {
-    adRange = Number(select.value);
-    loadDashboard();
-  });
+  if (select) {
+    select.value = String(adRange);
+    select.addEventListener("change", () => {
+      adRange = Number(select.value);
+      loadDashboard();
+    });
+  }
 
   // กระดิ่ง: เปิด/ปิดแผงอัปเดต และปิดเมื่อคลิกที่อื่น
   const bellBtn = document.getElementById("adBellBtn");
   const bellPanel = document.getElementById("adBellPanel");
+  if (bellBtn && bellPanel) {
   bellBtn.addEventListener("click", () => {
     const open = bellPanel.hidden;
     bellPanel.hidden = !open;
@@ -580,13 +605,14 @@ document.addEventListener("DOMContentLoaded", () => {
       bellBtn.setAttribute("aria-expanded", "false");
     }
   });
+  }
 
   let searchTimer = null;
-  document.getElementById("adReaderSearch").addEventListener("input", () => {
+  document.getElementById("adReaderSearch")?.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(drawTopReaders, 200);
   });
-  document.getElementById("adReadersCsv").addEventListener("click", downloadReadersCsv);
+  document.getElementById("adReadersCsv")?.addEventListener("click", downloadReadersCsv);
 
   loadDashboard();
 });

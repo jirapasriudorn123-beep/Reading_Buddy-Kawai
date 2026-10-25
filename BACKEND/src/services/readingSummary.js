@@ -47,7 +47,7 @@ async function collectStats(userId) {
       .all(userId),
     db
       .prepare(
-        `SELECT q.question_id, qq.question, qq.chapter_id FROM chapter_test_questions q
+        `SELECT q.question_id, qq.question, qq.chapter_id, qq.topic FROM chapter_test_questions q
          JOIN chapter_tests t ON t.id = q.test_id
          JOIN quiz_questions qq ON qq.id = q.question_id
          WHERE t.user_id = ? AND t.status = 'completed' AND q.post_correct = 0 AND ${WINDOW_SQL("t.completed_at")}`
@@ -55,7 +55,7 @@ async function collectStats(userId) {
       .all(userId),
     db
       .prepare(
-        `SELECT l.question_id, l.correct, qq.question, qq.chapter_id FROM quiz_answer_log l
+        `SELECT l.question_id, l.correct, qq.question, qq.chapter_id, qq.topic FROM quiz_answer_log l
          LEFT JOIN quiz_questions qq ON qq.id = l.question_id
          WHERE l.user_id = ? AND l.category = 'subject' AND ${WINDOW_SQL("l.created_at")}`
       )
@@ -77,20 +77,32 @@ async function collectStats(userId) {
 
   // ข้อที่ยังผิดบ่อย: ผิดใน post สัปดาห์นี้ + ในเกม (ผิดมากกว่าถูก) เรียงตามจำนวนครั้งที่ผิด
   const wrong = new Map();
-  const bump = (qid, question, chapterId, delta) => {
+  const bump = (qid, question, chapterId, topic, delta) => {
     if (!qid || !question) return;
-    const w = wrong.get(qid) || { question, chapterId, wrong: 0, right: 0 };
+    const w = wrong.get(qid) || { question, chapterId, topic: topic || null, wrong: 0, right: 0 };
     if (delta > 0) w.wrong += 1;
     else w.right += 1;
     wrong.set(qid, w);
   };
-  postWrong.forEach((r) => bump(r.question_id, r.question, r.chapter_id, 1));
-  gameRows.forEach((r) => bump(r.question_id, r.question, r.chapter_id, r.correct ? -1 : 1));
-  const weakQuestions = [...wrong.values()]
-    .filter((w) => w.wrong > w.right)
-    .sort((a, b) => b.wrong - a.wrong)
+  postWrong.forEach((r) => bump(r.question_id, r.question, r.chapter_id, r.topic, 1));
+  gameRows.forEach((r) => bump(r.question_id, r.question, r.chapter_id, r.topic, r.correct ? -1 : 1));
+  const stillWrong = [...wrong.values()].filter((w) => w.wrong > w.right);
+
+  // รวมข้อที่ผิดเป็น "หัวข้อย่อย" ที่ควรกลับไปทบทวน (เช่น เลขฐานแปด ในบทที่ 1)
+  // ข้อที่แอดมินยังไม่ได้ใส่หัวข้อย่อย จะยืนพื้นเป็นข้อของตัวเองโดยใช้ข้อความคำถามแทน
+  const byTopic = new Map();
+  for (const w of stillWrong) {
+    const chapter = chapterById.get(w.chapterId) ? chapterById.get(w.chapterId).chapter_number : null;
+    const key = w.topic ? `${chapter}·${w.topic}` : `q${w.question}`;
+    const item = byTopic.get(key) || { chapter, topic: w.topic, question: shorten(w.question), wrong: 0, questions: 0 };
+    item.wrong += w.wrong;
+    item.questions += 1;
+    byTopic.set(key, item);
+  }
+  const weakQuestions = [...byTopic.values()]
+    .sort((a, b) => b.wrong - a.wrong || b.questions - a.questions)
     .slice(0, MAX_WEAK_QUESTIONS)
-    .map((w) => ({ chapter: chapterById.get(w.chapterId) ? chapterById.get(w.chapterId).chapter_number : null, question: shorten(w.question) }));
+    .map((w) => ({ chapter: w.chapter, topic: w.topic, question: w.question, questions: w.questions, wrongCount: w.wrong }));
 
   // บทที่อ่านครบเวลาแล้ว รอทำแบบทดสอบหลังอ่าน
   const progress = await Promise.all(chapters.map((c) => tests.chapterProgress(userId, c.id)));
@@ -152,7 +164,12 @@ function buildFacts(stats) {
   }
   if (stats.gameAnswers > 0) facts.push(`ทบทวนในเกม ตอบถูก ${stats.gameCorrect} จาก ${stats.gameAnswers} ข้อ`);
   for (const w of stats.weakQuestions) {
-    facts.push(`ยังตอบผิดบ่อย: "${w.question}"${w.chapter ? ` (บทที่ ${w.chapter})` : ""}`);
+    const where = w.chapter ? ` (บทที่ ${w.chapter})` : "";
+    facts.push(
+      w.topic
+        ? `หัวข้อที่ยังพลาดบ่อย: ${w.topic}${where} ผิดไป ${w.wrongCount || w.questions} ครั้ง`
+        : `ยังตอบผิดบ่อย: "${w.question}"${where}`
+    );
   }
   for (const n of stats.pendingPostTests) facts.push(`บทที่ ${n} อ่านครบเวลาแล้ว รอทำแบบทดสอบหลังอ่าน`);
   return facts;
@@ -162,7 +179,10 @@ function suggestion(stats) {
   if (stats.pendingPostTests.length) return `ไปทำแบบทดสอบหลังอ่านบทที่ ${stats.pendingPostTests[0]} เพื่อรับคอยน์ที่รออยู่กันเถอะ`;
   if (stats.weakQuestions.length) {
     const w = stats.weakQuestions[0];
-    return `ลองกลับไปทบทวนเรื่อง "${w.question}"${w.chapter ? ` ในบทที่ ${w.chapter}` : ""} หรือเล่นด่านทบทวนในเกมดูนะ`;
+    const where = w.chapter ? ` ในบทที่ ${w.chapter}` : "";
+    return w.topic
+      ? `ลองกลับไปทบทวนหัวข้อ ${w.topic}${where} หรือเล่นด่านทบทวนในเกมดูนะ`
+      : `ลองกลับไปทบทวนเรื่อง "${w.question}"${where} หรือเล่นด่านทบทวนในเกมดูนะ`;
   }
   if (stats.rounds === 0) return "เริ่มจากอ่าน 1 รอบ 25 นาทีวันนี้ น้องหมารออยู่นะ";
   return "อ่านต่อเนื่องแบบนี้ทุกวัน แล้วทำแบบทดสอบหลังอ่านให้ครบทุกบทนะ";

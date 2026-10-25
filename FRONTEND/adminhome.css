@@ -211,6 +211,11 @@
     margin-bottom: 20px;
 }
 
+/* แถวป้ายใบเดียว (หน้าข้อมูลนิสิต) ไม่ให้ยืดเต็มความกว้าง */
+.ad-tiles-1 {
+    grid-template-columns: minmax(0, 280px);
+}
+
 .ad-tile {
     align-items: stretch;
     padding: 16px 18px;
@@ -247,6 +252,11 @@
 
 .ad-tile .trend-pill {
     align-self: flex-start;
+}
+
+/* การ์ดใบเดียวเต็มความกว้าง (แถวที่เหลือการ์ดเดียวหลังแยกหน้าข้อมูลนิสิตออกไป) */
+.ad-cols-1 {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 /* ---- แถวการ์ด 3 ใบ ---- */
