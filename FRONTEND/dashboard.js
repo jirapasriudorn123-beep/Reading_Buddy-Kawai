@@ -278,25 +278,27 @@ function wsChapterMinutes(stats) {
 
 function wsPrePost(stats) {
   // บทเดียวกันทำหลายชุดในสัปดาห์นี้ → ใช้ชุดล่าสุด
-  // แสดงเฉพาะชุดที่เป็นแบบทดสอบชุดปัจจุบัน (10 ข้อ) — ชุดเก่าก่อน 23 ต.ค. 2569 มี 5 ข้อ
-  // คะแนนคนละเต็มเอามาวางเทียบกันในกราฟเดียวกันไม่ได้ (ข้อมูลเดิมยังอยู่ครบในฐานข้อมูล)
+  // เกณฑ์ผ่านคิดจากจำนวนข้อของชุดนั้นเสมอ (ชุดเก่าก่อน 23 ต.ค. 2569 มี 5 ข้อ ชุดใหม่ 10 ข้อ)
+  // ส่วนคำอธิบายใต้กราฟบอกเกณฑ์ของแบบทดสอบชุดปัจจุบัน ให้รู้ว่าถ้าทำตอนนี้ต้องได้เท่าไหร่
   const byChapter = new Map();
-  for (const t of stats.postTests || []) {
-    if (t.total === WP_QUESTIONS_PER_TEST) byChapter.set(t.chapter, t);
-  }
+  for (const t of stats.postTests || []) byChapter.set(t.chapter, t);
   const tests = [...byChapter.values()].sort((a, b) => a.chapter - b.chapter);
   if (!tests.length) return null;
   const passOf = (t) => Math.ceil(t.total * WP_PASS_RATIO);
   const parts = tests.map((t) =>
     t.post >= passOf(t) ? `บทที่ ${t.chapter} ผ่านแล้ว` : `บทที่ ${t.chapter} ยังขาดอีก ${passOf(t) - t.post} คะแนน`
   );
+  // บทที่ใช้ชุดเก่า (ข้อไม่เท่าแบบทดสอบตอนนี้) ต้องบอกจำนวนข้อกำกับไว้ ไม่งั้นคะแนนจะอ่านผิด
+  const oldSet = (t) => t.total !== WP_QUESTIONS_PER_TEST;
   const rows = tests
     .map((t) => {
       const pct = (v) => (v / t.total) * 100;
       const ok = t.post >= passOf(t);
       const hasPre = t.pre !== null && t.pre !== undefined;
       const from = hasPre ? Math.min(t.pre, t.post) : t.post;
-      const value = hasPre ? `${t.pre} → ${t.post}` : `${t.post}/${t.total}`;
+      const value = hasPre
+        ? `${t.pre} → ${t.post}${oldSet(t) ? `<span class="ws-row-total">จาก ${t.total} ข้อ</span>` : ""}`
+        : `${t.post}/${t.total}`;
       return `
         <div class="ws-row">
           <span class="ws-row-label">บทที่ ${t.chapter}</span>
