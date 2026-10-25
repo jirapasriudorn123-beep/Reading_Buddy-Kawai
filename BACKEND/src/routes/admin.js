@@ -1059,7 +1059,7 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
     const [chapter, questions] = await Promise.all([
       db
         .prepare(
-          `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled,
+          `SELECT c.id, c.chapter_number, c.title, c.game_required_minutes, c.game_enabled, c.topics,
                 (SELECT COUNT(*) FROM quiz_questions q WHERE q.chapter_id = c.id AND q.enabled = 1) AS question_bank
            FROM chapters c WHERE c.id = ?`
         )
@@ -1116,6 +1116,39 @@ router.get("/game-questions/chapter/:chapterId", requireAdmin, async (req, res, 
   }
 });
 
+// ---- หัวข้อย่อยของบท (chapters.topics) ----
+// เก็บเป็นข้อความบรรทัดละหัวข้อ ตัดบรรทัดว่างและหัวข้อซ้ำออกก่อนบันทึก
+function parseTopics(raw) {
+  const seen = new Set();
+  return String(raw || "")
+    .split("\n")
+    .map((t) => t.trim().slice(0, 80))
+    .filter((t) => t && !seen.has(t) && seen.add(t))
+    .slice(0, 40);
+}
+
+router.put("/chapters/:id/topics", requireAdmin, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(id);
+    if (!chapter) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
+
+    const topics = parseTopics(req.body.topics);
+    await db.prepare("UPDATE chapters SET topics = ? WHERE id = ?").run(topics.join("\n") || null, id);
+    // หัวข้อที่ถูกลบออกจากรายการ: ปล่อยคำถามที่เคยผูกไว้ให้ว่าง จะได้ไม่เหลือหัวข้อที่ไม่มีอยู่จริง
+    const placeholders = topics.map(() => "?").join(", ");
+    await db
+      .prepare(
+        `UPDATE quiz_questions SET topic = NULL
+         WHERE chapter_id = ? AND topic IS NOT NULL${topics.length ? ` AND topic NOT IN (${placeholders})` : ""}`
+      )
+      .run(id, ...topics);
+    return res.json({ message: "บันทึกหัวข้อย่อยแล้ว", topics });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // validate payload คำถามให้ครบและถูกช่วง — ใช้ทั้งตอน POST และ PUT
 function validateQuestionPayload(body) {
   const q = String(body.question || "").trim();
@@ -1139,11 +1172,14 @@ function validateQuestionPayload(body) {
 router.post("/game-questions", requireAdmin, async (req, res) => {
   try {
     const chapterId = Number(req.body.chapterId);
-    const chapter = await db.prepare("SELECT id FROM chapters WHERE id = ?").get(chapterId);
+    const chapter = await db.prepare("SELECT id, topics FROM chapters WHERE id = ?").get(chapterId);
     if (!chapter) return res.status(400).json({ message: "ไม่พบบทเรียนที่ระบุ" });
 
     const v = validateQuestionPayload(req.body);
     if (v.error) return res.status(400).json({ message: v.error });
+    if (v.topic && !parseTopics(chapter.topics).includes(v.topic)) {
+      return res.status(400).json({ message: "หัวข้อย่อยนี้ไม่มีในรายการหัวข้อของบทนี้" });
+    }
 
     const result = await db
       .prepare(
@@ -1166,11 +1202,18 @@ router.post("/game-questions", requireAdmin, async (req, res) => {
 router.put("/game-questions/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = await db.prepare("SELECT id FROM quiz_questions WHERE id = ?").get(id);
+    const existing = await db
+      .prepare(
+        `SELECT q.id, c.topics FROM quiz_questions q JOIN chapters c ON c.id = q.chapter_id WHERE q.id = ?`
+      )
+      .get(id);
     if (!existing) return res.status(404).json({ message: "ไม่พบคำถามนี้" });
 
     const v = validateQuestionPayload(req.body);
     if (v.error) return res.status(400).json({ message: v.error });
+    if (v.topic && !parseTopics(existing.topics).includes(v.topic)) {
+      return res.status(400).json({ message: "หัวข้อย่อยนี้ไม่มีในรายการหัวข้อของบทนี้" });
+    }
 
     await db
       .prepare(

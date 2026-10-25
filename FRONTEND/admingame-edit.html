@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>จัดการมินิเกม</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="admingame.css?v=4">
+    <link rel="stylesheet" href="admingame.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -85,9 +85,12 @@
                     </select>
                 </div>
             </div>
-            <button class="qe-add-btn" onclick="openAddQuestionModal()">
-                <span class="qe-add-plus">+</span> เพิ่มคำถาม
-            </button>
+            <div class="qe-toolbar-right">
+                <button class="qe-topics-btn" onclick="openTopicsModal()">หัวข้อย่อยของบทนี้</button>
+                <button class="qe-add-btn" onclick="openAddQuestionModal()">
+                    <span class="qe-add-plus">+</span> เพิ่มคำถาม
+                </button>
+            </div>
         </div>
 
         <div class="qe-condition-bar" id="conditionBar">
@@ -104,6 +107,22 @@
             <p style="color:#999; text-align:center; padding:40px;">กำลังโหลดคำถาม...</p>
         </div>
     </main>
+</div>
+
+<!-- Modal รายการหัวข้อย่อยของบท (บรรทัดละหัวข้อ) -->
+<div id="topicsModal" class="edit-overlay">
+    <div class="edit-modal-box" style="max-width:480px;">
+        <div class="edit-modal-header">
+            <button class="edit-modal-back" onclick="closeTopicsModal()">&#8592;</button>
+            <span class="edit-modal-title">หัวข้อย่อยของบทนี้</span>
+        </div>
+        <div class="edit-form-group">
+            <label class="edit-form-label" for="topicsText">พิมพ์บรรทัดละ 1 หัวข้อ</label>
+            <textarea class="edit-form-textarea" id="topicsText" rows="8" placeholder="เลขฐานสอง&#10;เลขฐานแปด&#10;เลขฐานสิบหก&#10;การแปลงเลขฐาน"></textarea>
+            <p class="edit-form-hint">หัวข้อที่ลบออกจากรายการ คำถามที่เคยผูกไว้จะกลับไปเป็น “ไม่ระบุ”</p>
+        </div>
+        <button class="edit-confirm-btn" onclick="saveTopics()">บันทึก</button>
+    </div>
 </div>
 
 <!-- Modal เพิ่ม/แก้ไข คำถาม -->
@@ -127,8 +146,8 @@
 
         <div class="edit-form-group">
             <label class="edit-form-label" for="editQuestionTopic">หัวข้อย่อยในบทนี้ (ไม่บังคับ)</label>
-            <input type="text" class="edit-form-input" id="editQuestionTopic" maxlength="80" placeholder="เช่น เลขฐานแปด">
-            <p class="edit-form-hint">ใช้บอกผู้เรียนว่าควรกลับไปทบทวนหัวข้อไหน ถ้าเว้นว่างจะแสดงเป็นข้อความคำถามแทน</p>
+            <select class="edit-form-input" id="editQuestionTopic"></select>
+            <p class="edit-form-hint">ใช้บอกผู้เรียนว่าควรกลับไปทบทวนหัวข้อไหน ถ้าไม่เลือกจะแสดงเป็นข้อความคำถามแทน · เพิ่มหัวข้อได้ที่ปุ่ม “หัวข้อย่อยของบทนี้”</p>
         </div>
 
         <div class="edit-form-group">
@@ -188,6 +207,6 @@
 
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js?v=2"></script>
-<script src="admingame-edit.js?v=5"></script>
+<script src="admingame-edit.js?v=6"></script>
 </body>
 </html>

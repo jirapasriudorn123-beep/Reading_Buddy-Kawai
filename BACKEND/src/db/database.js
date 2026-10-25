@@ -173,6 +173,8 @@ async function initDatabase() {
     ["game_required_minutes", "ALTER TABLE chapters ADD COLUMN game_required_minutes INTEGER NOT NULL DEFAULT 20"],
     ["game_question_count", "ALTER TABLE chapters ADD COLUMN game_question_count INTEGER NOT NULL DEFAULT 5"],
     ["game_enabled", "ALTER TABLE chapters ADD COLUMN game_enabled INTEGER NOT NULL DEFAULT 1"],
+    // หัวข้อย่อยของบทนี้ บรรทัดละหัวข้อ (เช่น "เลขฐานสอง") — คำถามแต่ละข้อเลือกได้ 1 หัวข้อจากรายการนี้
+    ["topics", "ALTER TABLE chapters ADD COLUMN topics TEXT"],
   ];
   for (const [col, sql] of chapterColumnMigrations) {
     if (!chapterColumns.includes(col)) await client.execute(sql);

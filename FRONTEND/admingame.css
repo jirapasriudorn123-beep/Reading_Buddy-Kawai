@@ -185,6 +185,31 @@
   -webkit-appearance: none;
 }
 
+.qe-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ปุ่มเปิดรายการหัวข้อย่อยของบท — รองจากปุ่มเพิ่มคำถาม เลยเป็นปุ่มขอบ ไม่ใช่ปุ่มทึบ */
+.qe-topics-btn {
+  width: auto;
+  background: #fff;
+  color: #6b6558;
+  border: 1.5px solid #e5e0d5;
+  border-radius: 999px;
+  padding: 11px 20px;
+  font-size: 14.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.qe-topics-btn:hover {
+  border-color: #d9714e;
+  color: #d9714e;
+}
+
 .qe-add-btn {
   background: #d9714e;
   color: #fff;

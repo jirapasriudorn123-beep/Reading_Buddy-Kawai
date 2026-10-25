@@ -51,6 +51,52 @@ function onChapterNavChange(value) {
   }
 }
 
+// ---- หัวข้อย่อยของบท (เก็บที่ chapters.topics บรรทัดละหัวข้อ) ----
+function chapterTopics() {
+  return String(currentChapter?.topics || "")
+    .split("\n")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+// dropdown หัวข้อในฟอร์มคำถาม — ค่าที่เลือกอยู่แต่ไม่มีในรายการแล้ว ยังแสดงไว้ให้เห็นว่าเคยผูกกับอะไร
+function fillTopicSelect(selected) {
+  const select = document.getElementById("editQuestionTopic");
+  const topics = chapterTopics();
+  if (selected && !topics.includes(selected)) topics.push(selected);
+  select.innerHTML =
+    '<option value="">— ไม่ระบุหัวข้อ —</option>' +
+    topics.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+  select.value = selected || "";
+}
+
+function openTopicsModal() {
+  document.getElementById("topicsText").value = chapterTopics().join("\n");
+  document.getElementById("topicsModal").classList.add("active");
+}
+
+function closeTopicsModal() {
+  document.getElementById("topicsModal").classList.remove("active");
+}
+
+async function saveTopics() {
+  const btn = document.querySelector("#topicsModal .edit-confirm-btn");
+  btn.disabled = true;
+  try {
+    const { topics } = await adminApiFetch(`/admin/chapters/${chapterId}/topics`, {
+      method: "PUT",
+      body: JSON.stringify({ topics: document.getElementById("topicsText").value }),
+    });
+    currentChapter.topics = topics.join("\n");
+    closeTopicsModal();
+    await loadPage(); // คำถามที่ผูกกับหัวข้อที่เพิ่งลบ จะกลับเป็น "ไม่ระบุ"
+  } catch (err) {
+    alert(err.message || "บันทึกไม่สำเร็จ");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderConditionBar() {
   document.getElementById("conditionText").textContent =
     `บทที่ ${currentChapter.chapter_number} ${currentChapter.title} : ` +
@@ -153,7 +199,7 @@ function openAddQuestionModal() {
   document.getElementById("questionModalTitle").textContent = "เพิ่มคำถาม";
   document.getElementById("editQuestionId").value = "";
   document.getElementById("editQuestionLevel").value = 1;
-  document.getElementById("editQuestionTopic").value = "";
+  fillTopicSelect("");
   document.getElementById("editQuestionText").value = "";
   [1, 2, 3, 4].forEach((i) => {
     document.getElementById("editOption" + i).value = "";
@@ -170,7 +216,7 @@ function openEditQuestionModal(id) {
   document.getElementById("questionModalTitle").textContent = "แก้ไขคำถาม";
   document.getElementById("editQuestionId").value = id;
   document.getElementById("editQuestionLevel").value = q.level;
-  document.getElementById("editQuestionTopic").value = q.topic || "";
+  fillTopicSelect(q.topic || "");
   document.getElementById("editQuestionText").value = q.question;
   document.getElementById("editOption1").value = q.option_1;
   document.getElementById("editOption2").value = q.option_2;
@@ -188,7 +234,7 @@ function closeQuestionModal() {
 
 async function saveQuestion() {
   const level = Number(document.getElementById("editQuestionLevel").value);
-  const topic = document.getElementById("editQuestionTopic").value.trim();
+  const topic = document.getElementById("editQuestionTopic").value;
   const question = document.getElementById("editQuestionText").value.trim();
   const options = [1, 2, 3, 4].map((i) => document.getElementById("editOption" + i).value.trim());
   const correctRadio = document.querySelector('input[name="correctOption"]:checked');
