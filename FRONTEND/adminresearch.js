@@ -114,7 +114,9 @@ const RS_CARD_VIEWS = {
   users: {
     title: (r) => r.username,
     subtitle: (r) => `สมัคร ${r.registered_at || "—"} · เข้าใช้ล่าสุด ${r.last_active_date || "ยังไม่เข้าใช้"}`,
-    stats: ["active_days", "reading_minutes", "avg_post_score_pct", "chapters_passed"],
+    // active_days (วันที่เข้าใช้) ไม่เอาขึ้นหัวการ์ด เพราะอ่านแล้วเข้าใจผิดว่าเป็นจำนวนครั้ง
+    // ตัวเลขยังอยู่ครบในไฟล์ CSV และใช้เป็นตัวหารของช่อง "ต่อวันที่เข้าใช้" เหมือนเดิม
+    stats: ["reading_minutes", "avg_post_score_pct", "chapters_passed"],
     groups: [
       ["การอ่าน", ["first_active_date", "last_active_day_index", "reading_days", "longest_reading_streak", "reading_rounds", "avg_round_minutes", "rounds_stopped_early", "reading_minutes_per_active_day"]],
       ["แบบทดสอบก่อน/หลังอ่าน", ["chapters_pretested", "chapters_posttested", "avg_pre_score_pct", "avg_gain_pct"]],
