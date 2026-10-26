@@ -48,8 +48,14 @@ function renderShops() {
         <td>${pin}</td>
         <td>${s.usedCount} ใบ</td>
         <td>
-          <button class="shop-action-btn edit" onclick="openShopModal(${s.id})">✏️ แก้ไข / ตั้ง PIN</button>
-          <button class="shop-action-btn delete" onclick="deleteShop(${s.id})">🗑️ ลบ</button>
+          <div class="shop-actions">
+            <button class="shop-edit-btn" onclick="openShopModal(${s.id})" title="แก้ไข / ตั้ง PIN" aria-label="แก้ไข / ตั้ง PIN">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#f0b23d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button class="action-btn delete-btn" onclick="deleteShop(${s.id})" title="ลบ" aria-label="ลบ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M6 7l1 12.5A2 2 0 0 0 9 21h6a2 2 0 0 0 2-1.5L18 7"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+          </div>
         </td>
       </tr>`;
     })

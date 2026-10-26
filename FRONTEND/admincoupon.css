@@ -76,20 +76,31 @@
   white-space: nowrap;
 }
 
-.shop-action-btn {
-  padding: 6px 14px;
-  margin: 2px;
+/* ปุ่มจัดการร้าน: ดินสอสีส้ม (แบบหน้ามินิเกม) + ถังขยะบนพื้นส้ม (.action-btn.delete-btn แบบหน้าบทเรียน) */
+.shop-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shop-edit-btn {
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
+  border-radius: 10px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.shop-action-btn.edit {
-  background: #e8f0dc;
+.shop-edit-btn:hover {
+  background: #fff4dc;
 }
 
-.shop-action-btn.delete {
-  background: #f8dcd6;
+.shop-edit-btn svg {
+  width: 24px;
+  height: 24px;
 }
