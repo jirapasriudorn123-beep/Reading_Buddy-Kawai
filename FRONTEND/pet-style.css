@@ -616,3 +616,54 @@ html.dark-mode body .pet-zzz span { color: #a9c4f0; text-shadow: none; }
     flex: 0 0 auto;
     margin: 0;
 }
+
+/* ---- แถบเลเวลรูปกระดูกหมา (หน้าน้องหมา) ----
+   ตัดรูปด้วย mask: ปุ่มกลม 4 ลูกที่ปลายสองข้าง + แกนกลาง — ชั้นนอกสีเข้มเป็นขอบ ชั้นในเล็กกว่านิดหน่อยเป็นรางสีครีม
+   แถบเขียวอยู่ในชั้นใน เลยโดนตัดเป็นรูปกระดูกไปด้วย (ปลายซ้ายเป็นสีเขียวเมื่อเริ่มมีความคืบหน้า) */
+.bone-bar {
+    --kr: 17px;      /* รัศมีปุ่มกลมที่ปลาย */
+    --shaft: 38px;   /* ความหนาแกนกลาง */
+    position: relative;
+    flex: 1;
+    height: 58px;
+    background: #3a3a3a;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+}
+
+.bone-bar,
+.bone-bar-track {
+    -webkit-mask-image:
+        radial-gradient(circle at var(--kr) var(--kr), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at var(--kr) calc(100% - var(--kr)), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at calc(100% - var(--kr)) var(--kr), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at calc(100% - var(--kr)) calc(100% - var(--kr)), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        linear-gradient(#000, #000);
+    -webkit-mask-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, calc(100% - 2 * var(--kr)) var(--shaft);
+    -webkit-mask-position: 0 0, 0 0, 0 0, 0 0, center;
+    -webkit-mask-repeat: no-repeat;
+    mask-image:
+        radial-gradient(circle at var(--kr) var(--kr), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at var(--kr) calc(100% - var(--kr)), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at calc(100% - var(--kr)) var(--kr), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        radial-gradient(circle at calc(100% - var(--kr)) calc(100% - var(--kr)), #000 calc(var(--kr) - 0.5px), transparent var(--kr)),
+        linear-gradient(#000, #000);
+    mask-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, calc(100% - 2 * var(--kr)) var(--shaft);
+    mask-position: 0 0, 0 0, 0 0, 0 0, center;
+    mask-repeat: no-repeat;
+}
+
+.bone-bar-track {
+    --kr: 13.5px;
+    --shaft: 31px;
+    position: absolute;
+    inset: 3.5px;
+    background: #f3ead2;
+}
+
+.bone-bar .progress-fill {
+    height: 100%;
+    border-radius: 0;
+    background: linear-gradient(90deg, #8DC26E, #5FA24C);
+}
