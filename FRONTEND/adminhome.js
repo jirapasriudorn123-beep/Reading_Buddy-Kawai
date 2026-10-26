@@ -246,6 +246,55 @@ function renderChapterOverview(o) {
   });
 }
 
+// ---------- สรุปการเรียนรู้แต่ละบท (หน้าติดตามผู้เรียน) ----------
+// ปุ่มด้านบนเลือกว่าแถบความคืบหน้าแสดงสัดส่วนของสถานะไหน — "ทั้งหมด" = สัดส่วนที่ผ่านแล้ว
+const CHAPTER_STATUS = {
+  all: { key: "passed", color: AD_COLORS.reading, label: "ความคืบหน้า (ผ่านแล้ว)" },
+  studying: { key: "studying", color: "#7FA8C9", label: "สัดส่วนกำลังเรียน" },
+  passed: { key: "passed", color: AD_COLORS.reading, label: "สัดส่วนผ่านแล้ว" },
+  failed: { key: "failed", color: AD_COLORS.users, label: "สัดส่วนไม่ผ่าน" },
+};
+let adChapterRows = [];
+let adChapterStatus = "all";
+
+function drawChapterTable() {
+  const table = document.getElementById("adChapterTable");
+  if (!table) return;
+  if (!adChapterRows.length) {
+    table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีบทเรียน")}</td></tr></tbody>`;
+    return;
+  }
+  const status = CHAPTER_STATUS[adChapterStatus];
+  const picked = (key) => (adChapterStatus !== "all" && status.key === key ? ' class="is-picked"' : "");
+  table.innerHTML = `<thead><tr>
+      <th>ลำดับ</th><th>ชื่อบทเรียน</th><th>นิสิตทั้งหมด</th>
+      <th${picked("studying")}>กำลังเรียน</th><th${picked("passed")}>ผ่าน</th><th${picked("failed")}>ไม่ผ่าน</th>
+      <th>${escapeHtml(status.label)}</th>
+    </tr></thead><tbody>${adChapterRows
+      .map((r, i) => {
+        const percent = r.learners ? Math.round((r[status.key] / r.learners) * 100) : 0;
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>บทที่ ${r.chapter} : ${escapeHtml(r.title)}</td>
+          <td>${num(r.learners)}</td>
+          <td class="is-studying">${num(r.studying)}</td>
+          <td class="is-passed">${num(r.passed)}</td>
+          <td class="is-failed">${num(r.failed)}</td>
+          <td><div class="ad-cell-bar">
+            <div class="ad-bar-track"><div class="ad-bar-fill" style="width:${percent}%;background:${status.color}"></div></div>
+            <span>${r.learners ? `${percent}%` : "—"}</span>
+          </div></td>
+        </tr>`;
+      })
+      .join("")}</tbody>`;
+}
+
+function renderChapterTable(overview) {
+  if (!overview) return;
+  adChapterRows = overview.byChapter || [];
+  drawChapterTable();
+}
+
 // ---------- ภาพรวมน้องหมา ----------
 function renderPet(pet) {
   if (!document.getElementById("adPetRing")) return;
@@ -673,6 +722,7 @@ function renderDashboard(data) {
   renderTrend(data.trend);
   renderChapterShare(data.chapterShare);
   renderChapterOverview(data.chapterOverview);
+  renderChapterTable(data.chapterOverview);
   renderPet(data.pet);
   renderTopReaders(data.topReaders);
   renderReadingByDay(data.readingByDay);
@@ -769,6 +819,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("adReadersCsv")?.addEventListener("click", downloadReadersCsv);
 
+  document.getElementById("adChapterFilter")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-status]");
+    if (!btn) return;
+    adChapterStatus = btn.dataset.status;
+    btn.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("is-active", b === btn));
+    drawChapterTable();
+  });
   document.getElementById("adDailyEnd")?.addEventListener("change", (e) => loadDailyLearning(e.target.value));
 
   loadDashboard();

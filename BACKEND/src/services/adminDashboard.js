@@ -551,7 +551,7 @@ async function buildAtRisk() {
 // นับนิสิตแยกทีละบท (1 คนเริ่มเรียน 3 บท = 3) จากชุดแบบทดสอบทุกชุดของบทนั้น
 // ผ่าน = ผ่านแบบทดสอบหลังอ่านของบทนั้นแล้ว | ไม่ผ่าน = ทำหลังอ่านแล้วแต่ยังไม่ผ่าน | กำลังเรียน = เริ่มบทแล้วแต่ยังไม่ได้ทำหลังอ่าน
 async function buildChapterOverview() {
-  const [chapters, row] = await Promise.all([
+  const [chapters, row, byChapter] = await Promise.all([
     db.prepare("SELECT COUNT(*) c FROM chapters").get(),
     db
       .prepare(
@@ -567,8 +567,34 @@ async function buildChapterOverview() {
          )`
       )
       .get(),
+    // ตัวเลขเดียวกันแยกรายบท (บทที่ยังไม่มีใครเริ่มก็แสดงเป็น 0) ใช้ในตารางหน้าติดตามผู้เรียน
+    db
+      .prepare(
+        `SELECT c.chapter_number n, c.title,
+                COUNT(x.user_id) learners,
+                COALESCE(SUM(CASE WHEN x.passed > 0 THEN 1 ELSE 0 END), 0) passed,
+                COALESCE(SUM(CASE WHEN x.passed = 0 AND x.tried > 0 THEN 1 ELSE 0 END), 0) failed,
+                COALESCE(SUM(CASE WHEN x.passed = 0 AND x.tried = 0 THEN 1 ELSE 0 END), 0) studying
+         FROM chapters c LEFT JOIN (
+           SELECT t.user_id, t.chapter_id,
+                  SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) passed,
+                  SUM(t.post_tries) tried
+           FROM chapter_tests t JOIN users u ON u.id = t.user_id
+           WHERE u.is_admin = 0 GROUP BY t.user_id, t.chapter_id
+         ) x ON x.chapter_id = c.id
+         GROUP BY c.id ORDER BY c.chapter_number`
+      )
+      .all(),
   ]);
   return {
+    byChapter: byChapter.map((r) => ({
+      chapter: r.n,
+      title: r.title,
+      learners: Number(r.learners) || 0,
+      studying: Number(r.studying) || 0,
+      passed: Number(r.passed) || 0,
+      failed: Number(r.failed) || 0,
+    })),
     chapters: Number(chapters.c) || 0,
     passed: Number(row.passed) || 0,
     studying: Number(row.studying) || 0,

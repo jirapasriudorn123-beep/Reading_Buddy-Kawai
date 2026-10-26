@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ติดตามผู้เรียน</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=8">
+    <link rel="stylesheet" href="adminhome.css?v=10">
     <link rel="stylesheet" href="adminresearch.css?v=20261024f">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -127,6 +127,23 @@
         <p class="ad-sub ad-risk-note" id="adRiskNote"></p>
     </section>
 
+    <!-- สรุปการเรียนรู้แต่ละบท: นิสิตที่เริ่มบท · กำลังเรียน · ผ่าน / ไม่ผ่าน Post-test -->
+    <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>สรุปการเรียนรู้แต่ละบท</h3>
+                <p class="ad-sub" id="adChapterSub">นิสิตที่เริ่มบทนั้นแล้ว · ผ่าน / ไม่ผ่าน = ผล Post-test ครั้งล่าสุด</p>
+            </div>
+            <div class="ad-toggle" id="adChapterFilter" role="group" aria-label="แถบความคืบหน้าแสดงสัดส่วนของ">
+                <button type="button" class="is-active" data-status="all">ทั้งหมด</button>
+                <button type="button" data-status="studying">กำลังเรียน</button>
+                <button type="button" data-status="passed">ผ่านแล้ว</button>
+                <button type="button" data-status="failed">ไม่ผ่าน</button>
+            </div>
+        </div>
+        <table class="ad-table ad-chapter-table" id="adChapterTable"></table>
+    </section>
+
     <div class="ad-cols ad-cols-1">
        <section class="ad-card">
             <div class="ad-head">
@@ -208,7 +225,7 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=14"></script>
+<script src="adminhome.js?v=16"></script>
 <script src="adminresearch.js?v=20261025f"></script>
 </body>
 </html>

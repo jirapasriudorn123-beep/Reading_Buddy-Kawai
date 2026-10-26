@@ -939,3 +939,31 @@ main > .ad-card {
         align-items: stretch;
     }
 }
+
+/* ---- สรุปการเรียนรู้แต่ละบท (หน้าติดตามผู้เรียน) ---- */
+.ad-chapter-table th:nth-child(2),
+.ad-chapter-table td:nth-child(2) {
+    text-align: left;
+}
+
+.ad-chapter-table td:first-child {
+    min-width: 0;
+    width: 48px;
+    color: #777;
+}
+
+.ad-chapter-table .is-studying { color: #4f7ea6; }
+.ad-chapter-table .is-passed { color: #5d7f33; }
+.ad-chapter-table .is-failed { color: #b35a3a; }
+
+.ad-chapter-table th.is-picked {
+    color: #333;
+}
+
+.ad-chapter-table .ad-cell-bar .ad-bar-track {
+    width: 140px;
+}
+
+.ad-chapter-table .ad-cell-bar span {
+    min-width: 40px;
+}
