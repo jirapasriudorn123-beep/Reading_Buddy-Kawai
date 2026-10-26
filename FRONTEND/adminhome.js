@@ -110,6 +110,19 @@ function renderTiles(t) {
   setTileText("statCouponsNote", `มูลค่ารวม ${num(t.coupons.baht)} บาท`);
 }
 
+// ---------- ป้ายสถานะผู้เรียน (หน้าติดตามผู้เรียน) ----------
+// % ทุกใบคิดจากนิสิตทั้งหมด — กำลังเรียนอยู่ตามช่วงเวลาที่เลือก ผ่าน/ไม่ผ่านเป็นสถานะล่าสุด
+function renderLearnerStatus(learners, total) {
+  if (!learners || !document.getElementById("statLearnersActive")) return;
+  const share = (n) => `${total ? Math.round((n / total) * 100) : 0}% ของนิสิตทั้งหมด`;
+  setTileText("statLearnersActive", num(learners.active));
+  setTileText("statLearnersActiveNote", share(learners.active));
+  setTileText("statLearnersPassed", num(learners.passed));
+  setTileText("statLearnersPassedNote", share(learners.passed));
+  setTileText("statLearnersFailed", num(learners.failed));
+  setTileText("statLearnersFailedNote", share(learners.failed));
+}
+
 // อัปเดต pill "มากกว่าเดือนที่แล้ว X%" ให้เป็นตัวเลขจริงจาก backend
 // - percent = null → ไม่มี baseline (เดือนที่แล้ว 0 user) → โชว์เป็นจำนวน user ใหม่แทน
 function renderUsersTrend(percent, newSince) {
@@ -609,6 +622,7 @@ function renderGames(rows) {
 
 function renderDashboard(data) {
   renderTiles(data.tiles);
+  renderLearnerStatus(data.learners, data.tiles.users.total);
   renderTrend(data.trend);
   renderChapterShare(data.chapterShare);
   renderPet(data.pet);

@@ -216,6 +216,11 @@
     grid-template-columns: minmax(0, 280px);
 }
 
+/* ป้าย 4 ใบของหน้าติดตามผู้เรียน */
+.ad-tiles-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .ad-tile {
     align-items: stretch;
     padding: 16px 18px;
@@ -814,6 +819,9 @@ main > .ad-card {
 @media (max-width: 1400px) {
     .ad-tiles {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .ad-tiles-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .ad-cols-3 {
         grid-template-columns: 1fr 1fr;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ติดตามผู้เรียน</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=6">
+    <link rel="stylesheet" href="adminhome.css?v=8">
     <link rel="stylesheet" href="adminresearch.css?v=20261024f">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -90,12 +90,27 @@
         </div>
     </header>
 
-    <!-- จำนวนนิสิตทั้งหมดในระบบ (ไม่นับบัญชีแอดมิน) -->
-    <div class="ad-tiles ad-tiles-1">
+    <!-- จำนวนนิสิตทั้งหมด (ไม่นับบัญชีแอดมิน) · กำลังเรียนอยู่ · ผ่านแล้ว · ไม่ผ่าน -->
+    <div class="ad-tiles ad-tiles-4">
         <div class="stat-card ad-tile">
             <div class="ad-tile-head"><span class="ad-tile-icon icon-green-light"><svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>นิสิตทั้งหมด</div>
             <div class="stat-value" id="statTotalUsers">0</div>
             <span class="trend-pill" id="statUsersTrend">—</span>
+        </div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-gold"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2z"/></svg></span>กำลังเรียนอยู่</div>
+            <div class="stat-value" id="statLearnersActive">0</div>
+            <span class="trend-pill" id="statLearnersActiveNote">—</span>
+        </div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-green-dark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ผ่านแล้ว</div>
+            <div class="stat-value" id="statLearnersPassed">0</div>
+            <span class="trend-pill trend-up" id="statLearnersPassedNote">—</span>
+        </div>
+        <div class="stat-card ad-tile">
+            <div class="ad-tile-head"><span class="ad-tile-icon icon-orange"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10M17 7L7 17"/></svg></span>ไม่ผ่าน</div>
+            <div class="stat-value" id="statLearnersFailed">0</div>
+            <span class="trend-pill trend-down" id="statLearnersFailedNote">—</span>
         </div>
     </div>
 
@@ -193,7 +208,7 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=12"></script>
+<script src="adminhome.js?v=14"></script>
 <script src="adminresearch.js?v=20261025f"></script>
 </body>
 </html>
