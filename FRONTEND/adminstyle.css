@@ -957,6 +957,20 @@ body {
     background-color: var(--green-btn);
 }
 
+/* ปุ่มแก้ไขรูปดินสอสีส้ม (ใช้คู่กับ .action-btn.delete-btn ในหน้าจัดการต่างๆ) */
+.pencil-btn {
+    background: none;
+}
+
+.pencil-btn:hover {
+    background: #fff4dc;
+}
+
+.pencil-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
 .delete-btn {
     background-color: var(--orange-btn);
 }
@@ -1150,7 +1164,8 @@ body {
  
 .admin-card-actions {
             display: flex;
-            gap: 6px;
+            justify-content: center;
+            gap: 10px;
             width: 100%;
             margin-top: 6px;
         }

@@ -76,31 +76,9 @@
   white-space: nowrap;
 }
 
-/* ปุ่มจัดการร้าน: ดินสอสีส้ม (แบบหน้ามินิเกม) + ถังขยะบนพื้นส้ม (.action-btn.delete-btn แบบหน้าบทเรียน) */
+/* ปุ่มจัดการร้าน: .action-btn.pencil-btn + .action-btn.delete-btn (อยู่ใน adminstyle.css) */
 .shop-actions {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-}
-
-.shop-edit-btn {
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 10px;
-  background: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.shop-edit-btn:hover {
-  background: #fff4dc;
-}
-
-.shop-edit-btn svg {
-  width: 24px;
-  height: 24px;
 }
