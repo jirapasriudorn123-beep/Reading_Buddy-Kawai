@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=6">
+    <link rel="stylesheet" href="adminhome.css?v=7">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -175,8 +175,31 @@
 
     </div>
 
-    <!-- แถว 2: สถิติการอ่านรายวันของทั้งระบบ -->
-    <div class="ad-cols ad-cols-1">
+    <!-- แถว 2: สรุปการเรียนรู้รายวัน · สถิติการอ่านรายวันของทั้งระบบ -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สรุปการเรียนรู้รายวัน</h3>
+                    <p class="ad-sub">แบบทดสอบหลังอ่าน 7 วัน (ผ่าน = ได้ 80% ขึ้นไปอย่างน้อย 1 บท)</p>
+                </div>
+                <label class="ad-range ad-day-pick" for="adDailyEnd">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+                    <span>
+                        <span class="ad-range-label">ถึงวันที่</span>
+                        <input type="date" id="adDailyEnd">
+                    </span>
+                </label>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#7FA8C9"></span>ผู้เรียนทั้งหมด</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>ผ่าน</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#D9714E"></span>ไม่ผ่าน</span>
+            </div>
+            <div class="ad-chart"><canvas id="adDailyChart"></canvas></div>
+            <table class="ad-table ad-daily-table" id="adDailyTable"></table>
+        </section>
+
         <section class="ad-card">
             <div class="ad-head">
                 <div>
@@ -277,6 +300,6 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=12"></script>
+<script src="adminhome.js?v=13"></script>
 </body>
 </html>

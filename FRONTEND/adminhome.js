@@ -283,6 +283,99 @@ function renderReadingByDay(rows) {
   });
 }
 
+// ---------- สรุปการเรียนรู้รายวัน (ผู้เรียน / ผ่าน / ไม่ผ่าน) ----------
+// โหลดแยกจากคำขอหลักเพราะเลือกวันที่เองได้ — GET /api/admin/stats/daily-learning?end=YYYY-MM-DD
+const thaiDate = (day, withYear) =>
+  new Date(`${day}T00:00:00`).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
+  });
+
+// เขียนตัวเลขไว้บนหัวแท่ง (แท่งที่เป็น 0 ไม่ต้องเขียน)
+const adBarValues = {
+  id: "adBarValues",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = "600 11px Kanit, sans-serif";
+    ctx.fillStyle = "#666";
+    ctx.textAlign = "center";
+    chart.data.datasets.forEach((ds, i) => {
+      chart.getDatasetMeta(i).data.forEach((bar, j) => {
+        if (ds.data[j]) ctx.fillText(num(ds.data[j]), bar.x, bar.y - 4);
+      });
+    });
+    ctx.restore();
+  },
+};
+
+function renderDailyLearning(data) {
+  const canvas = document.getElementById("adDailyChart");
+  const table = document.getElementById("adDailyTable");
+  if (!canvas || !table) return;
+  const input = document.getElementById("adDailyEnd");
+  input.value = data.end;
+  input.max = data.today;
+
+  const rows = data.days;
+  if (typeof Chart !== "undefined") {
+    adCharts.daily?.destroy();
+    adCharts.daily = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: rows.map((r) => thaiDate(r.day)),
+        datasets: [
+          { label: "ผู้เรียนทั้งหมด", data: rows.map((r) => r.learners), backgroundColor: "#7FA8C9" },
+          { label: "ผ่าน", data: rows.map((r) => r.passed), backgroundColor: AD_COLORS.reading },
+          { label: "ไม่ผ่าน", data: rows.map((r) => r.failed), backgroundColor: AD_COLORS.users },
+        ].map((d) => ({ ...d, borderRadius: 6, maxBarThickness: 18 })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 16 } },
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: AD_COLORS.grid }, ticks: { precision: 0 } },
+          x: { grid: { display: false } },
+        },
+      },
+      plugins: [adBarValues],
+    });
+  }
+
+  // ตาราง 3 วันล่าสุดของช่วง เรียงใหม่ไปเก่า
+  table.innerHTML = `<thead><tr>
+      <th>วันที่</th><th>ผู้เรียนทั้งหมด</th><th>ผ่าน</th><th>ไม่ผ่าน</th><th>อัตราผ่าน</th>
+    </tr></thead><tbody>${rows
+      .slice(-3)
+      .reverse()
+      .map(
+        (r) => `<tr>
+          <td>${escapeHtml(thaiDate(r.day, true))}</td>
+          <td>${num(r.learners)}</td>
+          <td class="ad-pass">${num(r.passed)}</td>
+          <td class="ad-fail">${num(r.failed)}</td>
+          <td>${
+            r.passPercent === null
+              ? "—"
+              : `<span class="ad-gain${r.passPercent < 50 ? " is-down" : ""}">${r.passPercent.toFixed(1)}%</span>`
+          }</td>
+        </tr>`
+      )
+      .join("")}</tbody>`;
+}
+
+async function loadDailyLearning(end = "") {
+  if (!document.getElementById("adDailyChart")) return;
+  try {
+    renderDailyLearning(await adminApiFetch(`/admin/stats/daily-learning${end ? `?end=${end}` : ""}`));
+  } catch (err) {
+    console.error("โหลดสรุปการเรียนรู้รายวันไม่สำเร็จ:", err);
+  }
+}
+
 // ---------- สถิติการทบทวน ----------
 function renderReview(review) {
   if (!document.getElementById("adReviewRing")) return;
@@ -614,7 +707,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("adReadersCsv")?.addEventListener("click", downloadReadersCsv);
 
+  document.getElementById("adDailyEnd")?.addEventListener("change", (e) => loadDailyLearning(e.target.value));
+
   loadDashboard();
+  loadDailyLearning();
 });
 
 // ================== โหมดสาธิตจับเวลาอ่าน ==================

@@ -547,6 +547,62 @@ async function buildAtRisk() {
   return { total: users.length, criteria: AT_RISK, users: rows.slice(0, 8) };
 }
 
+// ---------- สรุปการเรียนรู้รายวัน (7 วันที่จบที่วันที่เลือก) ----------
+// ผู้เรียนทั้งหมด = คนที่อ่านจบสักรอบหรือทำแบบทดสอบหลังอ่านในวันนั้น
+// ผ่าน = คนที่ผ่านแบบทดสอบหลังอ่าน (≥ 80%) อย่างน้อย 1 บทในวันนั้น
+// ไม่ผ่าน = คนที่ทำแบบทดสอบหลังอ่านในวันนั้นแต่ยังไม่ผ่านสักบท
+// ตารางเก็บแค่ครั้งล่าสุดของแต่ละชุด ครั้งที่ไม่ผ่านแล้ววันหลังทำผ่านจึงนับเป็น "ผ่าน" ในวันที่ผ่าน
+async function buildDailyLearning(end) {
+  const today = lastDays(1)[0];
+  const endDay = /^\d{4}-\d{2}-\d{2}$/.test(end || "") && end <= today ? end : today;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(`${endDay}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const from = days[0];
+  const [active, tests] = await Promise.all([
+    db
+      .prepare(
+        `SELECT day, COUNT(DISTINCT user_id) c FROM (
+           SELECT user_id, date(started_at, '${THAI}') day FROM reading_sessions WHERE status = 'completed'
+           UNION ALL
+           SELECT user_id, date(post_started_at, '${THAI}') day FROM chapter_tests WHERE post_tries > 0
+         ) WHERE day BETWEEN ? AND ? GROUP BY day`
+      )
+      .all(from, endDay),
+    db
+      .prepare(
+        `SELECT day, COUNT(*) tested, COALESCE(SUM(passed), 0) passed FROM (
+           SELECT user_id, day, MAX(passed) passed FROM (
+             SELECT user_id, date(COALESCE(completed_at, post_started_at), '${THAI}') day,
+                    CASE WHEN status = 'completed' THEN 1 ELSE 0 END passed
+             FROM chapter_tests WHERE post_tries > 0
+           ) WHERE day BETWEEN ? AND ? GROUP BY user_id, day
+         ) GROUP BY day`
+      )
+      .all(from, endDay),
+  ]);
+  const activeBy = Object.fromEntries(active.map((r) => [r.day, Number(r.c) || 0]));
+  const testBy = Object.fromEntries(tests.map((r) => [r.day, r]));
+  return {
+    end: endDay,
+    today,
+    days: days.map((day) => {
+      const passed = Number(testBy[day]?.passed) || 0;
+      const failed = (Number(testBy[day]?.tested) || 0) - passed;
+      return {
+        day,
+        learners: Math.max(activeBy[day] || 0, passed + failed),
+        passed,
+        failed,
+        passPercent: passed + failed ? round1((passed / (passed + failed)) * 100) : null,
+      };
+    }),
+  };
+}
+
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
@@ -585,4 +641,4 @@ async function buildDashboard(days = 7) {
   };
 }
 
-module.exports = { buildDashboard };
+module.exports = { buildDashboard, buildDailyLearning };

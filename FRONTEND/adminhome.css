@@ -865,3 +865,23 @@ main > .ad-card {
     margin: 12px 0 0;
 }
 
+
+/* ---- สรุปการเรียนรู้รายวัน ---- */
+/* ช่องเลือกวันที่ หน้าตาเดียวกับช่องช่วงเวลาด้านบน */
+.ad-day-pick input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+}
+
+.ad-daily-table {
+    margin-top: 14px;
+}
+
+.ad-pass { color: #5d7f33; }
+.ad-fail { color: #b35a3a; }

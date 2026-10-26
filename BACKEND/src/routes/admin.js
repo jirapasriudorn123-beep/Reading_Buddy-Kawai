@@ -7,7 +7,7 @@ const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
-const { buildDashboard } = require("../services/adminDashboard");
+const { buildDashboard, buildDailyLearning } = require("../services/adminDashboard");
 const { buildUserReport } = require("../services/adminUserReport");
 
 const router = express.Router();
@@ -140,6 +140,15 @@ router.delete("/feedback/:id", requireAdmin, async (req, res, next) => {
 router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {
   try {
     return res.json(await buildDashboard(Number(req.query.range)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/stats/daily-learning?end=YYYY-MM-DD — ผู้เรียน/ผ่าน/ไม่ผ่าน 7 วันที่จบที่ end (ไม่ส่ง = วันนี้)
+router.get("/stats/daily-learning", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json(await buildDailyLearning(String(req.query.end || "")));
   } catch (err) {
     next(err);
   }
