@@ -4,8 +4,10 @@ const { recordReview } = require("./spacedReview");
 
 // ================== แบบทดสอบก่อนอ่าน/หลังอ่าน รายบท ==================
 // pre 10 ข้อ (สุ่มจากคลังคำถามมินิเกมของบทนั้น) ตอนเริ่มอ่านบทครั้งแรก → อ่านกี่รอบก็ได้ (คอยน์จากเวลาค้างไว้) → อ่านครบเวลาขั้นต่ำของบท → post 10 ข้อเดิม สลับแค่ลำดับข้อ
-// post ผ่าน (≥ 8 จาก 10): ได้คอยน์จากเวลาที่ค้างไว้ทั้งหมด + โบนัสข้อละ 10 คอยน์ (เฉพาะข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+// post ผ่าน (≥ 8 จาก 10): ได้คอยน์จากเวลาที่ค้างไว้ทั้งหมด + โบนัสตามครั้งที่ทำผ่าน (ครั้งแรก 30 · 2 = 20 · 3 = 10 · 4 = 5 · ต่อจากนั้นไม่มี)
 // post ไม่ผ่าน: ไม่ได้คอยน์ กลับไปสถานะอ่าน ทำ post ใหม่ได้ทันที (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านก่อนก็ได้ ทำได้จนกว่าจะผ่าน
+// คอยน์จากเวลาที่ค้างไว้ใช้ได้ถึงสิ้นวันที่อ่าน (เวลาไทย) — ขึ้นวันใหม่แล้วยังไม่ผ่าน คอยน์ค้างหมดอายุ (coins_pending = 2) ต้องอ่านเก็บใหม่
+//   เวลาอ่านที่ใช้ปลดล็อก post ไม่หาย และครั้งที่ทำ post นับต่อจากเดิม
 // ได้คอยน์จากบทหนึ่งๆ สูงสุด 4 ครั้ง (นับชุดที่ผ่าน) — ครบแล้วอ่านทบทวน/ทำ post ได้แต่ไม่ได้คอยน์
 // อ่านบทเดิมซ้ำ = ชุดใหม่ (attempt ถัดไป) ไม่มี pre, post เอาข้อที่ตอบผิดครั้งก่อนมาถามเป็นข้อแรก
 // ถามทีละข้อ ข้อละ 1 นาที (server จับเวลาเอง) | post: สลับแท็บระหว่างข้อ = ข้อนั้นผิด
@@ -13,7 +15,10 @@ const { recordReview } = require("./spacedReview");
 const QUESTIONS_PER_TEST = 10;
 const SECONDS_PER_QUESTION = 60;
 const ANSWER_GRACE_SECONDS = 5; // เผื่อ network ช้าตอนกดตอบใกล้หมดเวลา
-const BONUS_PER_CORRECT = 10;
+// โบนัสตอนผ่าน post ตามครั้งที่ทำ (ครั้งที่ 1, 2, 3, 4) — ครั้งที่ 5 ขึ้นไปไม่มีโบนัส
+const PASS_BONUS_BY_TRY = [30, 20, 10, 5];
+// อ่านบทเดียวกันได้คอยน์วันละไม่เกินกี่รอบ (ยังอยู่ใต้เพดานคอยน์รวมรายวันใน readingRules) — โหมดสาธิตไม่จำกัด
+const MAX_COIN_ROUNDS_PER_CHAPTER_PER_DAY = 4;
 const PASS_RATIO = 0.8; // post ได้ ≥ 80% (8 จาก 10) = ผ่านบทนั้น ได้คอยน์ + นับเงื่อนไขคูปอง
 const MAX_COIN_REWARDS_PER_CHAPTER = 4;
 // เฉลยข้อที่ผิดหลังทำ post ไหม — ไม่เฉลย ให้กลับไปอ่านแล้วเจอข้อนั้นซ้ำ (ข้อแรกของ post ครั้งหน้า / ในเกมทบทวน)
@@ -52,6 +57,34 @@ async function minReadSecondsFor(chapterId) {
   return Math.max(1, chapter ? chapter.game_required_minutes ?? 20 : 20) * 60;
 }
 
+function passBonusForTry(tryNumber) {
+  return PASS_BONUS_BY_TRY[tryNumber - 1] || 0;
+}
+
+// คอยน์จากเวลาอ่านที่ค้างไว้ข้ามวันแล้ว (อ่านจบรอบก่อนวันนี้ เวลาไทย) → หมดอายุ ไม่จ่าย
+// coins_pending: 1 = ค้างรอ post ผ่าน | 0 = จ่ายแล้ว | 2 = หมดอายุ (ข้อมูลวิจัยนับว่าไม่ได้จ่าย)
+async function expireStalePendingCoins(userId, conn = db) {
+  await conn
+    .prepare(
+      `UPDATE reading_sessions SET coins_pending = 2
+       WHERE user_id = ? AND status = 'completed' AND coins_pending = 1
+         AND date(ended_at, '+7 hours') < date('now', '+7 hours')`
+    )
+    .run(userId);
+}
+
+// วันนี้อ่านบทนี้ได้คอยน์ไปแล้วกี่รอบ (นับรอบที่จบแล้วและได้คอยน์จากเวลา)
+async function chapterCoinRoundsToday(userId, chapterId) {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM reading_sessions
+       WHERE user_id = ? AND chapter_id = ? AND status = 'completed' AND coins_earned > 0
+         AND date(ended_at, '+7 hours') = date('now', '+7 hours')`
+    )
+    .get(userId, chapterId);
+  return row.c || 0;
+}
+
 // บทนี้ได้คอยน์ไปแล้วกี่ครั้ง (ชุดที่ทำ post จบ = ผ่านแล้ว) — ครบ MAX_COIN_REWARDS_PER_CHAPTER แล้วไม่ได้คอยน์อีก
 async function coinRewardsUsed(userId, chapterId, conn = db) {
   const row = await conn
@@ -73,6 +106,7 @@ async function testReadingTotals(testId) {
 
 // สถานะการอ่านบทนี้ของผู้ใช้ (โชว์ในป๊อปอัพเลือกบท / หลังอ่านจบรอบ)
 async function chapterProgress(userId, chapterId) {
+  await expireStalePendingCoins(userId);
   const test = await getLatestTest(userId, chapterId);
   const minReadSeconds = await minReadSecondsFor(chapterId);
   const best = await db
@@ -101,6 +135,10 @@ async function chapterProgress(userId, chapterId) {
     coinRewardsUsed: Math.min(rewardsUsed, MAX_COIN_REWARDS_PER_CHAPTER),
     coinRewardsMax: MAX_COIN_REWARDS_PER_CHAPTER,
     coinRewardsLeft: Math.max(0, MAX_COIN_REWARDS_PER_CHAPTER - rewardsUsed),
+    nextPassBonus: PASS_BONUS_BY_TRY[0],
+    passBonusByTry: PASS_BONUS_BY_TRY,
+    coinRoundsToday: await chapterCoinRoundsToday(userId, chapterId),
+    coinRoundsPerDay: MAX_COIN_ROUNDS_PER_CHAPTER_PER_DAY,
   };
   if (!test) return base;
 
@@ -118,6 +156,7 @@ async function chapterProgress(userId, chapterId) {
     total: test.total || QUESTIONS_PER_TEST,
     passScore: passScore(test.total || QUESTIONS_PER_TEST),
     postTries: finished ? 0 : test.post_tries || 0,
+    nextPassBonus: finished ? PASS_BONUS_BY_TRY[0] : passBonusForTry((test.post_tries || 0) + 1),
     lastPostScore: finished ? null : test.last_post_score,
   };
 }
@@ -380,7 +419,7 @@ async function finishPhase(userId, test, phase) {
 }
 
 // ปิด post
-// ผ่าน (≥ 80%): ชุดนี้ completed ปล่อยคอยน์จากเวลาอ่านที่ค้างไว้ทั้งหมด + โบนัสข้อที่ถูก (ข้อที่ไม่เคยตอบถูกใน post มาก่อน)
+// ผ่าน (≥ 80%): ชุดนี้ completed ปล่อยคอยน์จากเวลาอ่านที่ค้างไว้ทั้งหมด + โบนัสตามครั้งที่ทำผ่าน (PASS_BONUS_BY_TRY)
 //   — ถ้าบทนี้ได้คอยน์ครบ 4 ครั้งแล้ว คอยน์ที่ค้างไว้ไม่จ่าย (ปิด pending ทิ้ง)
 // ไม่ผ่าน: ไม่ได้คอยน์ (คอยน์จากเวลายังค้างไว้) กลับไป status reading ล้างคำตอบ post ไว้ทำใหม่ด้วยข้อเดิม
 async function finishPostTest(userId, test) {
@@ -388,6 +427,9 @@ async function finishPostTest(userId, test) {
   const postScore = questions.filter((q) => q.post_correct === 1).length;
   const passed = postScore >= passScore(questions.length);
   const rules = await getReadingRules();
+
+  const tryNumber = (test.post_tries || 0) + 1; // ครั้งนี้เป็นครั้งที่เท่าไหร่ของชุดนี้
+  await expireStalePendingCoins(userId);
 
   const result = await db.tx(async (t) => {
     const closed = passed
@@ -431,16 +473,7 @@ async function finishPostTest(userId, test) {
       return { coinsTime: 0, coinsBonus: 0, rewardLimitReached };
     }
 
-    let bonusCount = 0;
-    for (const q of questions) {
-      if (q.post_correct !== 1) continue;
-      const before = await t.prepare(
-        `SELECT 1 FROM chapter_test_questions cq JOIN chapter_tests ct ON ct.id = cq.test_id
-         WHERE ct.user_id = ? AND ct.id != ? AND cq.question_id = ? AND cq.post_correct = 1 LIMIT 1`
-      ).get(userId, test.id, q.question_id);
-      if (!before) bonusCount += 1;
-    }
-    const coinsBonus = bonusCount * BONUS_PER_CORRECT;
+    const coinsBonus = passBonusForTry(tryNumber);
 
     const pending = await t.prepare(
       `SELECT COALESCE(SUM(coins_earned), 0) AS c FROM reading_sessions
@@ -471,7 +504,9 @@ async function finishPostTest(userId, test) {
     coinRewardsUsed: Math.min(rewardsUsed, MAX_COIN_REWARDS_PER_CHAPTER),
     coinRewardsMax: MAX_COIN_REWARDS_PER_CHAPTER,
     pendingCoins: passed ? 0 : (await testReadingTotals(test.id)).pendingCoins,
-    bonusPerCorrect: BONUS_PER_CORRECT,
+    tryNumber,
+    passBonusByTry: PASS_BONUS_BY_TRY,
+    nextPassBonus: passed ? 0 : passBonusForTry(tryNumber + 1),
     totalCoins: user.coins,
     results: questions.map((q) => ({
       question: q.question,
@@ -527,7 +562,10 @@ async function clearedWorldCount(userId) {
 module.exports = {
   QUESTIONS_PER_TEST,
   SECONDS_PER_QUESTION,
-  BONUS_PER_CORRECT,
+  PASS_BONUS_BY_TRY,
+  MAX_COIN_ROUNDS_PER_CHAPTER_PER_DAY,
+  expireStalePendingCoins,
+  chapterCoinRoundsToday,
   PASS_RATIO,
   MAX_COIN_REWARDS_PER_CHAPTER,
   coinRewardsUsed,

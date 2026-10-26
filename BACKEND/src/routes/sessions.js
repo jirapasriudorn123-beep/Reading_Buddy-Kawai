@@ -132,11 +132,16 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       : Math.floor(effectiveElapsedMinutes / minutesPerBlock) * COINS_PER_BLOCK;
     const completedFullDuration = effectiveElapsedSeconds >= session.planned_read_seconds;
 
-    // ---- โควต้าคอยน์จากเวลาอ่านต่อวัน ----
+    // ---- โควต้าคอยน์จากเวลาอ่านต่อวัน: รวมทุกบท (cap) + บทเดียวกันได้ไม่เกิน 4 รอบต่อวัน ----
+    // โหมดสาธิต (cap = null) ไม่จำกัดทั้งสองแบบ
     const rules = await getReadingRules();
     const cap = dailyTimeCoinCap(rules);
     const usedToday = cap === null ? 0 : await timeCoinsToday(req.user.id);
-    const coinsEarned = cap === null ? coinsFromTime : Math.max(0, Math.min(coinsFromTime, cap - usedToday));
+    const chapterRoundsToday =
+      cap === null || !session.chapter_test_id ? 0 : await tests.chapterCoinRoundsToday(req.user.id, session.chapter_id);
+    const chapterRoundsFull = chapterRoundsToday >= tests.MAX_COIN_ROUNDS_PER_CHAPTER_PER_DAY;
+    const coinsEarned =
+      cap === null ? coinsFromTime : chapterRoundsFull ? 0 : Math.max(0, Math.min(coinsFromTime, cap - usedToday));
     const capped = coinsEarned < coinsFromTime;
     // รอบเก่าที่ไม่ได้ผูกกับแบบทดสอบรายบท (เริ่มก่อนอัปเดตระบบ) ให้คอยน์ทันทีแบบเดิม
     const pending = session.chapter_test_id ? 1 : 0;
@@ -184,6 +189,8 @@ router.post("/:sessionId/complete", requireAuth, async (req, res) => {
       coinsPending: !!pending,
       capped,
       chapterRewardLimitReached,
+      chapterRoundsFull,
+      chapterRoundsPerDay: tests.MAX_COIN_ROUNDS_PER_CHAPTER_PER_DAY,
       roundsUsed,
       roundsCap: cap === null ? null : rules.dailyCoinRounds,
       totalCoins: user.coins,

@@ -257,8 +257,9 @@ function chapterStatusLines(progress) {
       `📖 อ่านบทนี้แล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
         `คอยน์รอปลดล็อก ${progress.pendingCoins} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">`,
       progress.canPostTest
-        ? `✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่าน ได้ ${progress.passScore}/${progress.total} ขึ้นไปถึงจะผ่านและได้คอยน์ + โบนัสข้อที่ตอบถูก`
+        ? `✅ อ่านครบแล้ว! ทำแบบทดสอบหลังอ่าน ได้ ${progress.passScore}/${progress.total} ขึ้นไปถึงจะผ่านและได้คอยน์ (ผ่านครั้งนี้: ${passBonusText(progress.nextPassBonus)})`
         : `คอยน์จะเข้าเมื่อทำแบบทดสอบหลังอ่านผ่าน (${progress.passScore}/${progress.total} ขึ้นไป · อ่านครบเวลาก่อนถึงจะทำได้)`,
+      ...(progress.pendingCoins > 0 ? [PENDING_EXPIRY_NOTE] : []),
       ...rewardLimitLines(progress),
     ];
   }
@@ -272,6 +273,14 @@ function chapterStatusLines(progress) {
 }
 
 // ได้คอยน์จากบทหนึ่งสูงสุด 4 ครั้ง (นับครั้งที่ทำแบบทดสอบหลังอ่านผ่าน)
+// คอยน์จากเวลาอ่านที่ค้างไว้ใช้ได้ถึงเที่ยงคืน — ข้ามวันแล้วยังไม่ผ่าน post คอยน์ค้างหาย (เวลาอ่านที่ปลดล็อกแบบทดสอบไม่หาย)
+const PENDING_EXPIRY_NOTE = "⏰ คอยน์รอปลดล็อกใช้ได้ถึงเที่ยงคืนวันนี้ ถ้ายังทำแบบทดสอบหลังอ่านไม่ผ่าน พรุ่งนี้ต้องอ่านเก็บคอยน์ใหม่";
+
+// โบนัสตอนผ่านแบบทดสอบหลังอ่าน ลดลงตามครั้งที่ทำ (30 / 20 / 10 / 5 แล้วไม่มี)
+function passBonusText(bonus) {
+  return bonus > 0 ? `โบนัส ${bonus} คอยน์` : "ไม่มีโบนัสแล้ว";
+}
+
 function rewardLimitLines(progress) {
   if (!progress.coinRewardsMax) return [];
   if (progress.coinRewardsLeft === 0) {
@@ -777,6 +786,8 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
   const lines = [];
   if (result.chapterRewardLimitReached) {
     lines.push("บทนี้ได้คอยน์ครบ 4 ครั้งแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖");
+  } else if (result.chapterRoundsFull) {
+    lines.push(`วันนี้อ่านบทนี้ได้คอยน์ครบ ${result.chapterRoundsPerDay} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) ลองไปทำแบบทดสอบหลังอ่านดู 📖`);
   } else if (result.capped && result.coinsEarned === 0) {
     lines.push(`วันนี้ได้คอยน์จากการอ่านครบ ${result.roundsCap} รอบแล้ว รอบนี้จึงไม่ได้คอยน์ (แต่นับเวลาอ่านให้นะ) 📖`);
   } else {
@@ -799,12 +810,13 @@ function showRoundSummary(result, chapter, enterBreakAfter) {
       `บทนี้อ่านแล้ว ${formatMinutes(progress.readSeconds)} / ${formatMinutes(progress.minReadSeconds)} · ` +
         `คอยน์รอปลดล็อกรวม ${progress.pendingCoins} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline">`
     );
+    if (progress.pendingCoins > 0) lines.push(PENDING_EXPIRY_NOTE);
   }
 
   openQuizPanel({
     kicker: "จบรอบอ่าน",
     title: result.completedFullDuration ? "อ่านครบเวลาแล้ว! 🎉" : "หยุดอ่านแล้ว",
-    hint: progress.canPostTest ? "อ่านบทนี้ครบเวลาแล้ว ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ทั้งหมด + โบนัสข้อที่ตอบถูก" : "",
+    hint: progress.canPostTest ? "อ่านบทนี้ครบเวลาแล้ว ทำแบบทดสอบหลังอ่านเพื่อรับคอยน์ทั้งหมด + โบนัส (ผ่านเร็วได้มากกว่า)" : "",
   });
   // เหมือนบรรทัดสถานะของบท: ข้อความชุดนี้เราเขียนเองทั้งหมด จึงมีรูปคอยน์เป็น HTML ได้
   document.getElementById("quizBody").innerHTML = `<div class="round-summary">${lines
@@ -844,7 +856,7 @@ const TEST_COPY = {
   },
   post: {
     kicker: "แบบทดสอบหลังอ่าน",
-    hint: "ข้อละ 1 นาที · ห้ามสลับแท็บ (สลับแท็บ = ข้อนั้นผิด) · ได้ 8/10 ขึ้นไปถึงจะผ่าน และได้คอยน์ + โบนัสข้อละ 10 คอยน์",
+    hint: "ข้อละ 1 นาที · ห้ามสลับแท็บ (สลับแท็บ = ข้อนั้นผิด) · ได้ 8/10 ขึ้นไปถึงจะผ่าน และได้คอยน์ + โบนัส (ผ่านครั้งแรก 30 · ครั้งที่ 2 = 20 · 3 = 10 · 4 = 5)",
     leave: "ออกก่อน",
   },
 };
@@ -1040,7 +1052,7 @@ function showTestResults(summary) {
       <div class="quiz-verdict is-fail">
         <p class="quiz-verdict-title">ยังไม่ผ่าน · ได้ ${summary.postScore}/${summary.total} คะแนน</p>
         <p>ต้องได้ ${summary.passScore}/${summary.total} คะแนนขึ้นไปถึงจะผ่าน (ขาดอีก ${missing} คะแนน)</p>
-        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> เก็บไว้ให้ จะได้เมื่อทำผ่าน · ทำได้จนกว่าจะผ่าน</p>
+        <p class="quiz-coins-sub">ยังไม่ได้คอยน์ · คอยน์จากเวลาอ่าน ${summary.pendingCoins || 0} <img src="img/coin_ja.png" alt="คอยน์" class="coin-inline"> เก็บไว้ให้ถึงเที่ยงคืนวันนี้ ทำผ่านวันนี้ได้ครบ · ผ่านครั้งหน้า: ${passBonusText(summary.nextPassBonus)}</p>
       </div>
       <ol class="quiz-results">${rows}</ol>
       <p class="quiz-hint">ไม่เฉลยข้อที่ผิดนะ ลองอีกครั้ง (ข้อเดิม สลับลำดับ) หรือกลับไปอ่านบทเรียนก่อนก็ได้</p>
@@ -1055,8 +1067,8 @@ function showTestResults(summary) {
   const coins = summary.coinsTime + summary.coinsBonus;
   const coinsHtml = summary.rewardLimitReached
     ? `<p>บทนี้ได้คอยน์ครบ ${summary.coinRewardsMax} ครั้งแล้ว ครั้งนี้จึงไม่ได้คอยน์</p>`
-    : `<p>คอยน์จากเวลาอ่าน ${summary.coinsTime} + โบนัสตอบถูก ${summary.coinsBonus} = <strong>${coins} คอยน์</strong> 🎉</p>
-       <p class="quiz-coins-sub">เหรียญรวม ${summary.totalCoins} · โบนัสข้อละ ${summary.bonusPerCorrect} คอยน์ (ข้อที่เคยตอบถูกแล้วไม่ได้ซ้ำ) · ได้คอยน์จากบทนี้แล้ว ${summary.coinRewardsUsed}/${summary.coinRewardsMax} ครั้ง</p>`;
+    : `<p>คอยน์จากเวลาอ่าน ${summary.coinsTime} + โบนัสผ่านครั้งที่ ${summary.tryNumber} ${summary.coinsBonus} = <strong>${coins} คอยน์</strong> 🎉</p>
+       <p class="quiz-coins-sub">เหรียญรวม ${summary.totalCoins} · โบนัสผ่านครั้งแรก 30 · ครั้งที่ 2 = 20 · 3 = 10 · 4 = 5 · ได้คอยน์จากบทนี้แล้ว ${summary.coinRewardsUsed}/${summary.coinRewardsMax} ครั้ง</p>`;
   body.innerHTML = `
     <div class="quiz-verdict is-pass">
       <p class="quiz-verdict-title">✅ ผ่านแล้ว! ได้ ${summary.postScore}/${summary.total} คะแนน</p>

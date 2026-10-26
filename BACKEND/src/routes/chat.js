@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
+const { expireStalePendingCoins } = require("../services/chapterTests");
 const { askTutor } = require("../services/aiTutor");
 const { DAILY_AI_LIMIT, LEVEL_UP_AI_BONUS, consumeAiQuota, refundAiQuota, getAiQuotaStatus } = require("../services/aiQuota");
 
@@ -67,6 +68,7 @@ const AMOUNT_WORDS = /กี่|เท่าไร|เท่าไหร่|เ�
 
 async function coinBalanceReply(message, context, userId) {
   if (!COIN_WORDS.test(message) || !AMOUNT_WORDS.test(message)) return null;
+  await expireStalePendingCoins(userId); // คอยน์ค้างข้ามวันหมดอายุแล้ว ไม่นับ
   const pending = await db
     .prepare(
       `SELECT COALESCE(SUM(coins_earned), 0) AS coins FROM reading_sessions
@@ -75,7 +77,7 @@ async function coinBalanceReply(message, context, userId) {
     .get(userId);
   const pendingText = pending.coins > 0
     ? `
-มีอีก ${pending.coins} เหรียญจากเวลาอ่านที่รอปลดล็อก ทำแบบทดสอบหลังอ่านบทนั้นแล้วจะได้เลย (ตอบถูกได้โบนัสเพิ่มด้วย)`
+มีอีก ${pending.coins} เหรียญจากเวลาอ่านที่รอปลดล็อก ทำแบบทดสอบหลังอ่านบทนั้นผ่านภายในวันนี้แล้วจะได้เลย (ผ่านเร็วได้โบนัสมากกว่า)`
     : "";
   return `ตอนนี้คุณมี ${context.user.coins} เหรียญครับ 🪙${pendingText}
 
@@ -96,7 +98,7 @@ function matchChapterNumber(message, chapters) {
   }
 
   const detail = chapter.detail ? `\n\n${chapter.detail}` : "";
-  return `Chapter ${chapter.chapter_number}: ${chapter.title} ครับ 📖${detail}\n\nอ่านรอบละ 25 นาทีแล้วพัก 5 นาที ได้ 10 เหรียญทุกๆ 5 นาทีที่อ่านจริง เหรียญจะเข้าหลังทำแบบทดสอบหลังอ่านบทนี้ และตอบถูกได้โบนัสเพิ่มนะครับ`;
+  return `Chapter ${chapter.chapter_number}: ${chapter.title} ครับ 📖${detail}\n\nอ่านรอบละ 25 นาทีแล้วพัก 5 นาที ได้ 10 เหรียญทุกๆ 5 นาทีที่อ่านจริง เหรียญจะเข้าหลังทำแบบทดสอบหลังอ่านบทนี้ ผ่านครั้งแรกได้โบนัสเพิ่ม 30 เหรียญนะครับ`;
 }
 
 // ---- คลังคำตอบที่แอดมินกรอกไว้ (ตาราง chat_answers) ----
