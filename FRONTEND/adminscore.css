@@ -231,6 +231,22 @@
     color: #c0533a;
     font-weight: 600;
 }
+/* ---- กล่องรายละเอียดคะแนนมินิเกม: ตารางโบนัสรายด่านยาวได้หลายสิบแถว
+   จำกัดความสูงไม่ให้เกินจอ (เดิมสูงตามเนื้อหา ส่วนบนเลยล้นจอจนมองไม่เห็นหัวกล่อง) แล้วเลื่อนในกล่องแทน
+   และกว้างพอให้วันที่อยู่บรรทัดเดียว ---- */
+#scoreDetailModal .edit-modal-box {
+    width: 560px;
+    max-width: 94vw;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+#stageRewardBox .qs-stage-table td {
+    white-space: nowrap;
+    font-size: 13.5px;
+}
+
 /* ---- กล่องรายละเอียดแบบทดสอบรายบท (7 คอลัมน์ ต้องใช้กล่องกว้าง) ---- */
 #scoreDetailModal .edit-modal-box.is-wide {
     width: 820px;
