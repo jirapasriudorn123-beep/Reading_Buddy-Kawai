@@ -581,3 +581,10 @@
     line-height: 1.7;
     white-space: pre-line;
 }
+
+/* รูปไฟ (อ่านต่อเนื่อง) ในหัวตารางและบรรทัดจำนวนวัน */
+.fire-icon {
+  height: 1.15em;
+  width: auto;
+  vertical-align: -0.2em;
+}

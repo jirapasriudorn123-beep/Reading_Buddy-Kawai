@@ -11,7 +11,7 @@ function readingStatusHtml(u) {
   if (!u.lastReadDate) return '<span style="color:#999;">ยังไม่เคยอ่าน</span>';
   const date = new Date(u.lastReadDate + "T00:00:00").toLocaleDateString("th-TH", { dateStyle: "medium" });
   const line1 = `<span class="reading-line">${escapeHtml(date)}</span>`;
-  if (u.currentStreak > 0) return `${line1}<br><span class="reading-line">🔥 ${u.currentStreak} วัน</span>`;
+  if (u.currentStreak > 0) return `${line1}<br><span class="reading-line"><img src="img/fire.png" alt="" class="fire-icon"> ${u.currentStreak} วัน</span>`;
   return `${line1}<br><span class="reading-line reading-gap">ไม่ได้อ่าน ${u.daysSinceRead} วัน</span>`;
 }
 
