@@ -894,27 +894,16 @@ main > .ad-card {
 .ad-pass { color: #5d7f33; }
 .ad-fail { color: #b35a3a; }
 
-/* ---- ภาพรวมตามบทเรียน: วงแหวนใหญ่ตรงกลาง รายการสีอยู่ข้างล่าง ---- */
+/* ---- ภาพรวมตามบทเรียน: วงแหวนตรงกลาง รายการสีอยู่ข้างล่าง ---- */
 .ad-overview {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
 }
 
+/* ขนาดวงเท่ากับวงสัดส่วนการอ่านรายบท (ใช้ .ad-donut เดิม สูง 200px) */
 .ad-overview .ad-donut {
-    width: 260px;
-    max-width: 100%;
-    height: 260px;
-    margin: 0;
-}
-
-.ad-overview .ad-donut-center strong {
-    font-size: 32px;
-}
-
-.ad-overview .ad-donut-center span {
-    font-size: 14px;
+    align-self: stretch;
 }
 
 .ad-overview .ad-legend-list {
