@@ -1161,12 +1161,17 @@ main > .ad-card {
     color: #8a8373;
 }
 
-/* ---- ความสุขน้องหมา: วงใหญ่เท่าวงสัดส่วนการอ่านรายบท (200px) คำอธิบายอยู่ใต้วง ---- */
+/* ---- ความสุขน้องหมา / การทบทวน: วงใหญ่เท่าวงสัดส่วนการอ่านรายบท (200px) คำอธิบายอยู่ใต้วง ---- */
 .ad-pet-stack {
     flex-direction: column;
     gap: 12px;
     margin: 4px 0 10px;
-    text-align: center;
+}
+
+/* คำอธิบายใต้วงชิดซ้าย เต็มความกว้างการ์ด */
+.ad-pet-stack .ad-pet-text {
+    align-self: stretch;
+    text-align: left;
 }
 
 .ad-pet-stack .ad-ring {
