@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=8">
+    <link rel="stylesheet" href="adminhome.css?v=9">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -134,48 +134,7 @@
         </div>
     </div>
 
-    <!-- แถว 1: แนวโน้ม · สัดส่วนรายบท · น้องหมา -->
-
-    <!-- แถว 1: แนวโน้มการใช้งาน · สัดส่วนการอ่านรายบท -->
-    <div class="ad-cols ad-cols-2">
-        <section class="ad-card">
-            <div class="ad-head">
-                <div>
-                    <h3>แนวโน้มการใช้งานระบบ</h3>
-                    <p class="ad-sub">ผู้ใช้ที่เข้าใช้งาน การอ่าน มินิเกม และการถาม AI</p>
-                </div>
-            </div>
-            <div class="chart-legend">
-                <span class="legend-item"><span class="legend-dot" style="background:#D9714E"></span>ผู้ใช้ที่เข้าใช้งาน</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>รอบอ่านที่จบ</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>ด่านมินิเกม</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#9aa08f"></span>ถาม AI</span>
-            </div>
-            <div class="ad-chart"><canvas id="adTrendChart"></canvas></div>
-        </section>
-
-
-        <section class="ad-card">
-            <div class="ad-head">
-                <div>
-                    <h3>สัดส่วนการอ่านรายบท</h3>
-                    <p class="ad-sub">รอบอ่านที่จบในช่วงที่เลือก</p>
-                </div>
-            </div>
-            <div class="ad-donut">
-                <canvas id="adChapterChart"></canvas>
-                <div class="ad-donut-center">
-                    <strong id="adChapterTotal">0</strong>
-                    <span>รอบอ่าน</span>
-                </div>
-            </div>
-            <ul class="ad-legend-list" id="adChapterLegend"></ul>
-        </section>
-
-
-    </div>
-
-    <!-- แถว 2: สรุปการเรียนรู้รายวัน · สถิติการอ่านรายวันของทั้งระบบ -->
+    <!-- แถว 1 ผลการเรียน: สรุปการเรียนรู้รายวัน · ภาพรวมตามบทเรียน -->
     <div class="ad-cols ad-cols-2">
         <section class="ad-card">
             <div class="ad-head">
@@ -203,40 +162,61 @@
         <section class="ad-card">
             <div class="ad-head">
                 <div>
-                    <h3>สถิติการอ่าน (รายวัน)</h3>
-                    <p class="ad-sub">เวลาอ่านและจำนวนรอบย้อนหลัง 7 วัน</p>
+                    <h3>ภาพรวมตามบทเรียน</h3>
+                    <p class="ad-sub">นับนิสิตแยกทีละบท (1 คนเรียน 3 บท = 3)</p>
                 </div>
             </div>
-            <div class="chart-legend">
-                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>เวลาอ่าน (ชม.)</span>
-                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>รอบอ่าน (ครั้ง)</span>
+            <div class="ad-overview">
+                <div class="ad-donut">
+                    <canvas id="adOverviewChart"></canvas>
+                    <div class="ad-donut-center">
+                        <span>รวมทั้งหมด</span>
+                        <strong id="adOverviewChapters">0 บท</strong>
+                    </div>
+                </div>
+                <ul class="ad-legend-list" id="adOverviewLegend"></ul>
             </div>
-            <div class="ad-chart"><canvas id="adReadingChart"></canvas></div>
         </section>
-
-
     </div>
 
-    <!-- แถว 3: น้องหมา · การทบทวน · การใช้ AI -->
-    <div class="ad-cols ad-cols-3">
+    <!-- แถว 2 การใช้งาน: แนวโน้มการใช้งาน · สัดส่วนการอ่านรายบท -->
+    <div class="ad-cols ad-cols-2">
         <section class="ad-card">
             <div class="ad-head">
                 <div>
-                    <h3>ระดับความสุขน้องหมา</h3>
-                    <p class="ad-sub">ค่าเฉลี่ยของน้องหมาทุกตัวในระบบ</p>
+                    <h3>แนวโน้มการใช้งานระบบ</h3>
+                    <p class="ad-sub">ผู้ใช้ที่เข้าใช้งาน การอ่าน มินิเกม และการถาม AI</p>
                 </div>
             </div>
-            <div class="ad-pet">
-                <div class="ad-ring" id="adPetRing" style="--value:0"><span id="adPetHappiness">0%</span></div>
-                <div class="ad-pet-text">
-                    <strong id="adPetTitle">ความสุขเฉลี่ย</strong>
-                    <p id="adPetDesc">กำลังโหลด...</p>
-                </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#D9714E"></span>ผู้ใช้ที่เข้าใช้งาน</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>รอบอ่านที่จบ</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>ด่านมินิเกม</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#9aa08f"></span>ถาม AI</span>
             </div>
-            <strong class="ad-subhead">พฤติกรรมล่าสุด</strong>
-            <ul class="ad-legend-list" id="adPetRecent"></ul>
+            <div class="ad-chart"><canvas id="adTrendChart"></canvas></div>
         </section>
 
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สัดส่วนการอ่านรายบท</h3>
+                    <p class="ad-sub">รอบอ่านที่จบในช่วงที่เลือก</p>
+                </div>
+            </div>
+            <div class="ad-donut">
+                <canvas id="adChapterChart"></canvas>
+                <div class="ad-donut-center">
+                    <strong id="adChapterTotal">0</strong>
+                    <span>รอบอ่าน</span>
+                </div>
+            </div>
+            <ul class="ad-legend-list" id="adChapterLegend"></ul>
+        </section>
+    </div>
+
+    <!-- แถว 3: การทบทวน · การใช้ AI · น้องหมา -->
+    <div class="ad-cols ad-cols-3">
         <section class="ad-card">
             <div class="ad-head">
                 <div>
@@ -273,10 +253,41 @@
             <ul class="ad-advice" id="adAiAdvice"></ul>
         </section>
 
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ระดับความสุขน้องหมา</h3>
+                    <p class="ad-sub">ค่าเฉลี่ยของน้องหมาทุกตัวในระบบ</p>
+                </div>
+            </div>
+            <div class="ad-pet">
+                <div class="ad-ring" id="adPetRing" style="--value:0"><span id="adPetHappiness">0%</span></div>
+                <div class="ad-pet-text">
+                    <strong id="adPetTitle">ความสุขเฉลี่ย</strong>
+                    <p id="adPetDesc">กำลังโหลด...</p>
+                </div>
+            </div>
+            <strong class="ad-subhead">พฤติกรรมล่าสุด</strong>
+            <ul class="ad-legend-list" id="adPetRecent"></ul>
+        </section>
     </div>
 
-    <!-- แถว 4: มินิเกม -->
-    <div class="ad-cols ad-cols-1">
+    <!-- แถว 4: สถิติการอ่านรายวัน · มินิเกม -->
+    <div class="ad-cols ad-cols-2">
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>สถิติการอ่าน (รายวัน)</h3>
+                    <p class="ad-sub">เวลาอ่านและจำนวนรอบย้อนหลัง 7 วัน</p>
+                </div>
+            </div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>เวลาอ่าน (ชม.)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>รอบอ่าน (ครั้ง)</span>
+            </div>
+            <div class="ad-chart"><canvas id="adReadingChart"></canvas></div>
+        </section>
+
         <section class="ad-card">
             <div class="ad-head">
                 <div>
@@ -287,8 +298,6 @@
             </div>
             <table class="ad-table" id="adGames"></table>
         </section>
-
-
     </div>
 
 
@@ -300,6 +309,6 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=14"></script>
+<script src="adminhome.js?v=15"></script>
 </body>
 </html>

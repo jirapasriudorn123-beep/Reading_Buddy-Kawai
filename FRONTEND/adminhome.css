@@ -893,3 +893,49 @@ main > .ad-card {
 
 .ad-pass { color: #5d7f33; }
 .ad-fail { color: #b35a3a; }
+
+/* ---- ภาพรวมตามบทเรียน: วงแหวนซ้าย รายการขวา ---- */
+.ad-overview {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.ad-overview .ad-donut {
+    flex: 0 0 200px;
+    width: 200px;
+    min-width: 0;
+    height: 200px;
+    margin: 0;
+}
+
+.ad-overview .ad-legend-list {
+    flex: 1;
+    min-width: 0;
+}
+
+.ad-overview .ad-legend-list li {
+    padding: 10px 0;
+    font-size: 15px;
+}
+
+.ad-overview .ad-legend-name {
+    min-width: 4.5em;
+}
+
+.ad-overview .ad-legend-value {
+    white-space: nowrap;
+}
+
+.ad-legend-share {
+    margin-left: 6px;
+    font-weight: 400;
+    color: #8a8373;
+}
+
+@media (max-width: 520px) {
+    .ad-overview {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

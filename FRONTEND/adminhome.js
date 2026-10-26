@@ -199,6 +199,53 @@ function renderChapterShare(share) {
   });
 }
 
+// ---------- ภาพรวมตามบทเรียน (ผ่าน / กำลังเรียน / ไม่ผ่าน) ----------
+function renderChapterOverview(o) {
+  const canvas = document.getElementById("adOverviewChart");
+  if (!o || !canvas) return;
+  document.getElementById("adOverviewChapters").textContent = `${num(o.chapters)} บท`;
+  const items = [
+    { label: "ผ่าน", value: o.passed, color: AD_COLORS.reading },
+    { label: "กำลังเรียน", value: o.studying, color: "#7FA8C9" },
+    { label: "ไม่ผ่าน", value: o.failed, color: AD_COLORS.users },
+  ];
+  const total = items.reduce((sum, it) => sum + it.value, 0);
+  document.getElementById("adOverviewLegend").innerHTML = items
+    .map(
+      (it) => `<li>
+        <span class="ad-dot" style="background:${it.color}"></span>
+        <span class="ad-legend-name">${it.label}</span>
+        <span class="ad-legend-value">${num(it.value)} คน<span class="ad-legend-share">(${
+          total ? ((it.value / total) * 100).toFixed(1) : "0.0"
+        }%)</span></span>
+      </li>`
+    )
+    .join("");
+
+  if (typeof Chart === "undefined") return;
+  adCharts.overview?.destroy();
+  adCharts.overview = new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels: items.map((it) => it.label),
+      datasets: [
+        {
+          // ยังไม่มีใครเริ่มบทไหน = วงสีเทาเต็มวง
+          data: total ? items.map((it) => it.value) : [1],
+          backgroundColor: total ? items.map((it) => it.color) : ["#ece6d6"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "68%",
+      plugins: { legend: { display: false }, tooltip: { enabled: total > 0 } },
+    },
+  });
+}
+
 // ---------- ภาพรวมน้องหมา ----------
 function renderPet(pet) {
   if (!document.getElementById("adPetRing")) return;
@@ -625,6 +672,7 @@ function renderDashboard(data) {
   renderLearnerStatus(data.learners, data.tiles.users.total);
   renderTrend(data.trend);
   renderChapterShare(data.chapterShare);
+  renderChapterOverview(data.chapterOverview);
   renderPet(data.pet);
   renderTopReaders(data.topReaders);
   renderReadingByDay(data.readingByDay);

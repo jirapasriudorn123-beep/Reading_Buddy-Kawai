@@ -547,6 +547,35 @@ async function buildAtRisk() {
   return { total: users.length, criteria: AT_RISK, users: rows.slice(0, 8) };
 }
 
+// ---------- ภาพรวมตามบทเรียน (วงแหวนหน้าหลัก) ----------
+// นับนิสิตแยกทีละบท (1 คนเริ่มเรียน 3 บท = 3) จากชุดแบบทดสอบทุกชุดของบทนั้น
+// ผ่าน = ผ่านแบบทดสอบหลังอ่านของบทนั้นแล้ว | ไม่ผ่าน = ทำหลังอ่านแล้วแต่ยังไม่ผ่าน | กำลังเรียน = เริ่มบทแล้วแต่ยังไม่ได้ทำหลังอ่าน
+async function buildChapterOverview() {
+  const [chapters, row] = await Promise.all([
+    db.prepare("SELECT COUNT(*) c FROM chapters").get(),
+    db
+      .prepare(
+        `SELECT COALESCE(SUM(CASE WHEN passed > 0 THEN 1 ELSE 0 END), 0) passed,
+                COALESCE(SUM(CASE WHEN passed = 0 AND tried > 0 THEN 1 ELSE 0 END), 0) failed,
+                COALESCE(SUM(CASE WHEN passed = 0 AND tried = 0 THEN 1 ELSE 0 END), 0) studying
+         FROM (
+           SELECT t.user_id, t.chapter_id,
+                  SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) passed,
+                  SUM(t.post_tries) tried
+           FROM chapter_tests t JOIN users u ON u.id = t.user_id
+           WHERE u.is_admin = 0 GROUP BY t.user_id, t.chapter_id
+         )`
+      )
+      .get(),
+  ]);
+  return {
+    chapters: Number(chapters.c) || 0,
+    passed: Number(row.passed) || 0,
+    studying: Number(row.studying) || 0,
+    failed: Number(row.failed) || 0,
+  };
+}
+
 // ---------- สถานะผู้เรียน (ป้ายหน้าติดตามผู้เรียน) ----------
 // กำลังเรียนอยู่ = นิสิตที่อ่านจบสักรอบหรือทำแบบทดสอบหลังอ่านในช่วงที่เลือก
 // ไม่ผ่าน = มีบทที่ทำแบบทดสอบหลังอ่านครั้งล่าสุดแล้วยังไม่ผ่าน (นับทุกช่วงเวลา)
@@ -639,7 +668,7 @@ async function buildDailyLearning(end) {
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
-  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners] = await Promise.all([
+  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners, chapterOverview] = await Promise.all([
     buildTiles(),
     buildTrend(range),
     buildChapterShare(range),
@@ -656,6 +685,7 @@ async function buildDashboard(days = 7) {
     buildGames(),
     buildAtRisk(),
     buildLearnerStatus(range),
+    buildChapterOverview(),
   ]);
   return {
     range,
@@ -673,6 +703,7 @@ async function buildDashboard(days = 7) {
     games,
     atRisk,
     learners,
+    chapterOverview,
   };
 }
 
