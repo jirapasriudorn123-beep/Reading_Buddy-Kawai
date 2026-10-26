@@ -1047,25 +1047,30 @@ body {
    หน้า Shop
    ========================================================== */
  
+/* แถบหมวดสินค้า + ช่องค้นหา: ปุ่มไม่ตัดคำ และถ้าที่ไม่พอให้ขึ้นบรรทัดใหม่แทนการทับกัน */
 .filter-container {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: 12px 20px;
     padding: 20px;
 }
  
 .category-tabs {
     display: flex;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
  
 .tab-btn {
     background-color: #eee9d9;
     border: 1px solid #000;
-    padding: 4px 35px;
+    padding: 6px 22px;
     border-radius: 20px;
     cursor: pointer;
     font-family: 'Kanit', sans-serif;
+    white-space: nowrap;
     transition: 0.3s;
     color: #000;
 }
@@ -1080,9 +1085,13 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    margin-left: auto;
 }
  
 #searchInput {
+    width: 220px;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 8px 15px;
     border-radius: 20px;
     border: 1px solid #ccc;
