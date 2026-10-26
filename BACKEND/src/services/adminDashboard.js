@@ -787,6 +787,75 @@ async function buildDailyLearning(end) {
   };
 }
 
+// ---------- การทบทวน (การ์ดหน้าติดตามผู้เรียน) ----------
+// ผู้เข้าร่วม = นิสิตที่ตอบข้อทบทวนอย่างน้อย 1 ครั้งในช่วงที่เลือก (ทั้งตอนทำ post และในมินิเกม)
+// range = "all" หรือจำนวนวัน · ข้อที่จำได้แล้ว / ถึงรอบตอนนี้ เป็นสถานะปัจจุบัน ไม่ขึ้นกับช่วง
+async function buildReviewStats(range) {
+  const days = RANGES.includes(Number(range)) ? Number(range) : null;
+  const when = days
+    ? `AND datetime(l.created_at, '${THAI}') >= datetime('now', '${THAI}', '-${days - 1} days', 'start of day')`
+    : "";
+  const from = `FROM review_log l JOIN users u ON u.id = l.user_id WHERE u.is_admin = 0 ${when}`;
+  const [users, participants, byChapter, byUser, items] = await Promise.all([
+    db.prepare("SELECT COUNT(*) c FROM users WHERE is_admin = 0").get(),
+    db.prepare(`SELECT COUNT(DISTINCT l.user_id) c ${from}`).get(),
+    db
+      .prepare(
+        `SELECT c.chapter_number n, c.title, COUNT(DISTINCT l.user_id) people, COUNT(*) answers, COALESCE(SUM(l.correct), 0) correct
+         ${from.replace("WHERE", "JOIN chapters c ON c.id = l.chapter_id WHERE")}
+         GROUP BY c.id ORDER BY people DESC, answers DESC`
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT u.id, u.username, COUNT(*) answers, COALESCE(SUM(l.correct), 0) correct,
+                COUNT(DISTINCT l.chapter_id) chapters, MAX(datetime(l.created_at, '${THAI}')) last_at
+         ${from} GROUP BY u.id ORDER BY answers DESC`
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT user_id, COALESCE(SUM(CASE WHEN stage >= ? THEN 1 ELSE 0 END), 0) mastered, COUNT(*) total,
+                COALESCE(SUM(CASE WHEN due_at IS NOT NULL AND datetime(due_at) <= datetime('now') THEN 1 ELSE 0 END), 0) due
+         FROM review_items GROUP BY user_id`
+      )
+      .all(MASTERED_STAGE),
+  ]);
+  const total = Number(users.c) || 0;
+  const joined = Number(participants.c) || 0;
+  const itemsBy = new Map(items.map((r) => [r.user_id, r]));
+  const chapters = byChapter.map((r) => ({
+    chapter: r.n,
+    title: r.title,
+    people: Number(r.people) || 0,
+    peoplePercent: joined ? round1((r.people / joined) * 100) : 0,
+    answers: Number(r.answers) || 0,
+    correctPercent: pct(r.correct, r.answers),
+  }));
+  return {
+    range: days || "all",
+    users: total,
+    participants: joined,
+    participantPercent: total ? round1((joined / total) * 100) : 0,
+    top: chapters.slice(0, 5),
+    chapters: [...chapters].sort((a, b) => a.chapter - b.chapter),
+    people: byUser.map((r) => {
+      const it = itemsBy.get(r.id);
+      return {
+        id: r.id,
+        username: r.username,
+        answers: Number(r.answers) || 0,
+        correctPercent: pct(r.correct, r.answers),
+        chapters: Number(r.chapters) || 0,
+        mastered: it ? Number(it.mastered) || 0 : 0,
+        items: it ? Number(it.total) || 0 : 0,
+        dueNow: it ? Number(it.due) || 0 : 0,
+        lastAt: r.last_at,
+      };
+    }),
+  };
+}
+
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
@@ -833,4 +902,4 @@ async function buildDashboard(days = 7) {
   };
 }
 
-module.exports = { buildDashboard, buildDailyLearning };
+module.exports = { buildDashboard, buildDailyLearning, buildReviewStats };

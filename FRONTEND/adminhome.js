@@ -420,6 +420,90 @@ function renderActivity(rows) {
   drawActivity();
 }
 
+// ---------- การทบทวน (หน้าติดตามผู้เรียน) ----------
+// โหลดแยกจากคำขอหลักเพราะมีช่วงเวลาของตัวเอง — GET /api/admin/stats/review?range=all|7|30|90
+let adReview = null;
+let adReviewTab = "overview";
+
+function drawReview() {
+  const body = document.getElementById("adReviewBody");
+  if (!body || !adReview) return;
+  const r = adReview;
+  if (adReviewTab === "overview") {
+    body.innerHTML = `<div class="ad-review-join">
+        <div class="ad-ring" style="--value:${r.participantPercent}"><span>${Math.round(r.participantPercent)}%</span></div>
+        <div>
+          <span class="ad-review-label">จำนวนผู้เข้าร่วมการทบทวน</span>
+          <strong>${num(r.participants)} คน</strong>
+          <span class="ad-review-label">(${r.participantPercent}% ของนิสิตทั้งหมด ${num(r.users)} คน)</span>
+        </div>
+      </div>
+      <strong class="ad-subhead">บทที่มีคนทบทวนมากที่สุด (Top 5)</strong>
+      ${
+        r.top.length
+          ? `<ol class="ad-review-top">${r.top
+              .map(
+                (c, i) => `<li data-go="chapters" title="ดูรายบทเรียน">
+                  <span class="ad-rank${i < 3 ? ` is-top${i + 1}` : ""}">${i + 1}</span>
+                  <span class="ad-review-name">บทที่ ${c.chapter} : ${escapeHtml(c.title)}</span>
+                  <span class="ad-review-num">${num(c.people)} คน <span class="ad-legend-share">(${c.peoplePercent}%)</span></span>
+                  <span class="ad-review-go">›</span>
+                </li>`
+              )
+              .join("")}</ol>`
+          : adEmpty("ยังไม่มีการทบทวนในช่วงนี้")
+      }`;
+    return;
+  }
+  if (adReviewTab === "people") {
+    body.innerHTML = r.people.length
+      ? `<table class="ad-table"><thead><tr><th>ผู้ใช้</th><th>ตอบ</th><th>ถูก</th><th>จำได้แล้ว</th><th>ถึงรอบ</th></tr></thead><tbody>${r.people
+          .map(
+            (p) => `<tr>
+              <td><a href="adminuser-detail.html?userId=${p.id}" class="ad-user-link">${escapeHtml(p.username)}</a></td>
+              <td>${num(p.answers)}</td>
+              <td>${p.correctPercent}%</td>
+              <td>${num(p.mastered)}/${num(p.items)}</td>
+              <td>${num(p.dueNow)} ข้อ</td>
+            </tr>`
+          )
+          .join("")}</tbody></table>`
+      : adEmpty("ยังไม่มีใครทบทวนในช่วงนี้");
+    return;
+  }
+  body.innerHTML = r.chapters.length
+    ? `<table class="ad-table"><thead><tr><th>บทเรียน</th><th>คนทบทวน</th><th>ตอบ</th><th>ถูก</th></tr></thead><tbody>${r.chapters
+        .map(
+          (c) => `<tr>
+            <td>บทที่ ${c.chapter}<span class="ad-cell-sub">${escapeHtml(c.title)}</span></td>
+            <td>${num(c.people)} คน</td>
+            <td>${num(c.answers)}</td>
+            <td><span class="ad-gain${c.correctPercent < 50 ? " is-down" : ""}">${c.correctPercent}%</span></td>
+          </tr>`
+        )
+        .join("")}</tbody></table>`
+    : adEmpty("ยังไม่มีการทบทวนในช่วงนี้");
+}
+
+function setReviewTab(tab) {
+  adReviewTab = tab;
+  document
+    .querySelectorAll("#adReviewTabs button")
+    .forEach((b) => b.classList.toggle("is-active", b.dataset.tab === tab));
+  drawReview();
+}
+
+async function loadReviewStats() {
+  const select = document.getElementById("adReviewRange");
+  if (!select) return;
+  try {
+    adReview = await adminApiFetch(`/admin/stats/review?range=${select.value}`);
+    drawReview();
+  } catch (err) {
+    console.error("โหลดสถิติการทบทวนไม่สำเร็จ:", err);
+  }
+}
+
 // ---------- ภาพรวมน้องหมา ----------
 function renderPet(pet) {
   if (!document.getElementById("adPetRing")) return;
@@ -969,8 +1053,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("adDailyEnd")?.addEventListener("change", (e) => loadDailyLearning(e.target.value));
 
+  document.getElementById("adReviewRange")?.addEventListener("change", loadReviewStats);
+  document.getElementById("adReviewTabs")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-tab]");
+    if (btn) setReviewTab(btn.dataset.tab);
+  });
+  // กดบทใน Top 5 → ไปแท็บรายบทเรียน
+  document.getElementById("adReviewBody")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-go='chapters']")) setReviewTab("chapters");
+  });
+
   loadDashboard();
   loadDailyLearning();
+  loadReviewStats();
 });
 
 // ================== โหมดสาธิตจับเวลาอ่าน ==================

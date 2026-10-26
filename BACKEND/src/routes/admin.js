@@ -7,7 +7,7 @@ const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
-const { buildDashboard, buildDailyLearning } = require("../services/adminDashboard");
+const { buildDashboard, buildDailyLearning, buildReviewStats } = require("../services/adminDashboard");
 const { buildUserReport } = require("../services/adminUserReport");
 
 const router = express.Router();
@@ -149,6 +149,15 @@ router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {
 router.get("/stats/daily-learning", requireAdmin, async (req, res, next) => {
   try {
     return res.json(await buildDailyLearning(String(req.query.end || "")));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/stats/review?range=all|7|30|90|365 — ภาพรวม / รายบุคคล / รายบทเรียนของการทบทวน
+router.get("/stats/review", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json(await buildReviewStats(String(req.query.range || "all")));
   } catch (err) {
     next(err);
   }

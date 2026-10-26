@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ติดตามผู้เรียน</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=11">
+    <link rel="stylesheet" href="adminhome.css?v=12">
     <link rel="stylesheet" href="adminresearch.css?v=20261024f">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -114,8 +114,13 @@
         </div>
     </div>
 
+    <div class="ad-section-title">
+        <h3>ผู้เรียนที่ต้องติดตาม</h3>
+        <p>ใครควรดูแลก่อน และแต่ละคนเรียนถึงไหนแล้ว</p>
+    </div>
+
    <!-- นิสิตที่ควรดูแล: ติดธงจากข้อมูลการใช้งานจริง -->
-    <section class="ad-card ad-risk-card">
+        <section class="ad-card ad-risk-card">
         <div class="ad-head">
             <div>
                 <h3>นิสิตที่ควรดูแล</h3>
@@ -125,27 +130,10 @@
         </div>
         <table class="ad-table" id="adRiskTable"></table>
         <p class="ad-sub ad-risk-note" id="adRiskNote"></p>
-    </section>
-
-    <!-- สรุปการเรียนรู้แต่ละบท: นิสิตที่เริ่มบท · กำลังเรียน · ผ่าน / ไม่ผ่าน Post-test -->
-    <section class="ad-card ad-risk-card">
-        <div class="ad-head">
-            <div>
-                <h3>สรุปการเรียนรู้แต่ละบท</h3>
-                <p class="ad-sub" id="adChapterSub">นิสิตที่เริ่มบทนั้นแล้ว · ผ่าน / ไม่ผ่าน = ผล Post-test ครั้งล่าสุด</p>
-            </div>
-            <div class="ad-toggle" id="adChapterFilter" role="group" aria-label="แถบความคืบหน้าแสดงสัดส่วนของ">
-                <button type="button" class="is-active" data-status="all">ทั้งหมด</button>
-                <button type="button" data-status="studying">กำลังเรียน</button>
-                <button type="button" data-status="passed">ผ่านแล้ว</button>
-                <button type="button" data-status="failed">ไม่ผ่าน</button>
-            </div>
-        </div>
-        <table class="ad-table ad-chapter-table" id="adChapterTable"></table>
-    </section>
+        </section>
 
     <!-- ติดตามผู้เรียนรายบุคคล: บทล่าสุด · ความคืบหน้า · สถานะ · ลิงก์ไปหน้ารายงานรายคน -->
-    <section class="ad-card ad-risk-card">
+        <section class="ad-card ad-risk-card">
         <div class="ad-head">
             <div>
                 <h3>ติดตามผู้เรียน (รายบุคคล)</h3>
@@ -168,22 +156,71 @@
         </div>
         <table class="ad-table ad-student-table" id="adStudentTable"></table>
         <button type="button" class="ad-student-more" id="adStudentMore" hidden>ดูทั้งหมด →</button>
-    </section>
+        </section>
 
-    <!-- กิจกรรมล่าสุด: Pre/Post-test · อ่านบทเรียน · มินิเกม · ถาม AI ของนิสิตทุกคน -->
-    <section class="ad-card ad-risk-card">
+    <div class="ad-section-title">
+        <h3>ผลการเรียนรายบท</h3>
+        <p>ผ่าน / ไม่ผ่าน Post-test คะแนนก่อน–หลังอ่าน และการทบทวน</p>
+    </div>
+
+    <!-- สรุปการเรียนรู้แต่ละบท: นิสิตที่เริ่มบท · กำลังเรียน · ผ่าน / ไม่ผ่าน Post-test -->
+        <section class="ad-card ad-risk-card">
         <div class="ad-head">
             <div>
-                <h3>กิจกรรมล่าสุด</h3>
-                <p class="ad-sub">ทำแบบทดสอบ · อ่านบทเรียน · เล่นมินิเกม · ถามน้อง AI (50 รายการล่าสุด)</p>
+                <h3>สรุปการเรียนรู้แต่ละบท</h3>
+                <p class="ad-sub" id="adChapterSub">นิสิตที่เริ่มบทนั้นแล้ว · ผ่าน / ไม่ผ่าน = ผล Post-test ครั้งล่าสุด</p>
+            </div>
+            <div class="ad-toggle" id="adChapterFilter" role="group" aria-label="แถบความคืบหน้าแสดงสัดส่วนของ">
+                <button type="button" class="is-active" data-status="all">ทั้งหมด</button>
+                <button type="button" data-status="studying">กำลังเรียน</button>
+                <button type="button" data-status="passed">ผ่านแล้ว</button>
+                <button type="button" data-status="failed">ไม่ผ่าน</button>
             </div>
         </div>
-        <table class="ad-table ad-activity-table" id="adActivityTable"></table>
-        <button type="button" class="ad-student-more" id="adActivityMore" hidden>ดูทั้งหมด →</button>
-    </section>
+        <table class="ad-table ad-chapter-table" id="adChapterTable"></table>
+        </section>
 
-    <div class="ad-cols ad-cols-1">
-       <section class="ad-card">
+    <div class="ad-cols ad-cols-2 ad-cols-inset">
+    <!-- ผลการเรียนรู้ ก่อน / หลังอ่าน รายบท -->
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>ผลการเรียนรู้ (ก่อน / หลังอ่าน)</h3>
+                    <p class="ad-sub">คะแนนเฉลี่ยของแต่ละบท คิดเป็นเปอร์เซ็นต์</p>
+                </div>
+            </div>
+            <table class="ad-table" id="adLearning"></table>
+        </section>
+
+    <!-- การทบทวน: สรุปภาพรวม / รายบุคคล / รายบทเรียน (โหลดแยก เลือกช่วงเวลาเองได้) -->
+        <section class="ad-card">
+            <div class="ad-head">
+                <div>
+                    <h3>การทบทวน</h3>
+                    <p class="ad-sub">ตอบข้อทบทวนตามรอบ 1 / 3 / 7 / 14 วัน (ตอนทำ Post-test และในมินิเกม)</p>
+                </div>
+                <select class="ad-student-filter" id="adReviewRange" aria-label="ช่วงเวลาของการทบทวน">
+                    <option value="all">ทั้งหมด</option>
+                    <option value="7">7 วันล่าสุด</option>
+                    <option value="30">30 วันล่าสุด</option>
+                    <option value="90">90 วันล่าสุด</option>
+                </select>
+            </div>
+            <div class="ad-toggle ad-review-tabs" id="adReviewTabs" role="tablist">
+                <button type="button" class="is-active" data-tab="overview">สรุปภาพรวม</button>
+                <button type="button" data-tab="people">รายบุคคล</button>
+                <button type="button" data-tab="chapters">รายบทเรียน</button>
+            </div>
+            <div id="adReviewBody"><p class="ad-empty">กำลังโหลด...</p></div>
+        </section>
+    </div>
+
+    <div class="ad-section-title">
+        <h3>การใช้งาน</h3>
+        <p>เวลาอ่านของแต่ละคนและกิจกรรมล่าสุดในระบบ</p>
+    </div>
+
+        <section class="ad-card ad-risk-card">
             <div class="ad-head">
                 <div>
                     <h3>สถิติการอ่าน (รายคน)</h3>
@@ -201,22 +238,17 @@
             <table class="ad-table" id="adTopReaders"></table>
         </section>
 
-
-    </div>
-
-    <div class="ad-cols ad-cols-1">
-       <section class="ad-card">
-            <div class="ad-head">
-                <div>
-                    <h3>ผลการเรียนรู้ (ก่อน / หลังอ่าน)</h3>
-                    <p class="ad-sub">คะแนนเฉลี่ยของแต่ละบท คิดเป็นเปอร์เซ็นต์</p>
-                </div>
+    <!-- กิจกรรมล่าสุด: Pre/Post-test · อ่านบทเรียน · มินิเกม · ถาม AI ของนิสิตทุกคน -->
+        <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>กิจกรรมล่าสุด</h3>
+                <p class="ad-sub">ทำแบบทดสอบ · อ่านบทเรียน · เล่นมินิเกม · ถามน้อง AI (50 รายการล่าสุด)</p>
             </div>
-            <table class="ad-table" id="adLearning"></table>
+        </div>
+        <table class="ad-table ad-activity-table" id="adActivityTable"></table>
+        <button type="button" class="ad-student-more" id="adActivityMore" hidden>ดูทั้งหมด →</button>
         </section>
-
-
-    </div>
 
    <!-- ข้อมูลวิจัย (Learning Analytics): ดูเป็นตารางในหน้านี้ และดาวน์โหลด CSV ของหมวดที่เปิดอยู่ -->
     <section class="research-section">
@@ -263,7 +295,7 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=17"></script>
+<script src="adminhome.js?v=18"></script>
 <script src="adminresearch.js?v=20261025f"></script>
 </body>
 </html>

@@ -1071,3 +1071,103 @@ main > .ad-card {
 
 .ad-activity-table .is-passed { color: #5d7f33; font-weight: 600; }
 .ad-activity-table .is-failed { color: #b35a3a; font-weight: 600; }
+
+/* ---- หัวข้อกลุ่มเนื้อหา (หน้าติดตามผู้เรียน) ---- */
+.ad-section-title {
+    margin: 28px 20px 12px;
+    padding-left: 12px;
+    border-left: 5px solid var(--green-btn);
+}
+
+.ad-section-title h3 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.ad-section-title p {
+    margin: 2px 0 0;
+    font-size: 13.5px;
+    color: #777;
+}
+
+/* แถวการ์ด 2 ใบที่เว้นขอบเท่าการ์ดเต็มความกว้าง */
+.ad-cols.ad-cols-inset {
+    padding: 0 20px;
+}
+
+/* ---- การทบทวน ---- */
+.ad-review-tabs {
+    display: flex;
+    margin-bottom: 14px;
+}
+
+.ad-review-tabs button {
+    flex: 1;
+}
+
+.ad-review-join {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding-bottom: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px dotted #ece6d6;
+}
+
+.ad-review-join .ad-ring {
+    background: conic-gradient(var(--green-btn) calc(var(--value) * 1%), #efe9d8 0);
+}
+
+.ad-review-join span.ad-review-label {
+    display: block;
+    font-size: 13.5px;
+    color: #777;
+}
+
+.ad-review-join strong {
+    display: block;
+    font-size: 26px;
+    font-weight: 600;
+}
+
+.ad-review-top {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+}
+
+.ad-review-top li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dotted #ece6d6;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ad-review-top li:last-child {
+    border-bottom: none;
+}
+
+.ad-review-top .ad-review-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-review-top .ad-review-num {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ad-review-top .ad-legend-share {
+    font-weight: 400;
+}
+
+.ad-review-top .ad-review-go {
+    color: #8a8373;
+}
