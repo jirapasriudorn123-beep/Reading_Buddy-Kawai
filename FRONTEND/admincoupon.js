@@ -107,7 +107,7 @@ async function saveShop() {
 
 async function deleteShop(id) {
   const shop = shops.find((s) => s.id === id);
-  if (!shop || !confirm(`ลบร้าน "${shop.name}" แน่ใจไหม? ร้านนี้จะยืนยันคูปองไม่ได้อีก`)) return;
+  if (!shop || !(await adminConfirm(`ลบร้าน "${shop.name}" แน่ใจไหม? ร้านนี้จะยืนยันคูปองไม่ได้อีก`))) return;
   try {
     await adminApiFetch(`/admin/shops/${id}`, { method: "DELETE" });
     await loadShops();

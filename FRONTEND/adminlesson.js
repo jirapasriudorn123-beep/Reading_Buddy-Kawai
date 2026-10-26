@@ -63,7 +63,7 @@ function openEditLesson(id) {
 }
 
 async function deleteLesson(id) {
-  if (!confirm("คุณแน่ใจหรือไม่ที่จะลบบทเรียนนี้? (ประวัติการอ่านบทนี้ของผู้ใช้ทุกคนจะถูกลบไปด้วย)")) return;
+  if (!(await adminConfirm("คุณแน่ใจหรือไม่ที่จะลบบทเรียนนี้? (ประวัติการอ่านบทนี้ของผู้ใช้ทุกคนจะถูกลบไปด้วย)"))) return;
   try {
     await adminApiFetch(`/admin/chapters/${id}`, { method: "DELETE" });
     await loadChapters();

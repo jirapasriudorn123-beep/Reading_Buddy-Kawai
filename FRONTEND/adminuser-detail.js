@@ -464,7 +464,7 @@ async function sendFeedback(e) {
 }
 
 async function deleteFeedback(id) {
-  if (!confirm("ลบข้อความนี้? นิสิตจะไม่เห็นข้อความนี้และคำตอบของมันอีก")) return;
+  if (!(await adminConfirm("ลบข้อความนี้? นิสิตจะไม่เห็นข้อความนี้และคำตอบของมันอีก"))) return;
   try {
     await adminApiFetch(`/admin/feedback/${id}`, { method: "DELETE" });
     currentFeedback = currentFeedback.filter((f) => f.id !== id);

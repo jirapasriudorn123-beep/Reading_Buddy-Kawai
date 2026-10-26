@@ -49,6 +49,43 @@ async function adminApiFetch(path, options = {}) {
   return data;
 }
 
+// ---------- กล่องยืนยันก่อนลบ (ใช้แทน confirm() ของเบราว์เซอร์) ----------
+// const ok = await adminConfirm("ลบสินค้านี้แน่ใจไหม?") → true เมื่อกด "ยืนยัน", false เมื่อกด "ยกเลิก" / Esc / คลิกนอกกล่อง
+function adminConfirm(message, { title = "ยืนยันการลบ", confirmText = "ยืนยัน", cancelText = "ยกเลิก" } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    overlay.innerHTML = `<div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+        <div class="confirm-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M6 7l1 12.5A2 2 0 0 0 9 21h6a2 2 0 0 0 2-1.5L18 7"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        </div>
+        <h3 id="confirmTitle">${escapeHtml(title)}</h3>
+        <p id="confirmMessage">${escapeHtml(message)}</p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-cancel">${escapeHtml(cancelText)}</button>
+          <button type="button" class="confirm-ok">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>`;
+
+    const close = (result) => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    overlay.querySelector(".confirm-cancel").addEventListener("click", () => close(false));
+    overlay.querySelector(".confirm-ok").addEventListener("click", () => close(true));
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    overlay.querySelector(".confirm-cancel").focus(); // ปุ่มที่โฟกัสก่อนคือ "ยกเลิก" กดผิดก็ไม่ลบ
+  });
+}
+
 function requireAdminSession() {
   if (!getAdminToken()) {
     window.location.href = "login.html";

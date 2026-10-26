@@ -273,7 +273,7 @@ async function saveItemEdit() {
 }
 
 async function deleteProduct(id) {
-  if (!confirm("ลบสินค้านี้แน่ใจไหม? (จะหายไปจากกระเป๋าของผู้ใช้ทุกคนที่มีไอเทมนี้อยู่ด้วย)")) return;
+  if (!(await adminConfirm("ลบสินค้านี้แน่ใจไหม? (จะหายไปจากกระเป๋าของผู้ใช้ทุกคนที่มีไอเทมนี้อยู่ด้วย)"))) return;
   try {
     await adminApiFetch(`/admin/products/${id}`, { method: "DELETE" });
     await loadProducts();

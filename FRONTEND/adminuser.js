@@ -63,7 +63,7 @@ async function loadUsers(search = "") {
 }
 
 async function deleteUser(id) {
-  if (!confirm("ลบบัญชีผู้ใช้นี้แน่ใจไหม? ข้อมูลสัตว์เลี้ยง/ประวัติการอ่าน/ความคืบหน้าเกมของผู้ใช้คนนี้จะถูกลบไปด้วยทั้งหมด")) return;
+  if (!(await adminConfirm("ลบบัญชีผู้ใช้นี้แน่ใจไหม? ข้อมูลสัตว์เลี้ยง/ประวัติการอ่าน/ความคืบหน้าเกมของผู้ใช้คนนี้จะถูกลบไปด้วยทั้งหมด"))) return;
   try {
     await adminApiFetch(`/admin/users/${id}`, { method: "DELETE" });
     await loadUsers(document.getElementById("userSearchInput").value.trim());

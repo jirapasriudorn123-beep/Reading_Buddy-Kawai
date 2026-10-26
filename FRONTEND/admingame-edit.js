@@ -289,7 +289,7 @@ async function toggleQuestionEnabled(id) {
 }
 
 async function deleteQuestion(id) {
-  if (!confirm("ลบคำถามนี้แน่ใจไหม?")) return;
+  if (!(await adminConfirm("ลบคำถามนี้แน่ใจไหม?"))) return;
   try {
     await adminApiFetch(`/admin/game-questions/${id}`, { method: "DELETE" });
     await loadPage();

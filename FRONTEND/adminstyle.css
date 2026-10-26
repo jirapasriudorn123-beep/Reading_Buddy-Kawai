@@ -1460,3 +1460,92 @@ body {
     object-fit: contain;
     vertical-align: -3px;
 }
+
+/* ---- กล่องยืนยันก่อนลบ (adminConfirm ใน adminAuth.js) ---- */
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-box {
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    padding: 26px 26px 22px;
+    background: #fff;
+    border: 2.5px solid var(--border-dark);
+    border-radius: 20px;
+    box-shadow: 4px 4px 0 var(--border-dark);
+    text-align: center;
+    font-family: 'Kanit', sans-serif;
+}
+
+.confirm-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 10px;
+    border-radius: 14px;
+    background: var(--orange-btn);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirm-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.confirm-box h3 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.confirm-box p {
+    margin: 0 0 20px;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: #555;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.confirm-actions button {
+    flex: 1;
+    min-height: 42px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirm-cancel {
+    background: #fff;
+    border: 2px solid var(--border-dark);
+    color: #333;
+}
+
+.confirm-cancel:hover {
+    background: #f4f0e2;
+}
+
+.confirm-ok {
+    background: var(--orange-btn);
+    border: 2px solid var(--border-dark);
+    color: #fff;
+}
+
+.confirm-ok:hover {
+    opacity: 0.9;
+}

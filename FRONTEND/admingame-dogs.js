@@ -190,7 +190,7 @@ async function toggleQuestionEnabled(id) {
 }
 
 async function deleteQuestion(id) {
-  if (!confirm("ลบคำถามนี้แน่ใจไหม?")) return;
+  if (!(await adminConfirm("ลบคำถามนี้แน่ใจไหม?"))) return;
   try {
     await adminApiFetch(`/admin/breed-questions/${id}`, { method: "DELETE" });
     await loadQuestions();
