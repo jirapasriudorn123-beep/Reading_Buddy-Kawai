@@ -957,13 +957,14 @@ body {
     background-color: var(--green-btn);
 }
 
-/* ปุ่มแก้ไขรูปดินสอสีส้ม (ใช้คู่กับ .action-btn.delete-btn ในหน้าจัดการต่างๆ) */
+/* ปุ่มแก้ไขรูปดินสอสีเขียว (ใช้คู่กับ .action-btn.delete-btn ในหน้าจัดการต่างๆ) */
 .pencil-btn {
     background: none;
+    color: var(--green-btn);
 }
 
 .pencil-btn:hover {
-    background: #fff4dc;
+    background: #eef5e4;
 }
 
 .pencil-btn svg {
