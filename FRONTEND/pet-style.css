@@ -667,3 +667,11 @@ html.dark-mode body .pet-zzz span { color: #a9c4f0; text-shadow: none; }
     border-radius: 0;
     background: linear-gradient(90deg, #8DC26E, #5FA24C);
 }
+
+/* การ์ดน้องหมาเดิมสูงตายตัว 500px + ตัดส่วนเกิน — แถบเลเวลกระดูกหนาขึ้นแล้วปุ่มดูแล 4 ปุ่มด้านล่างโดนตัด
+   ให้การ์ดสูงตามเนื้อหา (ไม่ต่ำกว่าเดิม) เผื่อที่ใต้ปุ่มให้ป้ายเปอร์เซ็นต์ไม่ชิดขอบ */
+.pet-container {
+    height: auto;
+    min-height: 560px;
+    padding-bottom: 40px;
+}
