@@ -63,14 +63,17 @@ function passBonusForTry(tryNumber) {
 
 // คอยน์จากเวลาอ่านที่ค้างไว้ข้ามวันแล้ว (อ่านจบรอบก่อนวันนี้ เวลาไทย) → หมดอายุ ไม่จ่าย
 // coins_pending: 1 = ค้างรอ post ผ่าน | 0 = จ่ายแล้ว | 2 = หมดอายุ (ข้อมูลวิจัยนับว่าไม่ได้จ่าย)
+// รอบที่อ่านจบก่อนวันเริ่มกติกานี้ใช้กติกาเดิม (ค้างไว้ได้ไม่มีวันหมดอายุ) — นิสิตอ่านไว้ตอนที่บอกว่าคอยน์ไม่หาย
+const PENDING_EXPIRY_START_DATE = "2026-10-27"; // วันที่เวลาไทย
 async function expireStalePendingCoins(userId, conn = db) {
   await conn
     .prepare(
       `UPDATE reading_sessions SET coins_pending = 2
        WHERE user_id = ? AND status = 'completed' AND coins_pending = 1
-         AND date(ended_at, '+7 hours') < date('now', '+7 hours')`
+         AND date(ended_at, '+7 hours') < date('now', '+7 hours')
+         AND date(ended_at, '+7 hours') >= ?`
     )
-    .run(userId);
+    .run(userId, PENDING_EXPIRY_START_DATE);
 }
 
 // วันนี้อ่านบทนี้ได้คอยน์ไปแล้วกี่รอบ (นับรอบที่จบแล้วและได้คอยน์จากเวลา)
