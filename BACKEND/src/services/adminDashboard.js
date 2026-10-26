@@ -212,21 +212,40 @@ async function buildTopReaders() {
 }
 
 // ---------- เวลาอ่านและจำนวนรอบรายวัน ----------
-async function buildReadingByDay(days) {
+// 7 วันที่จบที่ end (YYYY-MM-DD เวลาไทย) — ค่าที่ไม่ถูกหรือเป็นอนาคตใช้วันนี้แทน
+function weekEndingOn(end) {
+  const today = lastDays(1)[0];
+  const endDay = /^\d{4}-\d{2}-\d{2}$/.test(end || "") && end <= today ? end : today;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(`${endDay}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return { today, endDay, days };
+}
+
+// ---------- สถิติการอ่านรายวัน (7 วันที่จบที่วันที่เลือก) ----------
+async function buildReadingByDay(end) {
+  const { today, endDay, days } = weekEndingOn(end);
   const rows = await db
     .prepare(
-      `SELECT date(started_at, '${THAI}') day, COALESCE(SUM(read_seconds), 0) seconds, COUNT(*) c
-       FROM reading_sessions
-       WHERE status = 'completed' AND datetime(started_at, '${THAI}') >= datetime('now', '${THAI}', '-${days - 1} days', 'start of day')
+      `SELECT date(s.started_at, '${THAI}') day, COALESCE(SUM(s.read_seconds), 0) seconds, COUNT(*) c
+       FROM reading_sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.status = 'completed' AND u.is_admin = 0 AND date(s.started_at, '${THAI}') BETWEEN ? AND ?
        GROUP BY day`
     )
-    .all();
+    .all(days[0], endDay);
   const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
-  return lastDays(days).map((day) => ({
-    day,
-    hours: round1((byDay[day]?.seconds || 0) / 3600),
-    sessions: byDay[day]?.c || 0,
-  }));
+  return {
+    end: endDay,
+    today,
+    days: days.map((day) => ({
+      day,
+      minutes: Math.round((Number(byDay[day]?.seconds) || 0) / 60),
+      sessions: Number(byDay[day]?.c) || 0,
+    })),
+  };
 }
 
 // ---------- การทบทวน (ตามรอบ 1/3/7/14 วัน) ----------
@@ -737,14 +756,7 @@ async function buildLearnerStatus(days) {
 // ไม่ผ่าน = คนที่ทำแบบทดสอบหลังอ่านในวันนั้นแต่ยังไม่ผ่านสักบท
 // ตารางเก็บแค่ครั้งล่าสุดของแต่ละชุด ครั้งที่ไม่ผ่านแล้ววันหลังทำผ่านจึงนับเป็น "ผ่าน" ในวันที่ผ่าน
 async function buildDailyLearning(end) {
-  const today = lastDays(1)[0];
-  const endDay = /^\d{4}-\d{2}-\d{2}$/.test(end || "") && end <= today ? end : today;
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(`${endDay}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() - i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  const { today, endDay, days } = weekEndingOn(end);
   const from = days[0];
   const [active, tests] = await Promise.all([
     db
@@ -859,14 +871,13 @@ async function buildReviewStats(range) {
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
-  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners, chapterOverview, students, activity] = await Promise.all([
+  const [tiles, trend, chapterShare, pet, petRecent, topReaders, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners, chapterOverview, students, activity] = await Promise.all([
     buildTiles(),
     buildTrend(range),
     buildChapterShare(range),
     buildPet(range),
     buildPetRecent(),
     buildTopReaders(),
-    buildReadingByDay(7),
     buildReview(),
     buildReviewTrend(),
     buildLearning(),
@@ -888,7 +899,6 @@ async function buildDashboard(days = 7) {
     chapterShare,
     pet: { ...pet, recent: petRecent },
     topReaders,
-    readingByDay,
     review: { ...review, trend: reviewTrend },
     learning,
     ai: { ...ai, advice },
@@ -902,4 +912,4 @@ async function buildDashboard(days = 7) {
   };
 }
 
-module.exports = { buildDashboard, buildDailyLearning, buildReviewStats };
+module.exports = { buildDashboard, buildDailyLearning, buildReadingByDay, buildReviewStats };

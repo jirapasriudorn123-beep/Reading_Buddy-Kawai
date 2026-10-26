@@ -574,31 +574,48 @@ function drawTopReaders() {
       .join("")}</tbody>`;
 }
 
-// ---------- เวลาอ่านและจำนวนรอบ 7 วัน ----------
-function renderReadingByDay(rows) {
+// ---------- สถิติการอ่านรายวัน (นาทีที่อ่าน / รอบอ่าน 7 วัน) ----------
+// โหลดแยกจากคำขอหลักเพราะเลือกวันที่เองได้ — GET /api/admin/stats/reading-by-day?end=YYYY-MM-DD
+function renderReadingByDay(data) {
   const canvas = document.getElementById("adReadingChart");
-  if (!canvas || typeof Chart === "undefined") return;
+  if (!canvas) return;
+  const input = document.getElementById("adReadingEnd");
+  input.value = data.end;
+  input.max = data.today;
+  if (typeof Chart === "undefined") return;
+  const rows = data.days;
   adCharts.reading?.destroy();
   adCharts.reading = new Chart(canvas, {
     type: "bar",
     data: {
-      labels: rows.map((r) => THAI_WEEKDAYS[new Date(`${r.day}T00:00:00`).getDay()]),
+      labels: rows.map((r) => thaiDate(r.day)),
       datasets: [
-        { label: "เวลาอ่าน (ชม.)", data: rows.map((r) => r.hours), backgroundColor: AD_COLORS.reading, borderRadius: 6, yAxisID: "y" },
-        { label: "รอบอ่าน (ครั้ง)", data: rows.map((r) => r.sessions), backgroundColor: AD_COLORS.game, borderRadius: 6, yAxisID: "y1" },
-      ],
+        { label: "เวลาอ่าน (นาที)", data: rows.map((r) => r.minutes), backgroundColor: AD_COLORS.reading, yAxisID: "y" },
+        { label: "รอบอ่าน (ครั้ง)", data: rows.map((r) => r.sessions), backgroundColor: AD_COLORS.game, yAxisID: "y1" },
+      ].map((d) => ({ ...d, borderRadius: 6, maxBarThickness: 22 })),
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { top: 16 } },
       plugins: { legend: { display: false } },
       scales: {
-        y: { beginAtZero: true, grid: { color: AD_COLORS.grid } },
-        y1: { beginAtZero: true, position: "right", grid: { display: false }, ticks: { precision: 0 } },
+        y: { beginAtZero: true, grid: { color: AD_COLORS.grid }, ticks: { precision: 0 }, title: { display: true, text: "นาที" } },
+        y1: { beginAtZero: true, position: "right", grid: { display: false }, ticks: { precision: 0 }, title: { display: true, text: "รอบ" } },
         x: { grid: { display: false } },
       },
     },
+    plugins: [adBarValues],
   });
+}
+
+async function loadReadingByDay(end = "") {
+  if (!document.getElementById("adReadingChart")) return;
+  try {
+    renderReadingByDay(await adminApiFetch(`/admin/stats/reading-by-day${end ? `?end=${end}` : ""}`));
+  } catch (err) {
+    console.error("โหลดสถิติการอ่านรายวันไม่สำเร็จ:", err);
+  }
 }
 
 // ---------- สรุปการเรียนรู้รายวัน (ผู้เรียน / ผ่าน / ไม่ผ่าน) ----------
@@ -936,7 +953,6 @@ function renderDashboard(data) {
   renderActivity(data.activity);
   renderPet(data.pet);
   renderTopReaders(data.topReaders);
-  renderReadingByDay(data.readingByDay);
   renderReview(data.review);
   renderLearning(data.learning);
   renderAi(data.ai);
@@ -1052,6 +1068,7 @@ document.addEventListener("DOMContentLoaded", () => {
     drawChapterTable();
   });
   document.getElementById("adDailyEnd")?.addEventListener("change", (e) => loadDailyLearning(e.target.value));
+  document.getElementById("adReadingEnd")?.addEventListener("change", (e) => loadReadingByDay(e.target.value));
 
   document.getElementById("adReviewRange")?.addEventListener("change", loadReviewStats);
   document.getElementById("adReviewTabs")?.addEventListener("click", (e) => {
@@ -1065,6 +1082,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadDashboard();
   loadDailyLearning();
+  loadReadingByDay();
   loadReviewStats();
 });
 

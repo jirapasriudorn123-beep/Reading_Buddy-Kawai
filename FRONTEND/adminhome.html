@@ -278,11 +278,18 @@
             <div class="ad-head">
                 <div>
                     <h3>สถิติการอ่านรายวัน</h3>
-                    <p class="ad-sub">เวลาอ่านและจำนวนรอบย้อนหลัง 7 วัน</p>
+                    <p class="ad-sub">เวลาอ่านและจำนวนรอบอ่านที่จบ 7 วัน</p>
                 </div>
+                <label class="ad-range ad-day-pick" for="adReadingEnd">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+                    <span>
+                        <span class="ad-range-label">ถึงวันที่</span>
+                        <input type="date" id="adReadingEnd">
+                    </span>
+                </label>
             </div>
             <div class="chart-legend">
-                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>เวลาอ่าน (ชม.)</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#8DB754"></span>เวลาอ่าน (นาที)</span>
                 <span class="legend-item"><span class="legend-dot" style="background:#F0B23D"></span>รอบอ่าน (ครั้ง)</span>
             </div>
             <div class="ad-chart"><canvas id="adReadingChart"></canvas></div>
@@ -309,6 +316,6 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=18"></script>
+<script src="adminhome.js?v=19"></script>
 </body>
 </html>

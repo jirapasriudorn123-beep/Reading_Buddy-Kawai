@@ -7,7 +7,7 @@ const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
-const { buildDashboard, buildDailyLearning, buildReviewStats } = require("../services/adminDashboard");
+const { buildDashboard, buildDailyLearning, buildReadingByDay, buildReviewStats } = require("../services/adminDashboard");
 const { buildUserReport } = require("../services/adminUserReport");
 
 const router = express.Router();
@@ -149,6 +149,15 @@ router.get("/stats/dashboard", requireAdmin, async (req, res, next) => {
 router.get("/stats/daily-learning", requireAdmin, async (req, res, next) => {
   try {
     return res.json(await buildDailyLearning(String(req.query.end || "")));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/stats/reading-by-day?end=YYYY-MM-DD — นาทีที่อ่านและรอบอ่าน 7 วันที่จบที่ end (ไม่ส่ง = วันนี้)
+router.get("/stats/reading-by-day", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json(await buildReadingByDay(String(req.query.end || "")));
   } catch (err) {
     next(err);
   }
