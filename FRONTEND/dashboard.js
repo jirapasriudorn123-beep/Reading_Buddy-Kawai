@@ -522,7 +522,10 @@ function renderTrendChart(trend) {
   const ctx = document.getElementById("trendChart");
   if (!ctx || typeof Chart === "undefined") return;
 
-  const labels = trend.map((t) => t.date.slice(5)); // ตัดปีออก เหลือ MM-DD
+  // "2026-10-21" → "21 ต.ค."
+  const labels = trend.map((t) =>
+    new Date(`${t.date}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short" })
+  );
   const minutes = trend.map((t) => secondsToMinutes(t.totalSeconds));
 
   new Chart(ctx, {
@@ -536,16 +539,24 @@ function renderTrendChart(trend) {
           borderColor: CHART_COLORS.green,
           backgroundColor: "rgba(141, 183, 84, 0.15)",
           fill: true,
-          tension: 0.3,
+          // monotone = โค้งแต่ไม่วิ่งเกินค่าจริง (tension ธรรมดาทำให้เส้นจุ่มต่ำกว่า/นูนสูงกว่าจุดจริง)
+          cubicInterpolationMode: "monotone",
           pointRadius: 4,
         },
       ],
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (item) => `เวลาอ่าน ${item.raw} นาที` } },
+      },
       scales: {
-        y: { beginAtZero: true, grid: { color: CHART_COLORS.grid } },
+        y: {
+          beginAtZero: true,
+          grid: { color: CHART_COLORS.grid },
+          title: { display: true, text: "นาที" },
+        },
         x: { grid: { display: false } },
       },
     },
