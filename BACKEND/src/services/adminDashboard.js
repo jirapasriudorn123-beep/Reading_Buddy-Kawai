@@ -602,9 +602,101 @@ async function buildChapterOverview() {
   };
 }
 
+// ---------- กิจกรรมล่าสุด (หน้าติดตามผู้เรียน) ----------
+// รวมเหตุการณ์จากหลายตาราง: Pre-test, Post-test, รอบอ่านที่จบ, ด่านมินิเกมที่จบ, คำถามที่ถาม AI
+// at = เวลาไทย "YYYY-MM-DD HH:MM:SS" เรียงใหม่ไปเก่า
+const ACTIVITY_LIMIT = 50;
+async function buildRecentActivity() {
+  const at = (col) => `datetime(${col}, '${THAI}')`;
+  const rows = await db
+    .prepare(
+      `SELECT * FROM (
+         SELECT ${at("t.pre_done_at")} at, t.user_id, 'pre_test' kind, c.chapter_number n, c.title,
+                t.pre_score score, t.total total, NULL passed, NULL extra
+         FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id WHERE t.pre_done_at IS NOT NULL
+         UNION ALL
+         SELECT ${at("COALESCE(t.completed_at, t.post_started_at)")}, t.user_id, 'post_test', c.chapter_number, c.title,
+                COALESCE(t.post_score, t.last_post_score), t.total, CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END, NULL
+         FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id WHERE t.post_tries > 0
+         UNION ALL
+         SELECT ${at("COALESCE(s.ended_at, s.started_at)")}, s.user_id, 'reading', c.chapter_number, c.title,
+                NULL, NULL, NULL, COALESCE(s.read_seconds, 0)
+         FROM reading_sessions s JOIN chapters c ON c.id = s.chapter_id WHERE s.status = 'completed'
+         UNION ALL
+         SELECT ${at("COALESCE(b.ended_at, b.started_at)")}, b.user_id, 'game', b.world, NULL,
+                b.stage, NULL, CASE WHEN b.status = 'won' THEN 1 ELSE 0 END, NULL
+         FROM game_battles b WHERE b.status IN ('won', 'lost')
+         UNION ALL
+         SELECT ${at("h.created_at")}, h.user_id, 'ai', NULL, NULL, NULL, NULL, NULL, h.question
+         FROM chat_history h
+       ) a JOIN users u ON u.id = a.user_id
+       WHERE u.is_admin = 0
+       ORDER BY a.at DESC LIMIT ${ACTIVITY_LIMIT}`
+    )
+    .all();
+  return rows.map((r) => ({
+    at: r.at,
+    userId: r.user_id,
+    username: r.username,
+    kind: r.kind,
+    chapter: r.n,
+    title: r.title,
+    score: r.score,
+    total: r.total,
+    passed: r.passed === null ? null : Boolean(r.passed),
+    minutes: r.kind === "reading" ? Math.round(Number(r.extra) / 60) : null,
+    question: r.kind === "ai" ? String(r.extra || "").slice(0, 80) : null,
+  }));
+}
+
+// ---------- ติดตามผู้เรียนรายบุคคล (ตารางหน้าติดตามผู้เรียน) ----------
+// บทที่กำลังเรียน = บทของชุดแบบทดสอบล่าสุด · สถานะของบทนั้นนับแบบเดียวกับภาพรวมตามบทเรียน (เคยผ่าน = ผ่าน)
+// ความคืบหน้า = จำนวนบทที่ผ่าน Post-test แล้ว ÷ บททั้งหมด
+async function buildStudentProgress() {
+  const [chapters, users, latest, passed] = await Promise.all([
+    db.prepare("SELECT COUNT(*) c FROM chapters").get(),
+    db.prepare("SELECT id, username FROM users WHERE is_admin = 0").all(),
+    db
+      .prepare(
+        `SELECT t.user_id, c.chapter_number n, c.title,
+                (SELECT COUNT(*) FROM chapter_tests p WHERE p.user_id = t.user_id AND p.chapter_id = t.chapter_id AND p.status = 'completed') passed,
+                (SELECT COALESCE(SUM(post_tries), 0) FROM chapter_tests p WHERE p.user_id = t.user_id AND p.chapter_id = t.chapter_id) tried
+         FROM chapter_tests t JOIN chapters c ON c.id = t.chapter_id
+         WHERE t.id = (SELECT MAX(id) FROM chapter_tests WHERE user_id = t.user_id)`
+      )
+      .all(),
+    db
+      .prepare(
+        `SELECT user_id, COUNT(DISTINCT chapter_id) c FROM chapter_tests WHERE status = 'completed' GROUP BY user_id`
+      )
+      .all(),
+  ]);
+  const total = Number(chapters.c) || 0;
+  const latestBy = new Map(latest.map((r) => [r.user_id, r]));
+  const passedBy = new Map(passed.map((r) => [r.user_id, Number(r.c) || 0]));
+  const rows = users.map((u) => {
+    const t = latestBy.get(u.id);
+    const done = passedBy.get(u.id) || 0;
+    let status = "not_started";
+    if (t) status = t.passed > 0 ? "passed" : t.tried > 0 ? "failed" : "studying";
+    return {
+      id: u.id,
+      username: u.username,
+      chapter: t ? t.n : null,
+      title: t ? t.title : null,
+      status,
+      passedChapters: done,
+      totalChapters: total,
+      percent: pct(done, total),
+    };
+  });
+  rows.sort((a, b) => b.percent - a.percent || a.username.localeCompare(b.username));
+  return rows;
+}
+
 // ---------- สถานะผู้เรียน (ป้ายหน้าติดตามผู้เรียน) ----------
 // กำลังเรียนอยู่ = นิสิตที่อ่านจบสักรอบหรือทำแบบทดสอบหลังอ่านในช่วงที่เลือก
-// ไม่ผ่าน = มีบทที่ทำแบบทดสอบหลังอ่านครั้งล่าสุดแล้วยังไม่ผ่าน (นับทุกช่วงเวลา)
+// ไม่ผ่าน = มีบทที่ทำแบบทดสอบหลังอ่านแล้วยังไม่เคยผ่าน (นับทุกช่วงเวลา · บทที่เคยผ่านแล้วมาทำซ้ำไม่นับ)
 // ผ่านแล้ว = ผ่านแบบทดสอบหลังอ่านอย่างน้อย 1 บท และไม่มีบทที่ค้างไม่ผ่าน
 async function buildLearnerStatus(days) {
   const since = `datetime('now', '${THAI}', '-${days - 1} days', 'start of day')`;
@@ -623,11 +715,15 @@ async function buildLearnerStatus(days) {
         `SELECT COALESCE(SUM(CASE WHEN failing = 0 AND passed > 0 THEN 1 ELSE 0 END), 0) passed,
                 COALESCE(SUM(CASE WHEN failing > 0 THEN 1 ELSE 0 END), 0) failed
          FROM (
-           SELECT t.user_id,
-                  SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) passed,
-                  SUM(CASE WHEN t.status <> 'completed' AND t.post_tries > 0 THEN 1 ELSE 0 END) failing
-           FROM chapter_tests t JOIN users u ON u.id = t.user_id
-           WHERE u.is_admin = 0 GROUP BY t.user_id
+           SELECT user_id, SUM(CASE WHEN passed > 0 THEN 1 ELSE 0 END) passed,
+                  SUM(CASE WHEN passed = 0 AND tried > 0 THEN 1 ELSE 0 END) failing
+           FROM (
+             SELECT t.user_id, t.chapter_id,
+                    SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) passed,
+                    SUM(t.post_tries) tried
+             FROM chapter_tests t JOIN users u ON u.id = t.user_id
+             WHERE u.is_admin = 0 GROUP BY t.user_id, t.chapter_id
+           ) GROUP BY user_id
          )`
       )
       .get(),
@@ -694,7 +790,7 @@ async function buildDailyLearning(end) {
 // days = ช่วงเวลาของส่วนที่ดูเป็นช่วง (แนวโน้ม, สัดส่วนรายบท, น้องหมา, การใช้ AI)
 async function buildDashboard(days = 7) {
   const range = RANGES.includes(Number(days)) ? Number(days) : 7;
-  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners, chapterOverview] = await Promise.all([
+  const [tiles, trend, chapterShare, pet, petRecent, topReaders, readingByDay, review, reviewTrend, learning, ai, advice, updates, games, atRisk, learners, chapterOverview, students, activity] = await Promise.all([
     buildTiles(),
     buildTrend(range),
     buildChapterShare(range),
@@ -712,6 +808,8 @@ async function buildDashboard(days = 7) {
     buildAtRisk(),
     buildLearnerStatus(range),
     buildChapterOverview(),
+    buildStudentProgress(),
+    buildRecentActivity(),
   ]);
   return {
     range,
@@ -730,6 +828,8 @@ async function buildDashboard(days = 7) {
     atRisk,
     learners,
     chapterOverview,
+    students,
+    activity,
   };
 }
 

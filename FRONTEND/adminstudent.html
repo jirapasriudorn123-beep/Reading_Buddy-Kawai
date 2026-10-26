@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ติดตามผู้เรียน</title>
     <link rel="stylesheet" href="adminstyle.css?v=20261024">
-    <link rel="stylesheet" href="adminhome.css?v=10">
+    <link rel="stylesheet" href="adminhome.css?v=11">
     <link rel="stylesheet" href="adminresearch.css?v=20261024f">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -144,6 +144,44 @@
         <table class="ad-table ad-chapter-table" id="adChapterTable"></table>
     </section>
 
+    <!-- ติดตามผู้เรียนรายบุคคล: บทล่าสุด · ความคืบหน้า · สถานะ · ลิงก์ไปหน้ารายงานรายคน -->
+    <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>ติดตามผู้เรียน (รายบุคคล)</h3>
+                <p class="ad-sub">บทที่กำลังเรียน = บทล่าสุดที่เริ่ม · ความคืบหน้า = บทที่ผ่าน Post-test ÷ บททั้งหมด</p>
+            </div>
+            <div class="ad-head-actions">
+                <label class="ad-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+                    <span class="sr-only">ค้นหาผู้เรียน</span>
+                    <input type="search" id="adStudentSearch" placeholder="ค้นหาชื่อผู้ใช้">
+                </label>
+                <select class="ad-student-filter" id="adStudentFilter" aria-label="กรองตามสถานะ">
+                    <option value="">ทุกสถานะ</option>
+                    <option value="studying">กำลังเรียน</option>
+                    <option value="passed">ผ่านแล้ว</option>
+                    <option value="failed">ไม่ผ่าน</option>
+                    <option value="not_started">ยังไม่เริ่ม</option>
+                </select>
+            </div>
+        </div>
+        <table class="ad-table ad-student-table" id="adStudentTable"></table>
+        <button type="button" class="ad-student-more" id="adStudentMore" hidden>ดูทั้งหมด →</button>
+    </section>
+
+    <!-- กิจกรรมล่าสุด: Pre/Post-test · อ่านบทเรียน · มินิเกม · ถาม AI ของนิสิตทุกคน -->
+    <section class="ad-card ad-risk-card">
+        <div class="ad-head">
+            <div>
+                <h3>กิจกรรมล่าสุด</h3>
+                <p class="ad-sub">ทำแบบทดสอบ · อ่านบทเรียน · เล่นมินิเกม · ถามน้อง AI (50 รายการล่าสุด)</p>
+            </div>
+        </div>
+        <table class="ad-table ad-activity-table" id="adActivityTable"></table>
+        <button type="button" class="ad-student-more" id="adActivityMore" hidden>ดูทั้งหมด →</button>
+    </section>
+
     <div class="ad-cols ad-cols-1">
        <section class="ad-card">
             <div class="ad-head">
@@ -225,7 +263,7 @@
 </div>
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js"></script>
-<script src="adminhome.js?v=16"></script>
+<script src="adminhome.js?v=17"></script>
 <script src="adminresearch.js?v=20261025f"></script>
 </body>
 </html>

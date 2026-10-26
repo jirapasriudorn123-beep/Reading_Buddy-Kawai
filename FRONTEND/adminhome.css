@@ -967,3 +967,107 @@ main > .ad-card {
 .ad-chapter-table .ad-cell-bar span {
     min-width: 40px;
 }
+
+/* ---- ติดตามผู้เรียน (รายบุคคล) ---- */
+.ad-student-filter {
+    padding: 6px 12px;
+    border: 2px solid #ddd3b8;
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: #333;
+    cursor: pointer;
+}
+
+.ad-student-table th:nth-child(2),
+.ad-student-table td:nth-child(2),
+.ad-student-table th:nth-child(3),
+.ad-student-table td:nth-child(3) {
+    text-align: left;
+}
+
+.ad-student-table td:first-child {
+    min-width: 0;
+    width: 48px;
+    color: #777;
+}
+
+.ad-student-who {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ad-student-avatar {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--card-green);
+    color: #3f5720;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ad-student-table .ad-cell-bar .ad-bar-track {
+    width: 120px;
+}
+
+.ad-student-table .ad-cell-bar span {
+    min-width: 40px;
+}
+
+.ad-status {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ad-status.is-studying { background: #e8f0f7; color: #4f7ea6; }
+.ad-status.is-passed { background: #eef5e4; color: #5d7f33; }
+.ad-status.is-failed { background: #fbeee9; color: #b35a3a; }
+.ad-status.is-not_started { background: #f1ecdc; color: #7a7466; }
+
+.ad-student-more {
+    display: block;
+    margin: 12px auto 0;
+    padding: 6px 18px;
+    border: 2px solid #ddd3b8;
+    border-radius: 999px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #4f6a2c;
+    cursor: pointer;
+}
+
+.ad-student-more[hidden] {
+    display: none;
+}
+
+/* ---- กิจกรรมล่าสุด ---- */
+.ad-activity-table th,
+.ad-activity-table td {
+    text-align: left;
+}
+
+.ad-activity-table td:first-child {
+    min-width: 150px;
+    color: #666;
+    white-space: nowrap;
+}
+
+.ad-activity-table td:nth-child(3) {
+    white-space: nowrap;
+}
+
+.ad-activity-table .is-passed { color: #5d7f33; font-weight: 600; }
+.ad-activity-table .is-failed { color: #b35a3a; font-weight: 600; }

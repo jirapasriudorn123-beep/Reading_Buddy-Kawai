@@ -295,6 +295,131 @@ function renderChapterTable(overview) {
   drawChapterTable();
 }
 
+// ---------- ติดตามผู้เรียนรายบุคคล (หน้าติดตามผู้เรียน) ----------
+// แสดง 10 คนแรกก่อน กด "ดูทั้งหมด" ถึงจะแสดงครบ — ค้นหา/กรองสถานะแล้วแสดงทุกคนที่ตรง
+const STUDENT_STATUS = {
+  studying: "กำลังเรียน",
+  passed: "ผ่านแล้ว",
+  failed: "ไม่ผ่าน",
+  not_started: "ยังไม่เริ่ม",
+};
+const STUDENT_PREVIEW = 10;
+let adStudents = [];
+let adStudentsAll = false;
+
+function drawStudents() {
+  const table = document.getElementById("adStudentTable");
+  if (!table) return;
+  const query = (document.getElementById("adStudentSearch").value || "").trim().toLowerCase();
+  const status = document.getElementById("adStudentFilter").value;
+  const matched = adStudents.filter(
+    (s) => (!query || s.username.toLowerCase().includes(query)) && (!status || s.status === status)
+  );
+  const filtering = Boolean(query || status);
+  const rows = filtering || adStudentsAll ? matched : matched.slice(0, STUDENT_PREVIEW);
+  const more = document.getElementById("adStudentMore");
+  more.hidden = filtering || adStudentsAll || matched.length <= STUDENT_PREVIEW;
+  more.textContent = `ดูทั้งหมด ${num(matched.length)} คน →`;
+
+  if (!rows.length) {
+    table.innerHTML = `<tbody><tr><td>${escapeHtml(filtering ? "ไม่พบผู้เรียนที่ตรงกับที่ค้นหา" : "ยังไม่มีนิสิตในระบบ")}</td></tr></tbody>`;
+    return;
+  }
+  table.innerHTML = `<thead><tr>
+      <th>ลำดับ</th><th>ชื่อผู้ใช้</th><th>บทเรียนที่กำลังเรียน</th><th>ความคืบหน้า</th><th>สถานะ</th><th></th>
+    </tr></thead><tbody>${rows
+      .map((s, i) => {
+        const color = s.status === "passed" ? AD_COLORS.reading : s.status === "failed" ? AD_COLORS.users : "#7FA8C9";
+        return `<tr>
+          <td>${i + 1}</td>
+          <td><span class="ad-student-who"><span class="ad-student-avatar">${escapeHtml(
+            [...s.username][0]?.toUpperCase() || "?"
+          )}</span>${escapeHtml(s.username)}</span></td>
+          <td>${s.chapter ? `บทที่ ${s.chapter} : ${escapeHtml(s.title)}` : "—"}</td>
+          <td><div class="ad-cell-bar" title="ผ่าน ${s.passedChapters} จาก ${s.totalChapters} บท">
+            <div class="ad-bar-track"><div class="ad-bar-fill" style="width:${s.percent}%;background:${color}"></div></div>
+            <span>${s.percent}%</span>
+          </div></td>
+          <td><span class="ad-status is-${s.status}">${STUDENT_STATUS[s.status]}</span></td>
+          <td><a href="adminuser-detail.html?userId=${s.id}" class="ad-risk-go">ดูรายละเอียด →</a></td>
+        </tr>`;
+      })
+      .join("")}</tbody>`;
+}
+
+function renderStudents(rows) {
+  adStudents = rows || [];
+  drawStudents();
+}
+
+// ---------- กิจกรรมล่าสุด (หน้าติดตามผู้เรียน) ----------
+const ACTIVITY_PREVIEW = 10;
+const ACTIVITY_LABELS = {
+  pre_test: "ทำแบบทดสอบ (Pre-test)",
+  post_test: "ทำแบบทดสอบ (Post-test)",
+  reading: "อ่านบทเรียน",
+  game: "เล่นมินิเกม",
+  ai: "ถามน้อง AI",
+};
+let adActivity = [];
+let adActivityAll = false;
+
+// "2026-10-25 14:04:08" (เวลาไทยจาก backend) → "25 ต.ค. 2569 14:04"
+function adActivityTime(at) {
+  const [day, time] = String(at).split(" ");
+  return `${thaiDate(day, true)} ${(time || "").slice(0, 5)}`;
+}
+
+function adActivityDetail(a) {
+  const chapter = a.chapter ? `บทที่ ${a.chapter} : ${escapeHtml(a.title || "")}` : "";
+  const result = (passed) =>
+    `<span class="${passed ? "is-passed" : "is-failed"}">${passed ? "ผ่าน" : "ไม่ผ่าน"}</span>`;
+  switch (a.kind) {
+    case "pre_test":
+      return `${chapter} (${a.score ?? "—"}/${a.total})`;
+    case "post_test":
+      return `${chapter} - ${result(a.passed)} (${a.score ?? "—"}/${a.total})`;
+    case "reading":
+      return `${chapter} (${a.minutes ? `${a.minutes} นาที` : "ไม่ถึง 1 นาที"})`;
+    case "game":
+      return `โลกที่ ${a.chapter} - ด่านที่ ${a.score} (${result(a.passed)})`;
+    case "ai":
+      return `“${escapeHtml(a.question)}”`;
+    default:
+      return "";
+  }
+}
+
+function drawActivity() {
+  const table = document.getElementById("adActivityTable");
+  if (!table) return;
+  const rows = adActivityAll ? adActivity : adActivity.slice(0, ACTIVITY_PREVIEW);
+  const more = document.getElementById("adActivityMore");
+  more.hidden = adActivityAll || adActivity.length <= ACTIVITY_PREVIEW;
+  more.textContent = `ดูทั้งหมด ${num(adActivity.length)} รายการ →`;
+  if (!rows.length) {
+    table.innerHTML = `<tbody><tr><td>${escapeHtml("ยังไม่มีกิจกรรม")}</td></tr></tbody>`;
+    return;
+  }
+  table.innerHTML = `<thead><tr><th>เวลา</th><th>ผู้ใช้</th><th>กิจกรรม</th><th>รายละเอียด</th></tr></thead><tbody>${rows
+    .map(
+      (a) => `<tr>
+        <td>${escapeHtml(adActivityTime(a.at))}</td>
+        <td><a href="adminuser-detail.html?userId=${a.userId}" class="ad-student-who ad-user-link"><span class="ad-student-avatar">${escapeHtml(
+          [...a.username][0]?.toUpperCase() || "?"
+        )}</span>${escapeHtml(a.username)}</a></td>
+        <td>${ACTIVITY_LABELS[a.kind] || a.kind}</td>
+        <td>${adActivityDetail(a)}</td>
+      </tr>`
+    )
+    .join("")}</tbody>`;
+}
+
+function renderActivity(rows) {
+  adActivity = rows || [];
+  drawActivity();
+}
+
 // ---------- ภาพรวมน้องหมา ----------
 function renderPet(pet) {
   if (!document.getElementById("adPetRing")) return;
@@ -723,6 +848,8 @@ function renderDashboard(data) {
   renderChapterShare(data.chapterShare);
   renderChapterOverview(data.chapterOverview);
   renderChapterTable(data.chapterOverview);
+  renderStudents(data.students);
+  renderActivity(data.activity);
   renderPet(data.pet);
   renderTopReaders(data.topReaders);
   renderReadingByDay(data.readingByDay);
@@ -819,6 +946,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("adReadersCsv")?.addEventListener("click", downloadReadersCsv);
 
+  let studentTimer = null;
+  document.getElementById("adStudentSearch")?.addEventListener("input", () => {
+    clearTimeout(studentTimer);
+    studentTimer = setTimeout(drawStudents, 200);
+  });
+  document.getElementById("adStudentFilter")?.addEventListener("change", drawStudents);
+  document.getElementById("adActivityMore")?.addEventListener("click", () => {
+    adActivityAll = true;
+    drawActivity();
+  });
+  document.getElementById("adStudentMore")?.addEventListener("click", () => {
+    adStudentsAll = true;
+    drawStudents();
+  });
   document.getElementById("adChapterFilter")?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-status]");
     if (!btn) return;
