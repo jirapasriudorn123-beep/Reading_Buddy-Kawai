@@ -1160,3 +1160,23 @@ main > .ad-card {
 .ad-review-top .ad-review-go {
     color: #8a8373;
 }
+
+/* ---- ความสุขน้องหมา: วงใหญ่เท่าวงสัดส่วนการอ่านรายบท (200px) คำอธิบายอยู่ใต้วง ---- */
+.ad-pet-stack {
+    flex-direction: column;
+    gap: 12px;
+    margin: 4px 0 10px;
+    text-align: center;
+}
+
+.ad-pet-stack .ad-ring {
+    width: 200px;
+    height: 200px;
+}
+
+/* รูตรงกลางกว้าง 68% เท่ากับ cutout ของวงสัดส่วนการอ่าน */
+.ad-pet-stack .ad-ring span {
+    width: 136px;
+    height: 136px;
+    font-size: 26px;
+}
