@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261025f">
+    <link rel="stylesheet" href="style.css?v=20261027c">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="cursor.css?v=20260926">
@@ -136,7 +136,11 @@
     <div class="dashboard-container" style="padding: 20px;">
     <div class="chart-card">
         <h3>การจำแนกเวลาโฟกัส</h3>
-        <div class="focus-chart-box"><canvas id="focusChart"></canvas></div>
+        <!-- วงโดนัทซ้าย คำอธิบายสีขวา (จอแคบเรียงบนลงล่าง) -->
+        <div class="focus-layout">
+            <div class="focus-chart-box"><canvas id="focusChart"></canvas></div>
+            <ul class="focus-legend" id="focusLegend"></ul>
+        </div>
     </div>
 
     <div class="chart-card" style="margin-top: 30px;">
@@ -151,7 +155,7 @@
 <script src="notifications.js?v=5"></script>
 <script src="teacher-inbox.js?v=20261024d"></script>
 <script src="tour.js?v=20261025d"></script>
-<script src="dashboard.js?v=20261025f"></script>
+<script src="dashboard.js?v=20261027"></script>
 <script src="theme.js"></script>
 <script src="chat.js?v=20261024b"></script>
     <script src="cursor.js"></script>

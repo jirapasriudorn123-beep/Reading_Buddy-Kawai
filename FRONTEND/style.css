@@ -2193,11 +2193,77 @@ html.dark-mode body .product-card.coupon-card::after {
     flex-shrink: 0;
 }
 
-/* โดนัท "การจำแนกเวลาโฟกัส" ไม่ให้ขยายเต็มความกว้างการ์ด (วงจะใหญ่เกินไปบนจอกว้าง) */
+/* โดนัท "การจำแนกเวลาโฟกัส": วงซ้าย คำอธิบายสีขวา — จอแคบเรียงบนลงล่าง */
+.focus-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+}
+
 .focus-chart-box {
-    max-width: 320px;
-    height: 320px;
-    margin: 0 auto;
+    position: relative;
+    flex: 0 0 400px;
+    width: 400px;
+    max-width: 100%;
+    height: 400px;
+}
+
+.focus-legend {
+    flex: 0 1 420px;
+    min-width: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.focus-legend li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dotted #e2dccb;
+    font-size: 15px;
+}
+
+.focus-legend li:last-child {
+    border-bottom: none;
+}
+
+.focus-legend-dot {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border-radius: 4px;
+}
+
+.focus-legend-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.focus-legend-value {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .focus-layout {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .focus-chart-box {
+        flex-basis: auto;
+        width: 100%;
+        max-width: 320px;
+        height: 240px;
+    }
+
+    .focus-legend {
+        flex-basis: auto;
+        width: 100%;
+    }
 }
 
 .chart-card {

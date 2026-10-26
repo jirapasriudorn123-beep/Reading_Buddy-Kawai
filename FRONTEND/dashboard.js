@@ -465,10 +465,24 @@ function renderFocusChart(chapters) {
   const ctx = document.getElementById("focusChart");
   if (!ctx || typeof Chart === "undefined") return;
 
-  const labels = chapters.map((c) => `CH${c.chapter_number}`);
   const minutes = chapters.map((c) => secondsToMinutes(c.totalSeconds));
   // CH1-CH5 ใช้โทนสีตามลำดับ, CH6 ใช้เฉดพาสเทล (อ่อนกว่า) ของสีที่ 5
   const palette = ["#E2F0BD", "#8DB654", "#FBE577", "#FFBA18", "#DB5B23", "#F1BDA7"];
+  const colors = chapters.map((_, i) => palette[i % palette.length]);
+
+  // คำอธิบายสีเขียนเองด้านขวาของวง (legend ของ Chart.js วางขวาแล้วชื่อบทยาวโดนตัด)
+  const legend = document.getElementById("focusLegend");
+  if (legend) {
+    legend.innerHTML = chapters
+      .map(
+        (c, i) => `<li>
+          <span class="focus-legend-dot" style="background:${colors[i]}"></span>
+          <span class="focus-legend-name">CH${c.chapter_number}: ${escapeHtml(c.title)}</span>
+          <span class="focus-legend-value">${minutes[i]} นาที</span>
+        </li>`
+      )
+      .join("");
+  }
 
   new Chart(ctx, {
     type: "doughnut",
@@ -477,7 +491,7 @@ function renderFocusChart(chapters) {
       datasets: [
         {
           data: minutes,
-          backgroundColor: chapters.map((_, i) => palette[i % palette.length]),
+          backgroundColor: colors,
         },
       ],
     },
@@ -486,7 +500,7 @@ function renderFocusChart(chapters) {
       // กล่องครอบกำหนดขนาดไว้แล้ว (.focus-chart-box) ไม่งั้นวงโดนัทจะกว้างเท่าการ์ดและใหญ่เกินไป
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: (item) => `${item.label}: ${item.raw} นาที`,
