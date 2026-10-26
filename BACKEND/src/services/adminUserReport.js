@@ -207,8 +207,10 @@ async function buildWorlds(userId) {
 
 // ---------- น้องหมา + ถาม AI + ร้านค้า ----------
 async function buildExtras(userId) {
-  const [pet, care, ai, busiest, shop] = await Promise.all([
-    db.prepare("SELECT name, level, happiness, hunger, cleanliness, energy FROM pets WHERE user_id = ?").get(userId),
+  const [pet, stable, care, ai, busiest, shop] = await Promise.all([
+    // เลเวลจริงเก็บใน care_points (คอลัมน์ level เป็นของเก่าที่ไม่ได้อัปเดตแล้ว)
+    db.prepare("SELECT name, breed, care_points level, happiness, hunger, cleanliness, energy FROM pets WHERE user_id = ?").get(userId),
+    db.prepare("SELECT name, breed, care_points level FROM pet_stable WHERE user_id = ? ORDER BY created_at, id").all(userId),
     db
       .prepare(
         `SELECT COALESCE(SUM(CASE WHEN is_free = 1 AND action <> 'visit' THEN 1 ELSE 0 END), 0) free,
@@ -244,6 +246,8 @@ async function buildExtras(userId) {
           careFree: care.free,
           careItem: care.item,
           visits: care.visits,
+          // น้องหมาตัวอื่นที่ซื้อเพิ่ม (อยู่ในคอก ไม่ได้เลี้ยงอยู่ตอนนี้)
+          others: stable.map((s) => ({ name: s.name, breed: s.breed, level: s.level })),
         }
       : null,
     ai: {

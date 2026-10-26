@@ -1549,3 +1549,32 @@ body {
 .confirm-ok:hover {
     opacity: 0.9;
 }
+
+/* ---- หน้าจัดการร้านค้า: ปุ่มเปิด/ปิดขายน้องหมาข้างปุ่มเพิ่มสินค้า ---- */
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dog-sale-btn {
+    height: 50px;
+    padding: 0 20px;
+    border: 2px solid var(--border-dark);
+    border-radius: 15px;
+    background: #eef5e4;
+    color: #4f6a2c;
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dog-sale-btn.is-off {
+    background: #f4f0e2;
+    color: #7a7466;
+}
+
+.dog-sale-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}

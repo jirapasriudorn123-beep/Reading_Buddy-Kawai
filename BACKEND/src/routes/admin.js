@@ -7,6 +7,7 @@ const { makeAdminUpload } = require("../utils/cloudinary");
 const { getReadingRules, setDemoMode } = require("../services/readingRules");
 const { DATASETS, buildCsv } = require("../services/researchExport");
 const { getReadingStreaksForAll } = require("../services/petCare");
+const { VALID_BREEDS, isDogSaleEnabled, setDogSaleEnabled } = require("../services/petStable");
 const { buildDashboard, buildDailyLearning, buildReadingByDay, buildReviewStats } = require("../services/adminDashboard");
 const { buildUserReport } = require("../services/adminUserReport");
 
@@ -200,6 +201,28 @@ router.get("/export/:kind", requireAdmin, async (req, res, next) => {
   }
 });
 
+// ================== เปิด/ปิดการขายน้องหมาตัวใหม่ในร้านค้า ==================
+// ปิดไว้ได้ เช่น ระหว่างเก็บข้อมูลวิจัย (การซื้อน้องหมาเพิ่มเปลี่ยนสิ่งที่นิสิตใช้คอยน์) — ยังไม่เคยตั้ง = เปิดขาย
+router.get("/dog-sale", requireAdmin, async (req, res, next) => {
+  try {
+    return res.json({ enabled: await isDogSaleEnabled() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put("/dog-sale", requireAdmin, async (req, res, next) => {
+  try {
+    if (typeof req.body.enabled !== "boolean") {
+      return res.status(400).json({ message: "enabled ต้องเป็น true หรือ false" });
+    }
+    const enabled = await setDogSaleEnabled(req.body.enabled);
+    return res.json({ message: enabled ? "เปิดขายน้องหมาตัวใหม่แล้ว" : "ปิดการขายน้องหมาตัวใหม่แล้ว", enabled });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ================== โหมดสาธิตจับเวลาอ่าน ==================
 // เปิด: ตั้งเวลาอ่านขั้นต่ำ 1 นาที ได้ 10 คอยน์ทุก 1 นาที (ใช้ตอนนำเสนอ) | ปิด: 10 นาที / 10 คอยน์ทุก 5 นาที ตามปกติ
 router.get("/demo-mode", requireAdmin, async (req, res, next) => {
@@ -363,9 +386,17 @@ function validateCouponFields(body) {
   ];
 }
 
+// สินค้าที่เป็นน้องหมาตัวใหม่: "" / null = สินค้าทั่วไป | พันธุ์ที่ไม่รู้จัก = false (ตอบ 400)
+function parsePetBreed(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return VALID_BREEDS.includes(value) ? value : false;
+}
+
 router.post("/products", requireAdmin, async (req, res) => {
   try {
     const { name, price, img, category, description, tag, petAction, statGain } = req.body;
+    const petBreed = parsePetBreed(req.body.petBreed);
+    if (petBreed === false) return res.status(400).json({ message: "พันธุ์สุนัขไม่ถูกต้อง" });
     if (!name || !name.trim() || !category || price === undefined || price === "") {
       return res.status(400).json({ message: "กรุณากรอกชื่อ ราคา และหมวดหมู่" });
     }
@@ -384,8 +415,8 @@ router.post("/products", requireAdmin, async (req, res) => {
     const id = makeProductId();
     await db.prepare(
       `INSERT INTO products (id, name, price, img, category, description, tag, pet_action, stat_gain,
-                             discount_baht, required_post_chapters, required_game_worlds)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             discount_baht, required_post_chapters, required_game_worlds, pet_breed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       name.trim(),
@@ -398,7 +429,8 @@ router.post("/products", requireAdmin, async (req, res) => {
       petUse[1],
       couponFields[0] ?? 0,
       couponFields[1] ?? 0,
-      couponFields[2] ?? 0
+      couponFields[2] ?? 0,
+      petBreed
     );
 
     const product = await db.prepare("SELECT * FROM products WHERE id = ?").get(id);
@@ -416,6 +448,8 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
     if (!product) return res.status(404).json({ message: "ไม่พบสินค้านี้" });
 
     const { name, price, img, category, description, tag, petAction, statGain } = req.body;
+    const petBreed = req.body.petBreed === undefined ? product.pet_breed : parsePetBreed(req.body.petBreed);
+    if (petBreed === false) return res.status(400).json({ message: "พันธุ์สุนัขไม่ถูกต้อง" });
     if (price !== undefined && Number(price) < 0) {
       return res.status(400).json({ message: "ราคาต้องไม่ติดลบ" });
     }
@@ -434,7 +468,7 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
     await db.prepare(
       `UPDATE products SET name = ?, price = ?, img = ?, category = ?, description = ?, tag = ?,
                            pet_action = ?, stat_gain = ?, discount_baht = ?,
-                           required_post_chapters = ?, required_game_worlds = ?
+                           required_post_chapters = ?, required_game_worlds = ?, pet_breed = ?
        WHERE id = ?`
     ).run(
       name && name.trim() ? name.trim() : product.name,
@@ -448,6 +482,7 @@ router.put("/products/:id", requireAdmin, async (req, res) => {
       couponFields[0] ?? product.discount_baht,
       couponFields[1] ?? product.required_post_chapters,
       couponFields[2] ?? product.required_game_worlds,
+      petBreed,
       id
     );
 
@@ -1284,8 +1319,7 @@ router.delete("/game-questions/:id", requireAdmin, async (req, res, next) => {
 });
 
 // ================== คำถามเกี่ยวกับพันธุ์สุนัข (breed_quiz_questions) ==================
-// ใช้ในด่าน 2,4 ของทุกโลกในเกม แยกจาก quiz_questions ที่ผูกกับบทเรียน
-const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
+// ใช้ในด่าน 2,4 ของทุกโลกในเกม แยกจาก quiz_questions ที่ผูกกับบทเรียน (VALID_BREEDS มาจาก services/petStable)
 
 router.get("/breed-questions", requireAdmin, async (req, res, next) => {
   try {

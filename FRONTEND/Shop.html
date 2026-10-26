@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=20261025f">
+    <link rel="stylesheet" href="style.css?v=20261027e">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css?v=20261024e">
@@ -201,6 +201,11 @@
         </div>
 
         <div class="modal-footer">
+            <!-- ซื้อน้องหมาตัวใหม่: ตั้งชื่อก่อนซื้อ (โชว์เฉพาะสินค้าที่เป็นน้องหมา ควบคุมโดย shop.js) -->
+            <label class="modal-pet-name-row" id="modalPetNameRow" hidden>
+                <span class="modal-qty-label">ชื่อน้อง :</span>
+                <input type="text" id="modalPetName" maxlength="30" placeholder="ตั้งชื่อให้น้องหมาตัวใหม่">
+            </label>
             <div class="modal-qty-row" id="modalQtyRow">
                 <span class="modal-qty-label">จำนวน :</span>
                 <div class="modal-qty-control">
@@ -290,7 +295,7 @@
 <script src="teacher-inbox.js?v=20261024d"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="tour.js?v=20261027"></script>
-<script src="shop.js?v=20261024b"></script>
+<script src="shop.js?v=20261027"></script>
 <script src="theme.js"></script>
 <script src="chat.js?v=20261024b"></script>
 <script src="cursor.js"></script>

@@ -8,11 +8,9 @@ const {
   applyDecay,
   getReadingStreak,
 } = require("../services/petCare");
+const { VALID_BREEDS, MAX_PET_NAME_LENGTH, listStable, switchPet } = require("../services/petStable");
 
 const router = express.Router();
-
-const VALID_BREEDS = ["golden", "shiba", "siberian", "thairidgeback"];
-const MAX_PET_NAME_LENGTH = 30;
 
 const ACTION_STAT = {
   feed: "hunger",
@@ -154,10 +152,11 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // ข้อมูลวิจัย: บันทึกการดูแลน้องหมา (ดู pet_action_log ใน database.js) — บันทึกไม่สำเร็จก็ไม่ให้กระทบการใช้งาน
-async function logPetAction(conn, userId, action, isFree, productId, amount) {
+// breed = ดูแลตัวไหน (มีได้หลายตัว ตัวละพันธุ์)
+async function logPetAction(conn, userId, action, isFree, productId, amount, breed) {
   await conn
-    .prepare("INSERT INTO pet_action_log (user_id, action, is_free, product_id, amount) VALUES (?, ?, ?, ?, ?)")
-    .run(userId, action, isFree ? 1 : 0, productId || null, amount || 0);
+    .prepare("INSERT INTO pet_action_log (user_id, action, is_free, product_id, amount, breed) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(userId, action, isFree ? 1 : 0, productId || null, amount || 0, breed || null);
 }
 
 // ---------- POST /api/pet/visit ----------
@@ -171,9 +170,50 @@ router.post("/visit", requireAuth, async (req, res, next) => {
          AND created_at > datetime('now', ?) LIMIT 1`
       )
       .get(req.user.id, `-${VISIT_DEDUPE_MINUTES} minutes`);
-    if (!recent) await logPetAction(db, req.user.id, "visit", true, null, 0);
+    if (!recent) {
+      const pet = await db.prepare("SELECT breed FROM pets WHERE user_id = ?").get(req.user.id);
+      await logPetAction(db, req.user.id, "visit", true, null, 0, pet && pet.breed);
+    }
     return res.json({ ok: true });
   } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- GET /api/pet/all ----------
+// น้องหมาทุกตัวของผู้ใช้: ตัวที่เลือกอยู่ + ตัวในคอก (ใช้ในหน้าน้องหมา "น้องหมาของฉัน")
+router.get("/all", requireAuth, async (req, res, next) => {
+  try {
+    let pet = await db.prepare("SELECT * FROM pets WHERE user_id = ?").get(req.user.id);
+    if (!pet) return res.json({ active: null, others: [] });
+    pet = await applyDecay(pet);
+    return res.json({ active: serializePet(pet), others: await listStable(req.user.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- POST /api/pet/switch ----------
+// เลือกน้องหมาตัวในคอก (stableId) มาเป็นตัวที่เลี้ยงอยู่ ตัวเดิมเข้าคอกแทน
+router.post("/switch", requireAuth, async (req, res, next) => {
+  try {
+    const stableId = Number(req.body.stableId);
+    if (!Number.isInteger(stableId) || stableId <= 0) {
+      return res.status(400).json({ message: "ไม่ได้ระบุน้องหมาที่จะเลือก" });
+    }
+    const result = await switchPet(req.user.id, stableId);
+    if (result.error) return res.status(result.status).json({ message: result.error });
+    const streak = await getReadingStreak(req.user.id);
+    return res.json({
+      message: `เปลี่ยนมาเลี้ยง${result.pet.name}แล้ว`,
+      pet: serializePet(result.pet),
+      streak,
+      others: await listStable(req.user.id),
+    });
+  } catch (err) {
+    if (err.code === "PET_BUSY") {
+      return res.status(409).json({ message: "กำลังสลับน้องหมาอยู่ ลองใหม่อีกครั้งนะ" });
+    }
     next(err);
   }
 });
@@ -222,7 +262,7 @@ router.post("/action", requireAuth, async (req, res) => {
     if (update.changes === 0) {
       return res.status(409).json({ message: "น้องหมากำลังยุ่งอยู่ ลองใหม่อีกครั้งนะ" });
     }
-    await logPetAction(db, req.user.id, "pet", true, null, actualGain).catch((err) =>
+    await logPetAction(db, req.user.id, "pet", true, null, actualGain, pet.breed).catch((err) =>
       console.error("Log pet action error:", err)
     );
 
@@ -320,7 +360,7 @@ router.post("/use-item", requireAuth, async (req, res) => {
         err.code = "PET_BUSY";
         throw err; // rollback ทั้งก้อน ไอเท็มไม่หาย
       }
-      await logPetAction(t, req.user.id, product.pet_action, false, product.id, actualGain);
+      await logPetAction(t, req.user.id, product.pet_action, false, product.id, actualGain, pet.breed);
     });
     const aiBonusGained = await grantLevelUpAiBonus(req.user.id, carePoints - pet.care_points);
 

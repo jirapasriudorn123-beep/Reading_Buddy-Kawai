@@ -23,6 +23,13 @@ const PET_ACTION_LABEL = {
   sleep: "😴 พักผ่อน",
 };
 
+const PET_BREED_LABEL = {
+  golden: "โกลเด้น",
+  shiba: "ชิบะ",
+  siberian: "ไซบีเรียนฮัสกี้",
+  thairidgeback: "ไทยหลังอาน",
+};
+
 // ─── RENDER ───────────────────────────────────────────────────
 // URL รากของ backend (ไม่มี /api ต่อท้าย) ใช้สร้าง URL เต็มของรูปสินค้าที่อัปโหลดไว้
 const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
@@ -47,7 +54,9 @@ function renderProducts(items) {
   grid.innerHTML = items
     .map((p) => {
       const tagHTML = p.tag ? `<span class="product-tag">${escapeHtml(p.tag)}</span>` : "";
-      const petUseHTML = p.pet_action
+      const petUseHTML = p.pet_breed
+        ? `<p class="pet-use-note">🐶 น้องหมาตัวใหม่ · ${PET_BREED_LABEL[p.pet_breed] || p.pet_breed}</p>`
+        : p.pet_action
         ? `<p class="pet-use-note">${PET_ACTION_LABEL[p.pet_action]} +${p.stat_gain}%</p>`
         : `<p class="pet-use-note muted">ของสะสม (ใช้กับน้องไม่ได้)</p>`;
       const safeName = escapeHtml(p.name);
@@ -110,8 +119,9 @@ function togglePetGainField() {
 }
 
 function toggleCouponFields() {
-  const isCoupon = document.getElementById("editItemCategory").value === "คูปอง";
-  document.getElementById("couponFieldsRow").style.display = isCoupon ? "" : "none";
+  const category = document.getElementById("editItemCategory").value;
+  document.getElementById("couponFieldsRow").style.display = category === "คูปอง" ? "" : "none";
+  document.getElementById("petBreedGroup").style.display = category === "สัตว์เลี้ยง" ? "" : "none";
 }
 
 function resetModalFields() {
@@ -125,6 +135,7 @@ function resetModalFields() {
   document.getElementById("editItemDiscount").value = "";
   document.getElementById("editItemReqChapters").value = "";
   document.getElementById("editItemReqWorlds").value = "";
+  document.getElementById("editItemPetBreed").value = "";
   togglePetGainField();
   toggleCouponFields();
 
@@ -161,6 +172,7 @@ function openEditModal(id) {
   document.getElementById("editItemDiscount").value = product.discount_baht || "";
   document.getElementById("editItemReqChapters").value = product.required_post_chapters || "";
   document.getElementById("editItemReqWorlds").value = product.required_game_worlds || "";
+  document.getElementById("editItemPetBreed").value = product.pet_breed || "";
   togglePetGainField();
   toggleCouponFields();
 
@@ -233,6 +245,8 @@ async function saveItemEdit() {
       category,
       petAction: petAction || null,
       statGain: petAction ? Number(statGain) : 0,
+      // ตั้งพันธุ์ได้เฉพาะหมวดสัตว์เลี้ยง ย้ายไปหมวดอื่นแล้วล้างพันธุ์ทิ้ง
+      petBreed: category === "สัตว์เลี้ยง" ? document.getElementById("editItemPetBreed").value || null : null,
     };
     if (category === "คูปอง") {
       payload.discountBaht = Number(document.getElementById("editItemDiscount").value) || 0;
@@ -287,6 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!getAdminToken()) return; // adminAuth.js จะเด้งไป login ให้แล้ว
 
   loadProducts();
+  loadDogSale();
 
   document.getElementById("editItemModal").addEventListener("click", function (e) {
     if (e.target === this) closeEditModal();
@@ -299,3 +314,46 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+// ─── เปิด/ปิดการขายน้องหมาตัวใหม่ ──────────────────────────────
+let dogSaleEnabled = true;
+
+function renderDogSale() {
+  const btn = document.getElementById("dogSaleBtn");
+  if (!btn) return;
+  btn.disabled = false;
+  btn.classList.toggle("is-off", !dogSaleEnabled);
+  btn.textContent = dogSaleEnabled ? "🐶 เปิดขายน้องหมาอยู่" : "🐶 ปิดขายน้องหมาอยู่";
+  btn.title = dogSaleEnabled ? "กดเพื่อปิดการขายน้องหมาตัวใหม่" : "กดเพื่อเปิดการขายน้องหมาตัวใหม่";
+}
+
+async function loadDogSale() {
+  try {
+    ({ enabled: dogSaleEnabled } = await adminApiFetch("/admin/dog-sale"));
+    renderDogSale();
+  } catch (err) {
+    console.error("โหลดสถานะการขายน้องหมาไม่สำเร็จ:", err);
+  }
+}
+
+async function toggleDogSale() {
+  const next = !dogSaleEnabled;
+  const ok = await adminConfirm(
+    next
+      ? "เปิดขายน้องหมาตัวใหม่? ผู้ใช้จะใช้คอยน์ซื้อน้องหมาพันธุ์อื่นเพิ่มได้"
+      : "ปิดขายน้องหมาตัวใหม่? ผู้ใช้จะซื้อเพิ่มไม่ได้ (ตัวที่ซื้อไปแล้วยังอยู่และสลับเลี้ยงได้ตามเดิม)",
+    { title: next ? "เปิดขายน้องหมา" : "ปิดขายน้องหมา" }
+  );
+  if (!ok) return;
+  const btn = document.getElementById("dogSaleBtn");
+  btn.disabled = true;
+  try {
+    ({ enabled: dogSaleEnabled } = await adminApiFetch("/admin/dog-sale", {
+      method: "PUT",
+      body: JSON.stringify({ enabled: next }),
+    }));
+  } catch (err) {
+    alert(err.message);
+  }
+  renderDogSale();
+}

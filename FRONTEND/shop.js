@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    await Promise.all([loadUserCoins(), loadCurrentPet()]);
+    await loadUserCoins();
     await loadProducts();
   } catch (err) {
     console.error("โหลดข้อมูลร้านค้าไม่สำเร็จ:", err);
@@ -85,29 +85,14 @@ async function loadUserCoins() {
   updateCoinDisplay(user.coins);
 }
 
-// ================== สัตว์เลี้ยงปัจจุบัน (ใช้เช็คว่าพันธุ์นี้มีอยู่แล้วในร้าน) ==================
+// ================== น้องหมาตัวใหม่ (สินค้าที่มี pet_breed) ==================
+// ซื้อแล้วได้น้องหมาเข้าบ้าน ไปสลับมาเลี้ยงที่หน้าน้องหมา · พันธุ์ละ 1 ตัว · แอดมินปิดการขายได้
 
-let currentPetBreed = null;
+let ownedBreeds = new Set(); // พันธุ์ที่มีแล้ว (ตัวที่เลี้ยงอยู่ + ตัวในบ้าน) จาก /shop/products
+let dogSaleEnabled = true;
 
-async function loadCurrentPet() {
-  try {
-    const { pet } = await apiFetch("/pet");
-    currentPetBreed = pet ? pet.breed : null;
-  } catch {
-    currentPetBreed = null;
-  }
-}
-
-// จับคู่ชื่อสินค้า → รหัสพันธุ์ที่ backend ใช้ (golden/shiba/siberian/thairidgeback)
-// admin ตั้งชื่อสินค้าเองใน adminshop เลยใช้ substring match — ครอบคลุมทั้งไทย/อังกฤษ
-function getBreedFromProductName(name) {
-  if (!name) return null;
-  const s = name.toLowerCase();
-  if (s.includes("ชิบะ") || s.includes("shiba")) return "shiba";
-  if (s.includes("โกลเด้น") || s.includes("golden")) return "golden";
-  if (s.includes("ไซบีเรียน") || s.includes("ฮัสกี้") || s.includes("husky") || s.includes("siberian")) return "siberian";
-  if (s.includes("ไทยหลังอาน") || s.includes("หลังอาน") || s.includes("ridgeback") || s.includes("thai")) return "thairidgeback";
-  return null;
+function isDogProduct(p) {
+  return !!(p && p.pet_breed);
 }
 
 function updateCoinDisplay(coins) {
@@ -129,6 +114,8 @@ async function loadProducts() {
   couponProgress = data.couponProgress || couponProgress;
   redeemedCouponIds = new Set(data.redeemedCouponIds || []);
   univVerified = !!data.univVerified;
+  ownedBreeds = new Set(data.ownedBreeds || []);
+  dogSaleEnabled = data.dogSaleEnabled !== false;
   updateCouponToolbar();
   // เริ่มที่ tab "ทั้งหมด" (filterItems จะกรองคูปองออก + toggle banner ให้เอง) หรือ tab เดิมตอนโหลดใหม่หลังแลก
   filterItems(currentTab);
@@ -184,17 +171,19 @@ function renderProducts(items) {
       const safeName = escapeHtml(p.name);
       const safeId = escapeHtml(p.id);
       const tagHTML = p.tag ? `<span class="product-tag">${escapeHtml(p.tag)}</span>` : "";
-      // ถ้าสินค้าเป็นพันธุ์ที่ user มีอยู่แล้ว → โชว์ป้าย "มีอยู่แล้ว" แทนราคา
+      // น้องหมาพันธุ์ที่มีอยู่แล้ว → ป้าย "มีอยู่แล้ว" แทนราคา | แอดมินปิดการขาย → "ยังไม่เปิดขาย"
       // การ์ดคลิกไม่ได้ (ปิด showDetail) กันไม่ให้ซื้อซ้ำโดยไม่ตั้งใจ
-      const productBreed = getBreedFromProductName(p.name);
-      const isOwnedBreed = productBreed && productBreed === currentPetBreed;
+      const isOwnedBreed = isDogProduct(p) && ownedBreeds.has(p.pet_breed);
+      const isDogOffSale = isDogProduct(p) && !isOwnedBreed && !dogSaleEnabled;
       const footerHTML = isOwnedBreed
         ? `<div class="owned-badge">✓ มีอยู่แล้ว</div>`
+        : isDogOffSale
+        ? `<div class="owned-badge off-sale">ยังไม่เปิดขาย</div>`
         : `<div class="buy-now-action">
              <img src="img/coin_ja.png" alt="เหรียญ" class="coin-icon-img">
              <span class="price-val">${p.price}</span>
            </div>`;
-      const cardClickAttr = isOwnedBreed ? "" : `onclick="showDetail('${safeId}')"`;
+      const cardClickAttr = isOwnedBreed || isDogOffSale ? "" : `onclick="showDetail('${safeId}')"`;
       // สินค้าหมวด "คูปอง" render เป็น banner ใหญ่ 1 แถวต่อชิ้น
       // คลิก → เปิด modal แสดง เงื่อนไข + ปุ่มแลก (ถ้าอ่านครบ)
       const isCoupon = p.category === "คูปอง";
@@ -248,7 +237,7 @@ function renderProducts(items) {
         `;
       }
       const cardClass = ["product-card"];
-      if (isOwnedBreed) cardClass.push("owned");
+      if (isOwnedBreed || isDogOffSale) cardClass.push("owned");
       return `
         <div class="${cardClass.join(" ")}" ${cardClickAttr}>
           ${tagHTML}
@@ -373,9 +362,14 @@ function showDetail(id) {
   }
   setModalQty(1);
 
-  // คูปองส่วนลดแลกได้ทีละ 1 ใบ และไม่ผ่านตะกร้า — ซ่อนช่องจำนวนกับปุ่มเพิ่มลงตะกร้า
+  // คูปองส่วนลด / น้องหมาตัวใหม่ ซื้อได้ทีละ 1 และไม่ผ่านตะกร้า — ซ่อนช่องจำนวนกับปุ่มเพิ่มลงตะกร้า
   const realCoupon = isRealCoupon(product);
-  const hideCart = realCoupon || isUnsetCoupon(product);
+  const dog = isDogProduct(product);
+  const hideCart = realCoupon || isUnsetCoupon(product) || dog;
+  const petNameRow = document.getElementById("modalPetNameRow");
+  if (petNameRow) petNameRow.hidden = !dog;
+  const petNameInput = document.getElementById("modalPetName");
+  if (petNameInput) petNameInput.value = "";
   const qtyRow = document.getElementById("modalQtyRow");
   if (qtyRow) qtyRow.style.display = hideCart ? "none" : "";
   const cartBtn = document.getElementById("modalAddToCartBtn");
@@ -430,14 +424,25 @@ async function buyNow() {
     return;
   }
 
-  const quantity = realCoupon ? 1 : getModalQty();
+  // น้องหมาตัวใหม่: ต้องตั้งชื่อก่อน
+  let petName;
+  if (isDogProduct(tempItem)) {
+    petName = (document.getElementById("modalPetName")?.value || "").trim();
+    if (!petName) {
+      alert("อย่าลืมตั้งชื่อให้น้องหมาตัวใหม่ด้วยนะ");
+      document.getElementById("modalPetName")?.focus();
+      return;
+    }
+  }
+
+  const quantity = realCoupon || petName ? 1 : getModalQty();
   const buyBtn = document.querySelector(".buy-now-btn");
   if (buyBtn) buyBtn.disabled = true; // กันกดรัวจนซื้อซ้ำเกินที่ตั้งใจ
 
   try {
     const result = await apiFetch("/shop/buy", {
       method: "POST",
-      body: JSON.stringify({ productId: tempItem.id, quantity }),
+      body: JSON.stringify({ productId: tempItem.id, quantity, petName }),
     });
 
     updateCoinDisplay(result.coins);
@@ -447,6 +452,7 @@ async function buyNow() {
       await loadProducts();
       openMyCoupons();
     }
+    if (result.newPet) await loadProducts(); // การ์ดพันธุ์นี้เปลี่ยนเป็น "มีอยู่แล้ว"
   } catch (err) {
     if (err.data && err.data.code === "UNIV_EMAIL_REQUIRED") {
       closeModal("productModal");
@@ -463,7 +469,8 @@ async function buyNow() {
 
 function addToCart() {
   if (!tempItem) return;
-  if (isRealCoupon(tempItem) || isUnsetCoupon(tempItem)) return; // คูปองแลกผ่านปุ่มแลกเท่านั้น
+  // คูปองแลกผ่านปุ่มแลกเท่านั้น · น้องหมาต้องตั้งชื่อตอนซื้อ เลยไม่ผ่านตะกร้า
+  if (isRealCoupon(tempItem) || isUnsetCoupon(tempItem) || isDogProduct(tempItem)) return;
 
   const quantity = getModalQty();
   const found = cart.find((item) => item.id === tempItem.id);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
-    <link rel="stylesheet" href="adminstyle.css?v=20261027d">
+    <link rel="stylesheet" href="adminstyle.css?v=20261027e">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet"> 
 </head>
 <body>
@@ -63,7 +63,11 @@
     <main class="main-content">
         <header class="header-action">
             <h2>จัดการร้านค้า</h2>
-            <button id="openAddProductBtn" class="add-btn" onclick="openAddModal()">+ เพิ่มสินค้า</button>
+            <div class="header-buttons">
+                <!-- เปิด/ปิดการขายน้องหมาตัวใหม่ (สินค้าที่ตั้งพันธุ์ไว้) เช่น ปิดไว้ระหว่างเก็บข้อมูลวิจัย -->
+                <button type="button" id="dogSaleBtn" class="dog-sale-btn" onclick="toggleDogSale()" disabled>กำลังโหลด...</button>
+                <button id="openAddProductBtn" class="add-btn" onclick="openAddModal()">+ เพิ่มสินค้า</button>
+            </div>
         </header>
 
         <div class="filter-container">
@@ -119,6 +123,19 @@
                         <option value="สัตว์เลี้ยง">สัตว์เลี้ยง</option>
                         <option value="คูปอง">คูปอง</option>
                     </select>
+                </div>
+
+                <!-- เฉพาะหมวดสัตว์เลี้ยง: ตั้งพันธุ์ = สินค้านี้คือน้องหมาตัวใหม่ (ซื้อแล้วได้น้องหมาเข้าบ้าน ไม่เข้ากระเป๋า) -->
+                <div class="edit-form-group" id="petBreedGroup" style="display:none;">
+                    <label class="edit-form-label" for="editItemPetBreed">เป็นน้องหมาตัวใหม่พันธุ์ :</label>
+                    <select class="edit-form-input" id="editItemPetBreed">
+                        <option value="">ไม่ใช่ (เป็นของสะสม)</option>
+                        <option value="golden">โกลเด้น</option>
+                        <option value="shiba">ชิบะ</option>
+                        <option value="siberian">ไซบีเรียนฮัสกี้</option>
+                        <option value="thairidgeback">ไทยหลังอาน</option>
+                    </select>
+                    <p class="edit-form-hint">ผู้ใช้ซื้อแล้วตั้งชื่อ ได้น้องหมาพันธุ์นี้เข้าบ้าน (พันธุ์ละ 1 ตัว) แล้วสลับมาเลี้ยงที่หน้าน้องหมา</p>
                 </div>
 
                 <div class="edit-form-row">
@@ -189,6 +206,6 @@
 
 <script src="config.js?v=20261024b"></script>
 <script src="adminAuth.js?v=20261027"></script>
-<script src="adminshop.js?v=20261027"></script>
+<script src="adminshop.js?v=20261027b"></script>
 </body>
 </html>

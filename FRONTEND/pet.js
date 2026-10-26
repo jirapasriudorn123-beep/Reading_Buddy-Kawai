@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       // ข้อมูลวิจัย: นับการเข้ามาหาน้องหมา (server นับไม่เกิน 1 ครั้งต่อ 30 นาที) ไม่สำเร็จก็ไม่เป็นไร
       apiFetch("/pet/visit", { method: "POST" }).catch(() => {});
       await loadInventory(); // ของในกระเป๋ามาจากที่ซื้อไว้จริงในร้าน
+      loadMyDogs().catch(() => {}); // นับตัวในบ้านไว้โชว์บนปุ่ม "น้องหมาของฉัน"
       // รีเฟรชสถานะทุก 1 นาที เผื่อเปิดหน้าค้างไว้เฉยๆ จะได้เห็นค่าที่ลดลงตามเวลาจริงโดยไม่ต้องกดอะไร
       setInterval(refreshPetStats, 60000);
     }
@@ -148,6 +149,13 @@ async function saveAndStart() {
 // ================== หน้า Pet.html ==================
 
 const BREED_EMOJI = { golden: "🦮", shiba: "🐕", siberian: "🐺", thairidgeback: "🐶" };
+const BREED_LABEL = { golden: "โกลเด้น", shiba: "ชิบะ", siberian: "ไซบีเรียนฮัสกี้", thairidgeback: "ไทยหลังอาน" };
+const BREED_LOGO = {
+  golden: "img/game/Logo_golden.png",
+  shiba: "img/game/Logo_shiba.png",
+  siberian: "img/game/Logo_Siberian.png",
+  thairidgeback: "img/game/Logo_thairidgeback.png",
+};
 
 // ท่าทางของแต่ละพันธุ์ (ไฟล์ไหนยังไม่มีก็ไม่ต้องใส่ ระบบจะข้ามไปใช้ idle/อิโมจิสำรองแทนเอง)
 //   idle      = Jumping ตัดแค่ 2 วิแรกก่อนโดด
@@ -243,6 +251,8 @@ function getPoseFrames(breed, poseKey) {
 function renderPetPage(pet) {
   const petNameDisplay = document.getElementById("petName");
   if (petNameDisplay) petNameDisplay.innerText = pet.name;
+  const myDogsIcon = document.getElementById("myDogsIcon");
+  if (myDogsIcon && BREED_LOGO[pet.breed]) myDogsIcon.src = BREED_LOGO[pet.breed];
 
   setPetImage(pet.breed);
   updatePetUI(pet);
@@ -251,6 +261,74 @@ function renderPetPage(pet) {
   refreshPetMood();
   showSpeech(moodSpeech(currentStreak), 4500);
   if (allStatsFull(pet)) showPetPose("glow", 4000);
+}
+
+// ================== น้องหมาของฉัน: ดูทุกตัว + สลับตัวที่เลี้ยง ==================
+// ตัวที่เลี้ยงอยู่มีตัวเดียว ตัวอื่นพักอยู่ในบ้าน (ค่าไม่ลด) — GET /pet/all, POST /pet/switch
+
+let myDogs = { active: null, others: [] };
+
+async function loadMyDogs() {
+  myDogs = await apiFetch("/pet/all");
+  const count = document.getElementById("myDogsCount");
+  if (count) {
+    count.textContent = String(myDogs.others.length + 1);
+    count.hidden = myDogs.others.length === 0;
+  }
+  renderMyDogs();
+}
+
+function myDogRow(dog, isActive) {
+  const logo = BREED_LOGO[dog.breed];
+  const pic = logo
+    ? `<img src="${logo}" alt="" class="my-dog-pic">`
+    : `<span class="my-dog-pic my-dog-emoji">${BREED_EMOJI[dog.breed] || "🐶"}</span>`;
+  const action = isActive
+    ? `<span class="my-dog-current">กำลังเลี้ยงอยู่</span>`
+    : `<button type="button" class="my-dog-pick" onclick="switchDog(${Number(dog.id)}, this)">เลือกตัวนี้</button>`;
+  return `<li class="${isActive ? "is-active" : ""}">
+      ${pic}
+      <div class="my-dog-info">
+        <strong>${escapeHtml(dog.name)}</strong>
+        <span>${escapeHtml(BREED_LABEL[dog.breed] || dog.breed)} · เลเวล ${Number(dog.level) || 1}</span>
+      </div>
+      ${action}
+    </li>`;
+}
+
+function renderMyDogs() {
+  const list = document.getElementById("myDogsList");
+  if (!list || !myDogs.active) return;
+  list.innerHTML = [myDogRow(myDogs.active, true), ...myDogs.others.map((d) => myDogRow(d, false))].join("");
+}
+
+async function openMyDogs() {
+  toggleModal("myDogsModal", true);
+  try {
+    await loadMyDogs();
+  } catch (err) {
+    console.error("โหลดน้องหมาของฉันไม่สำเร็จ:", err);
+  }
+}
+
+async function switchDog(stableId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const result = await apiFetch("/pet/switch", {
+      method: "POST",
+      body: JSON.stringify({ stableId }),
+    });
+    currentPet = result.pet;
+    currentStreak = result.streak || currentStreak;
+    myDogs = { active: result.pet, others: result.others || [] };
+    renderMyDogs();
+    renderPetPage(currentPet);
+    toggleModal("myDogsModal", false);
+    showSpeech(`สวัสดีครับเจ้านาย ${currentPet.name} มาแล้ว!`, 3500);
+  } catch (err) {
+    alert("❌ " + err.message);
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ================== ความต่อเนื่องในการอ่าน (streak) → อารมณ์น้องหมา ==================

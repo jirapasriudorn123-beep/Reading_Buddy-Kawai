@@ -84,7 +84,16 @@ async function loadRaw() {
   const [users, pets, chapters, sessions, tests, testAnswers, chats, petLog, battles, answers, purchases, coupons, pageTime, reviewItems, reviewLog] =
     await Promise.all([
       db.prepare(`SELECT id, username, created_at, coins FROM users WHERE ${PARTICIPANT_SQL} ORDER BY id`).all(),
-      db.prepare(`SELECT user_id, care_points, happiness FROM pets WHERE ${nonAdmin}`).all(),
+      // pet_level = เลเวลสูงสุดในน้องหมาทุกตัวของคน (ตัวที่เลี้ยงอยู่ + ตัวในคอก) สลับตัวแล้วเลเวลจะได้ไม่ตกตาม
+      // pet_happiness_now = ตัวที่เลี้ยงอยู่
+      db
+        .prepare(
+          `SELECT p.user_id, MAX(p.care_points, COALESCE(s.best, 0)) care_points, p.happiness
+           FROM pets p LEFT JOIN (SELECT user_id, MAX(care_points) best FROM pet_stable GROUP BY user_id) s
+             ON s.user_id = p.user_id
+           WHERE p.${nonAdmin}`
+        )
+        .all(),
       db.prepare("SELECT id, chapter_number FROM chapters").all(),
       db
         .prepare(

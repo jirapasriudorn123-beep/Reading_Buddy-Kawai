@@ -4854,3 +4854,30 @@ html.dark-mode body .quiz-result-line.is-wrong {
     font-size: 14px;
     color: #777;
 }
+
+/* ช่องตั้งชื่อน้องหมาตัวใหม่ในป๊อปอัพสินค้า (ร้านค้า) */
+.modal-pet-name-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.modal-pet-name-row[hidden] {
+    display: none;
+}
+
+.modal-pet-name-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 14px;
+    border: 2px solid #d6cdb4;
+    border-radius: 999px;
+    font-family: 'Kanit', sans-serif;
+    font-size: 15px;
+    outline: none;
+}
+
+.modal-pet-name-row input:focus {
+    border-color: #8db754;
+}

@@ -3,6 +3,13 @@ const db = require("../db/database");
 const { requireAuth } = require("../middleware/auth");
 const { redeemCoupon, isRealCoupon, isUnsetCoupon } = require("./coupons");
 const { passedChapterCount, clearedWorldCount } = require("../services/chapterTests");
+const {
+  VALID_BREEDS,
+  isDogSaleEnabled,
+  ownedBreeds,
+  validatePetName,
+  addToStable,
+} = require("../services/petStable");
 
 const router = express.Router();
 
@@ -23,11 +30,13 @@ function couponUnlocked(product, progress) {
 // คืน products + ความคืบหน้าเงื่อนไขคูปองของ user ให้ frontend โชว์ว่าปลดล็อคคูปองไหนแล้ว
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
-    const [products, progress, couponRows, user] = await Promise.all([
+    const [products, progress, couponRows, user, breeds, dogSaleEnabled] = await Promise.all([
       db.prepare("SELECT * FROM products ORDER BY category, name").all(),
       couponProgress(req.user.id),
       db.prepare("SELECT product_id FROM user_coupons WHERE user_id = ?").all(req.user.id),
       db.prepare("SELECT univ_verified_at FROM users WHERE id = ?").get(req.user.id),
+      ownedBreeds(req.user.id),
+      isDogSaleEnabled(),
     ]);
     return res.json({
       products,
@@ -35,6 +44,9 @@ router.get("/products", requireAuth, async (req, res, next) => {
       // คูปองแบบที่แลกไปแล้ว (แต่ละแบบแลกได้ครั้งเดียว) + ยืนยันอีเมลมหาวิทยาลัยแล้วหรือยัง
       redeemedCouponIds: couponRows.map((r) => r.product_id),
       univVerified: !!(user && user.univ_verified_at),
+      // น้องหมาตัวใหม่: พันธุ์ที่มีแล้ว (ซื้อซ้ำไม่ได้) + แอดมินเปิดขายอยู่ไหม
+      ownedBreeds: breeds,
+      dogSaleEnabled,
     });
   } catch (err) {
     next(err);
@@ -100,6 +112,11 @@ router.post("/buy", requireAuth, async (req, res) => {
       return await redeemCoupon(req, res, product, quantity);
     }
 
+    // น้องหมาตัวใหม่: ไม่เข้ากระเป๋า แต่เข้าคอก (ไปสลับมาเลี้ยงได้ที่หน้าน้องหมา)
+    if (product.pet_breed) {
+      return await buyDog(req, res, product);
+    }
+
     const totalPrice = product.price * quantity;
 
     // เช็คยอดเหรียญปัจจุบัน (ถ้าสินค้าฟรี totalPrice = 0 → เช็คนี้ผ่านเสมอ)
@@ -163,5 +180,68 @@ router.post("/buy", requireAuth, async (req, res) => {
     return res.status(500).json({ message: "เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์" });
   }
 });
+
+// ---------- ซื้อน้องหมาตัวใหม่ ----------
+// ต้องมีตัวแรกแล้ว · พันธุ์ละ 1 ตัว · ซื้อทีละ 1 ตัว · ตั้งชื่อตอนซื้อ (req.body.petName)
+async function buyDog(req, res, product) {
+  if (!VALID_BREEDS.includes(product.pet_breed)) {
+    return res.status(400).json({ message: "สินค้านี้ตั้งพันธุ์สุนัขไว้ไม่ถูกต้อง แจ้งแอดมินด้วยนะ" });
+  }
+  if (!(await isDogSaleEnabled())) {
+    return res.status(400).json({ message: "ตอนนี้ยังไม่เปิดขายน้องหมาตัวใหม่" });
+  }
+  const { name, error } = validatePetName(req.body.petName);
+  if (error) return res.status(400).json({ message: error });
+
+  const hasFirstPet = await db.prepare("SELECT 1 FROM pets WHERE user_id = ?").get(req.user.id);
+  if (!hasFirstPet) {
+    return res.status(400).json({ message: "เลือกน้องหมาตัวแรกที่หน้าน้องหมาก่อนนะ" });
+  }
+
+  try {
+    await db.tx(async (t) => {
+      if ((await ownedBreeds(req.user.id, t)).includes(product.pet_breed)) {
+        const err = new Error("BREED_OWNED");
+        err.code = "BREED_OWNED";
+        throw err;
+      }
+      if (product.price > 0) {
+        const update = await t
+          .prepare("UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?")
+          .run(product.price, req.user.id, product.price);
+        if (update.changes === 0) {
+          const err = new Error("INSUFFICIENT_COINS");
+          err.code = "INSUFFICIENT_COINS";
+          throw err;
+        }
+      }
+      await addToStable(t, req.user.id, product.pet_breed, name);
+      await t
+        .prepare("INSERT INTO purchase_log (user_id, product_name, price) VALUES (?, ?, ?)")
+        .run(req.user.id, product.name, product.price);
+    });
+  } catch (txErr) {
+    if (txErr.code === "BREED_OWNED") {
+      return res.status(400).json({ message: "คุณมีน้องหมาพันธุ์นี้อยู่แล้ว" });
+    }
+    if (txErr.code === "INSUFFICIENT_COINS") {
+      const nowUser = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+      return res.status(400).json({
+        message: `เหรียญไม่พอ — ต้องใช้ ${product.price} เหรียญ แต่คุณมี ${nowUser?.coins ?? 0} เหรียญ`,
+      });
+    }
+    throw txErr;
+  }
+
+  const updatedUser = await db.prepare("SELECT coins FROM users WHERE id = ?").get(req.user.id);
+  return res.json({
+    message: `🎉 ได้${name}มาแล้ว! ไปเลือกมาเลี้ยงได้ที่หน้าน้องหมา → "น้องหมาของฉัน"`,
+    coins: updatedUser.coins,
+    quantity: 1,
+    totalPrice: product.price,
+    product: { id: product.id, name: product.name, img: product.img },
+    newPet: { breed: product.pet_breed, name },
+  });
+}
 
 module.exports = router;

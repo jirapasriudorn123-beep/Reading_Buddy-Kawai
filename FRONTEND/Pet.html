@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard</title>
     <link rel="stylesheet" href="style.css?v=20261025f">
-    <link rel="stylesheet" href="pet-style.css?v=20261021">
+    <link rel="stylesheet" href="pet-style.css?v=20261027b">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="cursor.css?v=20260926">
     <link rel="stylesheet" href="notifications.css?v=20261024e">
@@ -108,6 +108,11 @@
             <div class="inventory-trigger" style="cursor: pointer;" onclick="window.location.href='game.html'">
                 <img src="img/joygame.png" alt="เข้าเกม" width="50">
             </div>
+            <!-- น้องหมาของฉัน: ดูทุกตัวที่มี + สลับตัวที่เลี้ยง (ซื้อตัวใหม่ได้ที่ร้านค้า หมวดสัตว์เลี้ยง) -->
+            <button type="button" class="inventory-trigger my-dogs-trigger" onclick="openMyDogs()" title="น้องหมาของฉัน" aria-label="น้องหมาของฉัน">
+                <img id="myDogsIcon" src="img/game/Logo_golden.png" alt="" width="50">
+                <span class="my-dogs-count" id="myDogsCount" hidden>0</span>
+            </button>
             <div class="inventory-trigger" style="cursor: pointer; margin-top: 10px;" onclick="openBag('clothing')" title="กระเป๋าเสื้อผ้า">
                 <img src="img/bag.png" alt="กระเป๋าเสื้อผ้า" width="50" onerror="this.replaceWith(Object.assign(document.createElement('span'), { textContent: '👜', style: 'font-size:36px;' }))">
             </div>
@@ -168,6 +173,16 @@
         <div id="inventoryGrid" class="inventory-grid"></div>
     </div>
 
+    <div id="myDogsModal" class="modal-overlay" onclick="toggleModal('myDogsModal', false)">
+        <div class="modal-content my-dogs-modal" onclick="event.stopPropagation()" role="dialog" aria-labelledby="myDogsTitle">
+            <button class="modal-close-btn" onclick="toggleModal('myDogsModal', false)">✕</button>
+            <h2 class="modal-title" id="myDogsTitle">น้องหมาของฉัน</h2>
+            <p class="my-dogs-hint">เลือกตัวที่อยากเลี้ยงตอนนี้ ตัวที่ไม่ได้เลี้ยงจะพักอยู่ในบ้าน ค่าต่างๆ ไม่ลดลงจนกว่าจะกลับมาเลี้ยง</p>
+            <ul class="my-dogs-list" id="myDogsList"></ul>
+            <a class="my-dogs-shop" href="Shop.html">ซื้อน้องหมาตัวใหม่ที่ร้านค้า →</a>
+        </div>
+    </div>
+
     <div id="helpModal" class="modal-overlay" onclick="toggleModal('helpModal', false)">
         <div class="modal-content help-modal-content" onclick="event.stopPropagation()">
             <button class="modal-close-btn" onclick="toggleModal('helpModal', false)">✕</button>
@@ -206,7 +221,7 @@
 <script src="notifications.js?v=5"></script>
 <script src="teacher-inbox.js?v=20261024d"></script>
 <script src="tour.js?v=20261027"></script>
-<script src="pet.js?v=20261021c"></script>
+<script src="pet.js?v=20261027"></script>
 <script src="theme.js"></script>
 <script src="chat.js?v=20261024b"></script>
     <script src="cursor.js"></script>

@@ -355,6 +355,24 @@ async function initDatabase() {
   if (!productColumns.includes("discount_baht")) {
     await client.execute("ALTER TABLE products ADD COLUMN discount_baht INTEGER NOT NULL DEFAULT 0");
   }
+  // สินค้าที่เป็นน้องหมาตัวใหม่: พันธุ์อะไร (golden / shiba / siberian / thairidgeback) — NULL = สินค้าทั่วไป
+  // ตอนเพิ่มคอลัมน์ครั้งแรก เดาพันธุ์จากชื่อสินค้าหมวด "สัตว์เลี้ยง" ที่แอดมินตั้งไว้ (แบบเดียวกับที่หน้าร้านค้าเคยเดา)
+  if (!productColumns.includes("pet_breed")) {
+    await client.execute("ALTER TABLE products ADD COLUMN pet_breed TEXT");
+    await client.batch(
+      [
+        ["golden", ["%โกลเด้น%", "%golden%"]],
+        ["shiba", ["%ชิบะ%", "%shiba%"]],
+        ["siberian", ["%ไซบีเรียน%", "%ฮัสกี้%", "%husky%", "%siberian%"]],
+        ["thairidgeback", ["%หลังอาน%", "%ridgeback%"]],
+      ].map(([breed, patterns]) => ({
+        sql: `UPDATE products SET pet_breed = ? WHERE category = 'สัตว์เลี้ยง' AND pet_breed IS NULL
+              AND (${patterns.map(() => "lower(name) LIKE ?").join(" OR ")})`,
+        args: [breed, ...patterns],
+      })),
+      "write"
+    );
+  }
 
   // คูปองส่วนลด 5 แบบตามรูปใน FRONTEND/img/cupo (20, 20, 30, 30, 50 บาท = 500 / 700 / 1,000 คอยน์)
   // ใส่ให้เฉพาะตอนยังไม่มีคูปองจริงในร้านเลย (bone-discount เป็นของเก่าที่อยู่หมวดคูปองแต่ไม่ใช่คูปองส่วนลด)
@@ -758,6 +776,34 @@ await client.execute(`
       product_id TEXT,
       amount INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ดูแลน้องหมาตัวไหน (พันธุ์) — มีได้หลายตัวแล้ว แถวเก่าก่อนมีคอลัมน์นี้เป็น NULL = ตัวแรกของผู้ใช้
+  const petLogColumns = (await client.execute("PRAGMA table_info(pet_action_log)")).rows.map((c) => c.name);
+  if (!petLogColumns.includes("breed")) {
+    await client.execute("ALTER TABLE pet_action_log ADD COLUMN breed TEXT");
+  }
+
+  // ---- ตาราง pet_stable (คอกน้องหมา: ตัวที่ซื้อเพิ่มแต่ไม่ได้เลือกอยู่ตอนนี้) ----
+  // ตัวที่เลือกอยู่ยังอยู่ในตาราง pets (1 แถวต่อคน) — สลับตัว = ย้ายข้อมูลระหว่าง pets กับตารางนี้
+  // ค่าสถานะของตัวในคอกหยุดไว้ (ไม่ลดลง) พอสลับกลับมาเริ่มนับใหม่จากตอนนั้น | พันธุ์ละ 1 ตัวต่อคน
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS pet_stable (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      breed TEXT NOT NULL,
+      name TEXT NOT NULL,
+      hunger INTEGER NOT NULL DEFAULT 100,
+      cleanliness INTEGER NOT NULL DEFAULT 100,
+      happiness INTEGER NOT NULL DEFAULT 100,
+      energy INTEGER NOT NULL DEFAULT 100,
+      growth_stage TEXT NOT NULL DEFAULT 'baby',
+      care_points INTEGER NOT NULL DEFAULT 1,
+      level_progress INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      stored_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (user_id, breed)
     )
   `);
 

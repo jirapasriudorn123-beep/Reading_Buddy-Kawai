@@ -153,7 +153,11 @@ function renderGameAndPet(game, pet, ai) {
     : '<p class="ad-empty">ยังไม่มีโลกในเกม</p>';
 
   document.getElementById("udPet").textContent = pet
-    ? `${pet.name} · เลเวล ${pet.level} · ความสุข ${pet.happiness}% · ดูแลฟรี ${num(pet.careFree)} ครั้ง · ใช้ไอเทม ${num(pet.careItem)} ครั้ง`
+    ? `${pet.name} · เลเวล ${pet.level} · ความสุข ${pet.happiness}% · ดูแลฟรี ${num(pet.careFree)} ครั้ง · ใช้ไอเทม ${num(pet.careItem)} ครั้ง` +
+      // น้องหมาตัวอื่นที่ซื้อเพิ่ม (พักอยู่ในบ้าน ไม่ได้เลี้ยงอยู่ตอนนี้)
+      (pet.others && pet.others.length
+        ? ` · ตัวอื่นในบ้าน: ${pet.others.map((o) => `${o.name} (เลเวล ${o.level})`).join(", ")}`
+        : "")
     : "ยังไม่ได้รับน้องหมา";
 
   document.getElementById("udAi").textContent = ai.questions

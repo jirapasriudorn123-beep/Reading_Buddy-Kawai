@@ -436,7 +436,7 @@ router.post("/reset-password", async (req, res) => {
 const USER_DATA_TABLES = [
   "reading_summaries", "review_log", "review_items", "pet_action_log", "chat_history", "coin_adjustments",
   "user_coupons", "univ_email_verifications", "game_stage_clears", "game_stage_rewards", "game_battles",
-  "quiz_answer_log", "chapter_tests", "purchase_log", "game_progress", "inventory", "pets",
+  "quiz_answer_log", "chapter_tests", "purchase_log", "game_progress", "inventory", "pets", "pet_stable",
   "reading_sessions", "reading_goals", "ai_daily_usage", "consent_log",
 ];
 router.post("/delete-account", requireAuth, async (req, res, next) => {
