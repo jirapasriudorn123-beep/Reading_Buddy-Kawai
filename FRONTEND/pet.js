@@ -178,7 +178,7 @@ const PET_POSES = {
     sleep: ["img/pets/thairidgeback/thairidgeback_sleeping.webp"],
     low: ["img/pets/thairidgeback/thairidgeback_sad.webp"],
     reading: ["img/pets/thairidgeback/thairidgeback_reading.webp"],
-    glow: ["img/pets/thairidgeback/thairidgeback_glow.webp"],
+    glow: ["img/pets/thairidgeback/thairidgeback_glow.gif"],
   },
   golden: {
     idle: ["img/pets/golden/09_golden_happy_normal_wag.gif"],
