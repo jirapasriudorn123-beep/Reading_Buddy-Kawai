@@ -869,7 +869,7 @@ function loadWorldScene(file) {
 }
 
 // ================== บทสนทนากับ NPC ==================
-// บทพูดมาจาก GAME_VN_LINES ในไฟล์ game-content.js (แยกเนื้อหาออกจากโค้ด แก้ข้อความได้โดยไม่ต้องแตะไฟล์นี้)
+// บทพูดมาจาก GAME_VN_DIALOGUES ในไฟล์ game-content.js (แยกเนื้อหาออกจากโค้ด แก้ข้อความได้โดยไม่ต้องแตะไฟล์นี้)
 // ระหว่างที่กล่องคำพูดเปิดอยู่ ผู้เล่นจะเดินไม่ได้ ต้องแตะไล่บทพูดให้จบก่อน
 
 let dialogueActive = false;
@@ -951,7 +951,18 @@ function talkToTeacher() {
   playerFacing = playerXPct >= NPC_X_PCT ? -1 : 1;
   if (el) applyPlayerTransform(el);
 
-  startDialogue(GAME_VN_LINES, openStageBarrier);
+  startDialogue(pickTeacherDialogue(), openStageBarrier);
+}
+
+// สุ่มบทพูดมา 1 ชุด ไม่ให้ซ้ำกับชุดที่เพิ่งพูดไปรอบก่อน
+let lastTeacherDialogueIndex = -1;
+
+function pickTeacherDialogue() {
+  const count = GAME_VN_DIALOGUES.length;
+  let index = Math.floor(Math.random() * count);
+  if (count > 1 && index === lastTeacherDialogueIndex) index = (index + 1) % count;
+  lastTeacherDialogueIndex = index;
+  return GAME_VN_DIALOGUES[index];
 }
 
 // แตะที่กล่องคำพูดหรือที่ไหนก็ได้ในฉาก เพื่อไปบทพูดถัดไป
