@@ -220,8 +220,9 @@ const PET_POSES = {
 
 // ตัว Zzz ลอยขึ้นจากหัว สำหรับรูปท่านอนที่เป็นภาพนิ่ง (GIF ของพันธุ์อื่นมี zzz ในตัวอยู่แล้ว)
 // x, y = ตำแหน่งหัวน้องเป็นสัดส่วนของรูปต้นฉบับ (รูปถูกย่อแบบ contain ชิดขอบล่างในกล่อง #petImg)
-// (ตอนนี้ทุกพันธุ์มี zzz ในรูปท่านอนแล้ว ถ้าเพิ่มรูปท่านอนที่ไม่มี zzz ให้ใส่ตำแหน่งหัวไว้ที่นี่)
-const SLEEP_ZZZ_ANCHOR = {};
+const SLEEP_ZZZ_ANCHOR = {
+  "img/pets/thairidgeback/thairidgeback_sleeping.webp": { x: 0.29, y: 0.2 },
+};
 
 function updateSleepZzz(petImg, src) {
   const character = document.getElementById("petCharacter");
