@@ -169,14 +169,15 @@ const BREED_LOGO = {
 //   glow      = ท่าเปล่งแสง: วันที่ streak ครบ 3/7/14/30 วัน (สลับกับท่า idle) และตอนค่าสถานะเต็มทุกช่อง (ขึ้นแป๊บเดียว)
 const PET_POSES = {
   thairidgeback: {
-    feed: ["img/pets/thairidgeback-baby-feed-1.gif", "img/pets/thairidgeback-baby-feed-2.gif"],
-    happiness: ["img/pets/thairidgeback-baby-happiness.gif"],
-    low: ["img/pets/thairidgeback-baby-low.gif"],
-    idle: ["img/pets/thairidgeback-baby-idle.gif"],
-    levelUp: ["img/pets/thairidgeback-baby-levelup.gif"],
-    bath: ["img/pets/thairidgeback-baby-bath.gif"],
-    holdPet: ["img/pets/thairidgeback-baby-holdpet.gif"],
-    sleep: ["img/pets/thairidgeback-baby-sleep.png"],
+    idle: ["img/pets/thairidgeback/thairidgeback_stand.webp"],
+    feed: ["img/pets/thairidgeback/thairidgeback_eating.webp"],
+    happiness: ["img/pets/thairidgeback/thairidgeback_happy.webp"],
+    levelUp: ["img/pets/thairidgeback/thairidgeback_happy.webp"], // ยังไม่มีท่ากระโดด ใช้ท่าดีใจแทน
+    bath: ["img/pets/thairidgeback/thairidgeback_bath.webp"],
+    holdPet: ["img/pets/thairidgeback/thairidgeback_sit.webp"],
+    sleep: ["img/pets/thairidgeback/thairidgeback_sleeping.webp"],
+    low: ["img/pets/thairidgeback/thairidgeback_sad.webp"],
+    reading: ["img/pets/thairidgeback/thairidgeback_reading.webp"],
   },
   golden: {
     idle: ["img/pets/golden/09_golden_happy_normal_wag.gif"],
@@ -218,9 +219,8 @@ const PET_POSES = {
 
 // ตัว Zzz ลอยขึ้นจากหัว สำหรับรูปท่านอนที่เป็นภาพนิ่ง (GIF ของพันธุ์อื่นมี zzz ในตัวอยู่แล้ว)
 // x, y = ตำแหน่งหัวน้องเป็นสัดส่วนของรูปต้นฉบับ (รูปถูกย่อแบบ contain ชิดขอบล่างในกล่อง #petImg)
-const SLEEP_ZZZ_ANCHOR = {
-  "img/pets/thairidgeback-baby-sleep.png": { x: 0.78, y: 0.26 },
-};
+// (ตอนนี้ทุกพันธุ์มี zzz ในรูปท่านอนแล้ว ถ้าเพิ่มรูปท่านอนที่ไม่มี zzz ให้ใส่ตำแหน่งหัวไว้ที่นี่)
+const SLEEP_ZZZ_ANCHOR = {};
 
 function updateSleepZzz(petImg, src) {
   const character = document.getElementById("petCharacter");
