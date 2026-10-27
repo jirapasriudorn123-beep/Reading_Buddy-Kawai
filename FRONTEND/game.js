@@ -1238,7 +1238,7 @@ async function answerQuiz(picked, wrap) {
   if (result.status !== "in_progress") battleReward = result;
 
   setTimeout(() => {
-    if (result.status === "won") return endBattle(true, `ตอบถูกถึงเกณฑ์ ${battleRequiredCorrect} ข้อ ตัวร้ายพ่ายแพ้แล้ว!`);
+    if (result.status === "won") return endBattle(true, `ตอบถูกถึงเกณฑ์ ${battleRequiredCorrect} ข้อ ปีศาจควิซพ่ายแพ้แล้ว!`);
     if (result.status === "lost") {
       return endBattle(false, `ตอบครบทุกข้อแล้ว 👏 แต่ถูกไม่ถึง ${battleRequiredCorrect} ข้อ รอบนี้เลยไม่ผ่าน ลองใหม่อีกครั้งนะ`);
     }
